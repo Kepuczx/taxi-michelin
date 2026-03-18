@@ -1,17 +1,18 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToOne } from 'typeorm';
+import { Vehicle } from '../vehicles/vehicle.entity';  // ← POPRAWIONA ŚCIEŻKA
 
-@Entity('users') // nazwa tabeli w bazie
+@Entity('users')
 export class User {
   @PrimaryGeneratedColumn()
   id: number;
 
   @Column({ length: 50, unique: true })
-  username: string; // login
+  username: string;
 
   @Column({ length: 100, unique: true })
   email: string;
 
-  @Column({ length: 255, nullable: true }) // na razie hasło, potem LDAP
+  @Column({ length: 255, nullable: true })
   password: string;
 
   @Column({ length: 50 })
@@ -33,11 +34,12 @@ export class User {
   @Column({ default: true })
   isActive: boolean;
 
-  // Pole pomocnicze dla przyszłego LDAP
   @Column({ length: 255, nullable: true })
   ldapDn: string;
 
-  // Automatyczne daty
+  @OneToOne(() => Vehicle, vehicle => vehicle.currentDriver)
+  currentVehicle: Vehicle;
+
   @CreateDateColumn()
   createdAt: Date;
 

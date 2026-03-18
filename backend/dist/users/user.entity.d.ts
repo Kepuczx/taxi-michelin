@@ -1,3 +1,4 @@
+import { Vehicle } from '../vehicles/vehicle.entity';
 export declare class User {
     id: number;
     username: string;
@@ -9,6 +10,7 @@ export declare class User {
     role: string;
     isActive: boolean;
     ldapDn: string;
+    currentVehicle: Vehicle;
     createdAt: Date;
     updatedAt: Date;
 }
