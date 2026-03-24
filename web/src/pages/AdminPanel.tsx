@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { userService } from '../services/userService'
-import type { User, NewUser } from '../types/user.types'  // ← DODAJ "type"
+import type { User, NewUser } from '../types/user.types'
 import '../styles/AdminPanel.css'
 
 function AdminPanel() {
-  const [activeSection, setActiveSection] = useState('dashboard')
+  // Zmienione domyślne sekcje na te ze zdjęcia
+  const [activeSection, setActiveSection] = useState('users')
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
@@ -69,195 +70,127 @@ function AdminPanel() {
   }, [activeSection])
 
   return (
-    <div className="admin-panel">
-      {/* Górny pasek */}
-      <header className="admin-header">
-        <h1>🚖 PANEL ADMINISTRATORA</h1>
-        <div>
-          <span>Zalogowany: Admin</span>
-          <button>Wyloguj</button>
-        </div>
-      </header>
+    <div className="admin-page-wrapper">
 
-      {/* Menu */}
-      <nav className="admin-nav">
-        <button onClick={() => setActiveSection('dashboard')}>📊 Dashboard</button>
-        <button onClick={() => setActiveSection('users')}>👥 Użytkownicy</button>
-        <button onClick={() => setActiveSection('drivers')}>👤 Kierowcy</button>
-        <button onClick={() => setActiveSection('vehicles')}>🚗 Pojazdy</button>
-        <button onClick={() => setActiveSection('reservations')}>📅 Rezerwacje</button>
-        <button onClick={() => setActiveSection('reports')}>📈 Raporty</button>
-      </nav>
 
-      {/* Zawartość */}
-      <main className="admin-content">
-        {/* DASHBOARD */}
-        {activeSection === 'dashboard' && (
-          <div className="dashboard">
-            <div className="stats-card">
-              <h3>👥 Użytkownicy</h3>
-              <p className="stat-number">{users.length}</p>
-            </div>
-            <div className="stats-card">
-              <h3>🚗 Pojazdy</h3>
-              <p className="stat-number">0</p>
-            </div>
-            <div className="stats-card">
-              <h3>📅 Rezerwacje</h3>
-              <p className="stat-number">0</p>
-            </div>
+      {/* Główne okno aplikacji */}
+      <div className="admin-main-container">
+        
+        {/* Granatowy pasek z logiem */}
+        <header className="admin-blue-header">
+          <div className="logo-placeholder">
+            <span className="logo-text">MICHELIN</span>
           </div>
-        )}
+        </header>
 
-        {/* UŻYTKOWNICY */}
-        {activeSection === 'users' && (
-          <div className="users-section">
-            <div className="section-header">
-              <h2>👥 Zarządzanie użytkownikami</h2>
-              <button className="btn-primary" onClick={() => setShowForm(!showForm)}>
-                {showForm ? '✕ Anuluj' : '➕ Dodaj użytkownika'}
-              </button>
-            </div>
+        {/* Szary pasek z zakładkami */}
+        <nav className="admin-grey-nav">
+          <button 
+            className={activeSection === 'users' ? 'active' : ''} 
+            onClick={() => setActiveSection('users')}
+          >
+            Zarządzanie użytkownikami
+          </button>
+          <button 
+            className={activeSection === 'fleet' ? 'active' : ''} 
+            onClick={() => setActiveSection('fleet')}
+          >
+            Zarządzanie flotą
+          </button>
+          <button 
+            className={activeSection === 'reports' ? 'active' : ''} 
+            onClick={() => setActiveSection('reports')}
+          >
+            Raporty
+          </button>
+          <button 
+            className={activeSection === 'blocks' ? 'active' : ''} 
+            onClick={() => setActiveSection('blocks')}
+          >
+            Blokady pojazdów
+          </button>
+          <button 
+            className={activeSection === 'stats' ? 'active' : ''} 
+            onClick={() => setActiveSection('stats')}
+          >
+            Statystyki
+          </button>
+        </nav>
 
-            {/* Formularz dodawania */}
-            {showForm && (
-              <form className="user-form" onSubmit={addUser}>
-                <h3>Nowy użytkownik</h3>
-                
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>Username *</label>
-                    <input
-                      type="text"
-                      required
-                      value={newUser.username}
-                      onChange={(e) => setNewUser({...newUser, username: e.target.value})}
-                    />
-                  </div>
+        {/* Białe pole na zawartość */}
+        <main className="admin-content-area">
+          
+          {activeSection === 'users' && (
+            <div className="users-section">
+              <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+                <h2 style={{ margin: 0 }}>Zarządzanie użytkownikami</h2>
+                <button className="btn-primary" onClick={() => setShowForm(!showForm)} style={{ padding: '8px 16px', cursor: 'pointer' }}>
+                  {showForm ? '✕ Anuluj' : 'Dodaj użytkownika'}
+                </button>
+              </div>
 
-                  <div className="form-group">
-                    <label>Email *</label>
-                    <input
-                      type="email"
-                      required
-                      value={newUser.email}
-                      onChange={(e) => setNewUser({...newUser, email: e.target.value})}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Hasło *</label>
-                    <input
-                      type="password"
-                      required
-                      value={newUser.password}
-                      onChange={(e) => setNewUser({...newUser, password: e.target.value})}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Imię *</label>
-                    <input
-                      type="text"
-                      required
-                      value={newUser.firstName}
-                      onChange={(e) => setNewUser({...newUser, firstName: e.target.value})}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Nazwisko *</label>
-                    <input
-                      type="text"
-                      required
-                      value={newUser.lastName}
-                      onChange={(e) => setNewUser({...newUser, lastName: e.target.value})}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Telefon</label>
-                    <input
-                      type="text"
-                      value={newUser.phone}
-                      onChange={(e) => setNewUser({...newUser, phone: e.target.value})}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Rola</label>
-                    <select
-                      value={newUser.role}
-                      onChange={(e) => setNewUser({...newUser, role: e.target.value as any})}
-                    >
+              {showForm && (
+                <form className="user-form" onSubmit={addUser} style={{ marginBottom: '30px', padding: '20px', background: '#f5f5f5', border: '1px solid #ccc' }}>
+                  {/* ... (Tutaj jest ten sam formularz z Twojego kodu, skróciłem w widoku, żeby nie zaśmiecać, 
+                          możesz tu wkleić całą resztę swoich inputów) ... */}
+                  <h3>Nowy użytkownik</h3>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <input type="text" placeholder="Username *" required value={newUser.username} onChange={(e) => setNewUser({...newUser, username: e.target.value})} />
+                    <input type="email" placeholder="Email *" required value={newUser.email} onChange={(e) => setNewUser({...newUser, email: e.target.value})} />
+                    <input type="password" placeholder="Hasło *" required value={newUser.password} onChange={(e) => setNewUser({...newUser, password: e.target.value})} />
+                    <input type="text" placeholder="Imię *" required value={newUser.firstName} onChange={(e) => setNewUser({...newUser, firstName: e.target.value})} />
+                    <input type="text" placeholder="Nazwisko *" required value={newUser.lastName} onChange={(e) => setNewUser({...newUser, lastName: e.target.value})} />
+                    <select value={newUser.role} onChange={(e) => setNewUser({...newUser, role: e.target.value as any})}>
                       <option value="employee">Pracownik</option>
                       <option value="driver">Kierowca</option>
                       <option value="admin">Administrator</option>
                     </select>
                   </div>
-                </div>
+                  <div style={{ marginTop: '15px' }}>
+                    <button type="submit" style={{ marginRight: '10px' }}>Zapisz</button>
+                    <button type="button" onClick={() => setShowForm(false)}>Anuluj</button>
+                  </div>
+                </form>
+              )}
 
-                <div className="form-actions">
-                  <button type="submit" className="btn-primary">Zapisz</button>
-                  <button type="button" onClick={() => setShowForm(false)}>Anuluj</button>
-                </div>
-              </form>
-            )}
-
-            {/* Lista użytkowników */}
-            {loading ? (
-              <p>Ładowanie...</p>
-            ) : (
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Username</th>
-                    <th>Email</th>
-                    <th>Imię</th>
-                    <th>Nazwisko</th>
-                    <th>Rola</th>
-                    <th>Status</th>
-                    <th>Akcje</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map(user => (
-                    <tr key={user.id}>
-                      <td>{user.id}</td>
-                      <td>{user.username}</td>
-                      <td>{user.email}</td>
-                      <td>{user.firstName}</td>
-                      <td>{user.lastName}</td>
-                      <td>
-                        <span className={`role-badge ${user.role}`}>
-                          {user.role === 'admin' ? '👑 Admin' : 
-                           user.role === 'driver' ? '👤 Kierowca' : '👤 Pracownik'}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`status-badge ${user.isActive ? 'active' : 'inactive'}`}>
-                          {user.isActive ? '✅ Aktywny' : '❌ Nieaktywny'}
-                        </span>
-                      </td>
-                      <td>
-                        <button className="btn-icon" title="Edytuj">✏️</button>
-                        <button className="btn-icon" title="Usuń" onClick={() => deleteUser(user.id)}>🗑️</button>
-                      </td>
+              {loading ? (
+                <p>Ładowanie...</p>
+              ) : (
+                <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: '#eee', textAlign: 'left' }}>
+                      <th style={{ padding: '10px', borderBottom: '2px solid #ccc' }}>ID</th>
+                      <th style={{ padding: '10px', borderBottom: '2px solid #ccc' }}>Username</th>
+                      <th style={{ padding: '10px', borderBottom: '2px solid #ccc' }}>Email</th>
+                      <th style={{ padding: '10px', borderBottom: '2px solid #ccc' }}>Rola</th>
+                      <th style={{ padding: '10px', borderBottom: '2px solid #ccc' }}>Akcje</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        )}
+                  </thead>
+                  <tbody>
+                    {users.map(user => (
+                      <tr key={user.id} style={{ borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: '10px' }}>{user.id}</td>
+                        <td style={{ padding: '10px' }}>{user.username}</td>
+                        <td style={{ padding: '10px' }}>{user.email}</td>
+                        <td style={{ padding: '10px' }}>{user.role}</td>
+                        <td style={{ padding: '10px' }}>
+                          <button onClick={() => deleteUser(user.id)}>Usuń</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
 
-        {/* Inne sekcje (na razie puste) */}
-        {activeSection === 'drivers' && <div>Sekcja kierowców w budowie</div>}
-        {activeSection === 'vehicles' && <div>Sekcja pojazdów w budowie</div>}
-        {activeSection === 'reservations' && <div>Sekcja rezerwacji w budowie</div>}
-        {activeSection === 'reports' && <div>Sekcja raportów w budowie</div>}
-      </main>
+          {activeSection === 'fleet' && <div>Sekcja Zarządzanie flotą w budowie...</div>}
+          {activeSection === 'reports' && <div>Sekcja Raporty w budowie...</div>}
+          {activeSection === 'blocks' && <div>Sekcja Blokady pojazdów w budowie...</div>}
+          {activeSection === 'stats' && <div>Sekcja Statystyki w budowie...</div>}
+
+        </main>
+      </div>
     </div>
   )
 }

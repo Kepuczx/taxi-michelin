@@ -1,0 +1,106 @@
+/* src/pages/Login.css */
+
+.login-wrapper {
+    position: relative; 
+    width: 100%; /* 💡 KLUCZOWA ZMIANA: 100% zamiast 100vw eliminuje pasek na dole */
+    min-height: 100vh; /* 💡 KLUCZOWA ZMIANA: min-height zapobiega ucinaniu na małych ekranach */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #e2e6eb; 
+    font-family: Arial, sans-serif;
+    box-sizing: border-box; /* Zapewnia, że paddingi nie psują szerokości */
+}
+
+/* Przycisk Cofnij */
+.back-btn {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: transparent;
+    border: 2px solid #355e96;
+    color: #355e96;
+    padding: 10px 15px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 10;
+    background-color: #ffffff; 
+}
+
+.back-btn:hover {
+    background-color: #355e96;
+    color: white;
+}
+
+/* Karta logowania */
+.login-form-container {
+    background-color: rgb(248, 248, 248);
+    width: 100%;
+    max-width: 600px;
+    padding: 50px 40px;
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    /* Dodałem mały margines na wypadek, gdyby ktoś otworzył stronę na bardzo małym telefonie */
+    margin: 20px; 
+}
+
+.login-header h1 {
+    font-size: 38px;
+    font-weight: 800;
+    color: #355e96; 
+    margin: 0 0 10px 0;
+    font-style: italic; 
+}
+
+.login-header h2 {
+    font-size: 24px;
+    font-weight: 400;
+    color: #355e96; 
+    margin: 0 0 35px 0;
+    font-style: italic;
+}
+
+.input-field {
+    margin-bottom: 20px;
+}
+
+.input-field input {
+    width: 100%;
+    padding: 14px 18px;
+    border: 1px solid #355e96; 
+    border-radius: 8px;
+    font-size: 16px;
+    box-sizing: border-box;
+    background-color: #ffffff;
+    color: #1a1a1a; 
+}
+
+.input-field input::placeholder {
+    color: #355e96; 
+}
+
+.input-field input:focus {
+    outline: none;
+    box-shadow: 0 0 8px rgba(53, 94, 150, 0.4);
+}
+
+.login-submit-btn {
+    width: 100%;
+    padding: 15px;
+    background-color: #001a4d; 
+    color: white;
+    border: none;
+    border-radius: ;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background-color 0.3s;
+}
+
+.login-submit-btn:hover {
+    background-color: #000f33;
+}

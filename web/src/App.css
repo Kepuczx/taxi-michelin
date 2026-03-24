@@ -10,9 +10,12 @@ body {
 }
 
 .app {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
+  width: 100%;
+  max-width: none; 
+  min-height: 100vh;
+  /* padding: GÓRA PRAWO DÓŁ LEWO */
+  padding: 0; /* 💡 Zero na końcu usuwa szary pasek z lewej strony! */
+  box-sizing: border-box;
 }
 
 header {
@@ -73,16 +76,21 @@ h1 {
 
 /* Dashboard */
 .dashboard {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
+  display: flex;
+  flex-wrap: wrap; /* Pozwala kartom przejść do nowej linii, jeśli zabraknie miejsca */
+  gap: 20px;       /* Odstęp między kartami */
+  width: 100%;
 }
 
 .card {
-  background: white;
+  flex: 1;         /* Karty zajmą po równo dostępnego miejsca */
+  min-width: 300px; /* Nie pozwolą się ściśnąć za bardzo na małych ekranach */
+  
+  /* Poniżej reszta Twoich stylów karty (białe tło, zaokrąglone rogi, cień) */
+  background-color: white;
   padding: 20px;
   border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
 }
 
 .card.full-width {

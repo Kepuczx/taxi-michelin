@@ -1,172 +1,93 @@
-/* Sekcja użytkowników */
-.users-section {
-  background: white;
-  padding: 2rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+/* Zerujemy marginesy na całej stronie i dajemy szare tło */
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #888888; /* Szare tło ze zdjęcia */
+  font-family: Arial, sans-serif;
 }
 
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-}
-
-.btn-primary {
-  background: #3498db;
-  color: white;
-  border: none;
-  padding: 0.8rem 1.5rem;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.btn-primary:hover {
-  background: #2980b9;
-}
-
-/* Formularz */
-.user-form {
-  background: #f8f9fa;
-  padding: 1.5rem;
-  border-radius: 8px;
-  margin-bottom: 2rem;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1rem;
-  margin: 1rem 0;
-}
-
-.form-group {
+/* Główny kontener trzymający całość */
+.admin-page-wrapper {
+  min-height: 100vh;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
 }
 
-.form-group label {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #2c3e50;
-}
-
-.form-group input,
-.form-group select {
-  padding: 0.6rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 1rem;
-}
-
-.form-actions {
+/* Główne białe okno */
+.admin-main-container {
+  background-color: #ffffff;
+  flex: 1; 
   display: flex;
-  gap: 1rem;
-  margin-top: 1rem;
+  flex-direction: column;
+  box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.2);
+  
+  border-radius: 0; /* <--- TO LIKWIDUJE ZAOKRĄGLENIA GŁÓWNEGO OKNA */
+  overflow: hidden; /* Upewnia się, że nic nie wystaje poza ostre rogi */
 }
 
-.form-actions button {
-  padding: 0.6rem 1.2rem;
+/* Granatowy pasek na górze */
+.admin-blue-header {
+  background-color: #002255; 
+  height: 60px;
+  display: flex;
+  align-items: center;
+  padding-left: 20px;
+  
+  border-radius: 0; /* <--- TO LIKWIDUJE ZAOKRĄGLENIA PASKA */
+}
+
+/* Imitacja białego pudełka z logo z obrazka */
+.logo-placeholder {
+  background-color: white;
+  height: 40px;
+  padding: 0 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-text {
+  color: #002255;
+  font-weight: 900;
+  font-style: italic;
+  font-size: 20px;
+  letter-spacing: 1px;
+}
+
+/* Szary pasek z zakładkami nawigacji */
+.admin-grey-nav {
+  background-color: #e6e6e6; /* Jasnoszary */
+  height: 40px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+}
+
+/* Przyciski nawigacyjne w szarym pasku */
+.admin-grey-nav button {
+  background: none;
   border: none;
-  border-radius: 4px;
+  height: 100%;
+  padding: 0 15px;
+  font-size: 12px;
+  color: #333;
   cursor: pointer;
 }
 
-.form-actions button[type="button"] {
-  background: #e0e0e0;
+.admin-grey-nav button:hover {
+  background-color: #d4d4d4;
 }
 
-/* Tabela */
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 1rem;
-}
-
-.data-table th {
-  text-align: left;
-  padding: 1rem;
-  background: #f8f9fa;
-  border-bottom: 2px solid #dee2e6;
-  color: #2c3e50;
-  font-weight: 600;
-}
-
-.data-table td {
-  padding: 1rem;
-  border-bottom: 1px solid #dee2e6;
-}
-
-/* Badge role */
-.role-badge {
-  padding: 0.3rem 0.8rem;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 500;
-}
-
-.role-badge.admin {
-  background: #2c3e50;
-  color: white;
-}
-
-.role-badge.driver {
-  background: #27ae60;
-  color: white;
-}
-
-.role-badge.employee {
-  background: #3498db;
-  color: white;
-}
-
-/* Badge status */
-.status-badge {
-  padding: 0.3rem 0.8rem;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 500;
-}
-
-.status-badge.active {
-  background: #d4edda;
-  color: #155724;
-}
-
-.status-badge.inactive {
-  background: #f8d7da;
-  color: #721c24;
-}
-
-/* Przyciski ikon */
-.btn-icon {
-  background: transparent;
-  border: none;
-  font-size: 1.2rem;
-  cursor: pointer;
-  padding: 0.3rem 0.5rem;
-  border-radius: 4px;
-  transition: background 0.2s;
-}
-
-.btn-icon:hover {
-  background: #e9ecef;
-}
-
-/* Dashboard */
-.stats-card {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.stat-number {
-  font-size: 2rem;
+/* Opcjonalny efekt dla aktywnej zakładki */
+.admin-grey-nav button.active {
   font-weight: bold;
-  color: #2c3e50;
-  margin: 0.5rem 0 0;
+}
+
+/* Biały obszar zawartości pod zakładkami */
+.admin-content-area {
+  padding: 30px;
+  background-color: #ffffff;
+  flex: 1;
+  color: #333;
 }
