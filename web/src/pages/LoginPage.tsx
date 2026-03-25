@@ -1,11 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // 🔥 Dodano import useEffect
 import { useNavigate } from 'react-router-dom';
 import '../styles/LoginPage.css';
 
 const Login = () => {
   const [loginData, setLoginData] = useState({ email: '', password: '' });
-  const [errorMsg, setErrorMsg] = useState(''); // Dodano stan do obsługi błędów
+  const [errorMsg, setErrorMsg] = useState('');
   const navigate = useNavigate();
+
+  // 🔥 DODANE: Sprawdzamy od razu przy wejściu, czy użytkownik jest już zalogowany
+  useEffect(() => {
+    const isLogged = localStorage.getItem('loggedUser');
+    if (isLogged) {
+      navigate('/home'); // Jeśli ma sesję, wyrzucamy go na główną stronę
+    }
+  }, [navigate]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -14,44 +22,35 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMsg(''); // Czyścimy błąd przed nową próbą
+    setErrorMsg('');
 
     try {
-      // 1. Wysyłamy dane do naszego backendu (tego, który zrobiliśmy wczoraj/dzisiaj)
-      const response = await fetch('http://localhost:3000/api/login', {
+      const response = await fetch('http://localhost:3000/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // Używamy "email" jako username, w zależności jak zaprogramowałeś backend
-        body: JSON.stringify({ username: loginData.email, password: loginData.password })
+        body: JSON.stringify({ email: loginData.email, password: loginData.password })
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        // SUKCES
         localStorage.setItem('loggedUser', loginData.email);
-        localStorage.setItem('authToken', data.token);
+        localStorage.setItem('authToken', data.access_token); 
+        localStorage.setItem('userRole', data.role);
         
-        // Przekierowujemy na stronę główną
-        navigate('/');
+        navigate('/home');
       } else {
-        // BŁĄD LOGOWANIA
-        setErrorMsg(data.error || "Błędny login lub hasło");
+        setErrorMsg(data.message || "Błędny login lub hasło");
       }
     } catch (err) {
       setErrorMsg("Błąd połączenia z serwerem");
     }
   };
 
-  const handleBack = () => {
-    navigate('/');
-  };
+  // Funkcja handleBack została usunięta, skoro to i tak strona wejściowa :)
 
   return (
     <div className="login-wrapper">
-      <button className="back-btn" onClick={handleBack}>
-        Cofnij
-      </button>
 
       <div className="login-form-container">
         <div className="login-header">
@@ -60,14 +59,13 @@ const Login = () => {
         </div>
 
         <form className="login-form" onSubmit={handleSubmit}>
-          {/* Wyświetlanie błędu nad formularzem, jeśli wystąpił */}
           {errorMsg && <p style={{ color: 'red', textAlign: 'center' }}>{errorMsg}</p>}
 
           <div className="input-field">
             <input 
               type="text" 
               name="email"
-              placeholder="E-mail (admin)" // Zmieniłem placeholder pod naszego mocka
+              placeholder="E-mail"
               value={loginData.email}
               onChange={handleChange}
               required 
@@ -78,7 +76,7 @@ const Login = () => {
             <input 
               type="password" 
               name="password"
-              placeholder="Hasło (admin)" // Zmieniłem placeholder pod naszego mocka
+              placeholder="Hasło"
               value={loginData.password}
               onChange={handleChange}
               required 

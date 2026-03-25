@@ -17,20 +17,10 @@ function App() {
       <Routes>
 
         {/* Główna strona używa teraz komponentu HomePage */}
-
-        <Route path="/" element={<HomePage />} />
-
-       
-
+        <Route path="/" element={<Login />} />
+        <Route path="/home" element={<HomePage />} />
         {/* Panel administratora */}
-
         <Route path="/admin" element={<AdminPanel />} />
-
-       
-
-        {/* Ścieżka do logowania - teraz całkowicie oddzielna */}
-
-        <Route path="/login" element={<Login />} />
 
       </Routes>
 
