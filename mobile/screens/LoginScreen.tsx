@@ -4,12 +4,10 @@ import { StyleSheet, Text, View, TextInput, Pressable, ImageBackground, Alert, K
 const backgroundImage = require('../assets/LoginBackground.jpg');
 
 export default function LoginScreen({ navigation }: any) {
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isEmailFocused, setIsEmailFocused] = useState(false);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
-
   const [scale, setScale] = useState(1);
   const [moveUp, setMoveUp] = useState(0);
 
@@ -31,6 +29,8 @@ export default function LoginScreen({ navigation }: any) {
   const handleLogin = () => {
     if (email.toLowerCase() === 'kierowca') {
       navigation.navigate('MainKierowca');
+    } else if (email.toLowerCase() === 'pracownik') {
+      navigation.navigate('MenuPracownik');
     } else {
       Alert.alert("Błąd", "Złe dane");
     }
@@ -39,50 +39,18 @@ export default function LoginScreen({ navigation }: any) {
   return (
     <View style={styles.mainContainer}>
       <View style={styles.backgroundContainer}>
-        <ImageBackground
-          source={backgroundImage}
-          style={styles.background}
-          resizeMode="cover"
-        />
+        <ImageBackground source={backgroundImage} style={styles.background} resizeMode="cover" />
       </View>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View
-            style={[
-              styles.overlay,
-              {
-                transform: [{ scale: scale }, { translateY: moveUp }]
-              }
-            ]}
-          >
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          <View style={[styles.overlay, { transform: [{ scale: scale }, { translateY: moveUp }] }]}>
             <View style={styles.headerContainer}>
-              <Pressable>
-                {({ pressed }) => (
-                  <Text style={[styles.title, pressed && styles.textUnderline]}>
-                    LOGOWANIE
-                  </Text>
-                )}
-              </Pressable>
-              <Pressable style={styles.subtitleContainer}>
-                {({ pressed }) => (
-                  <Text style={[styles.subtitle, pressed && styles.textUnderline]}>
-                    TRANSPORT FIRMOWY
-                  </Text>
-                )}
-              </Pressable>
+              <Text style={styles.title}>LOGOWANIE</Text>
+              <Text style={styles.subtitle}>TRANSPORT FIRMOWY</Text>
             </View>
             <View style={styles.formContainer}>
               <TextInput
-                style={[
-                  styles.input,
-                  { backgroundColor: isEmailFocused ? '#d9e6f2' : '#FFFFFF' }
-                ]}
+                style={[styles.input, { backgroundColor: isEmailFocused ? '#d9e6f2' : '#FFFFFF' }]}
                 placeholder="E-mail"
                 placeholderTextColor="#666"
                 value={email}
@@ -93,10 +61,7 @@ export default function LoginScreen({ navigation }: any) {
                 onBlur={() => setIsEmailFocused(false)}
               />
               <TextInput
-                style={[
-                  styles.input,
-                  { backgroundColor: isPasswordFocused ? '#d9e6f2' : '#FFFFFF' }
-                ]}
+                style={[styles.input, { backgroundColor: isPasswordFocused ? '#d9e6f2' : '#FFFFFF' }]}
                 placeholder="Hasło"
                 placeholderTextColor="#666"
                 value={password}
@@ -107,10 +72,7 @@ export default function LoginScreen({ navigation }: any) {
               />
               <Pressable
                 onPress={handleLogin}
-                style={({ pressed }) => [
-                  styles.button,
-                  { backgroundColor: pressed ? '#2a4d9c' : '#0a1d56' }
-                ]}
+                style={({ pressed }) => [styles.button, { backgroundColor: pressed ? '#2a4d9c' : '#0a1d56' }]}
               >
                 <Text style={styles.buttonText}>Zaloguj</Text>
               </Pressable>
@@ -162,10 +124,6 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     letterSpacing: 1,
   },
-  subtitleContainer: {
-    marginTop: -5,
-    alignItems: 'center',
-  },
   subtitle: {
     fontSize: 40,
     fontWeight: 'bold',
@@ -174,9 +132,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 40,
     marginBottom: 20,
-  },
-  textUnderline: {
-    textDecorationLine: 'underline',
   },
   formContainer: {
     width: '100%',
