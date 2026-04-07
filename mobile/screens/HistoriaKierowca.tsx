@@ -1,30 +1,18 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, Pressable, ScrollView, Image, Modal } from 'react-native';
+import { StyleSheet, Text, View, Pressable, ScrollView, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import MenuKierowca from '../components/MenuKierowca';
 
 export default function HistoriaKierowca({ navigation }: any) {
   const [menuVisible, setMenuVisible] = useState(false);
 
-  const menuItems = ['Lista zleceń', 'Mapa', 'Nawigacja', 'Pauza', 'Historia kursów'];
-
-  const historiaKursow = [
-    { id: 1, data: '05.01.2024r', godz: '14:15', trasa: 'A - B', pasazerow: '2 os.' },
-    { id: 2, data: '04.01.2024r', godz: '09:30', trasa: 'C - B', pasazerow: '1 os.' },
-    { id: 3, data: '04.01.2024r', godz: '08:00', trasa: 'A - C', pasazerow: '3 os.' },
-    { id: 4, data: '03.01.2024r', godz: '16:45', trasa: 'C - A', pasazerow: '1 os.' },
-    { id: 5, data: '02.01.2024r', godz: '11:12', trasa: 'B - A', pasazerow: '2 os.' },
-    { id: 6, data: '02.01.2024r', godz: '07:05', trasa: 'A - B', pasazerow: '2 os.' },
-    { id: 7, data: '01.01.2024r', godz: '10:00', trasa: 'C - B', pasazerow: '1 os.' },
+  const historia = [
+    { id: 1, data: '25 luty, 10.34', pojazd: 'NO XXXXX', trasa: 'Od: A, Do: B', miesiac: 'Luty 2026' },
+    { id: 2, data: '14 luty, 14.21', pojazd: 'NO XXXXX', trasa: 'Od: A, Do: B' },
+    { id: 3, data: '28 sty, 12.49', pojazd: 'NO XXXXX', trasa: 'Od: A, Do: B', miesiac: 'Styczeń 2026' },
+    { id: 4, data: '22 sty, 8.29', pojazd: 'NO XXXXX', trasa: 'Od: A, Do: B' },
+    { id: 5, data: '18 sty, 15.04', pojazd: 'NO XXXXX', trasa: 'Od: A, Do: B' },
   ];
-
-  const handleMenuItemPress = (item: string) => {
-    setMenuVisible(false);
-    if (item === 'Lista zleceń') {
-      navigation.navigate('MenuKierowca');
-    } else if (item === 'Historia kursów') {
-      navigation.navigate('HistoriaKierowca');
-    }
-  };
 
   return (
     <View style={styles.container}>
@@ -43,45 +31,24 @@ export default function HistoriaKierowca({ navigation }: any) {
 
       <View style={styles.listContainer}>
         <ScrollView bounces={false} contentContainerStyle={styles.scrollContent}>
-          {historiaKursow.map((item, index) => (
-            <View key={item.id} style={[styles.historyItem, index === historiaKursow.length - 1 && styles.lastHistoryItem]}>
-              <Text style={styles.historyTextBold}>Data: {item.data}, Godz: {item.godz}</Text>
-              <Text style={styles.historyTextRegular}>Trasa: {item.trasa}, Pasażerów: {item.pasazerow}</Text>
+          {historia.map((item, index) => (
+            <View key={item.id}>
+              {item.miesiac && <Text style={styles.monthHeader}>{item.miesiac}</Text>}
+              <View style={[styles.historyItem, index === historia.length - 1 && styles.lastHistoryItem]}>
+                <Text style={styles.historyText}>{item.data}</Text>
+                <Text style={styles.historyText}>Pojazd: {item.pojazd}</Text>
+                <Text style={styles.historyText}>{item.trasa}</Text>
+              </View>
             </View>
           ))}
         </ScrollView>
       </View>
 
-      <Modal
-        visible={menuVisible}
-        transparent={true}
-        animationType="fade"
-        statusBarTranslucent={true}
-        onRequestClose={() => setMenuVisible(false)}
-      >
-        <Pressable style={styles.modalOverlay} onPress={() => setMenuVisible(false)}>
-          <Pressable style={styles.sideMenuContainer}>
-            
-            <View style={styles.profileBox}>
-              <Ionicons name="person-circle-outline" size={50} color="#1a1a1a" />
-              <Text style={styles.profileText}>Profil</Text>
-            </View>
-
-            <View style={styles.sectionSeparator}></View>
-
-            <View style={styles.menuListSection}>
-              {menuItems.map((item, index) => (
-                <Pressable key={index} style={styles.menuItem} onPress={() => handleMenuItemPress(item)}>
-                  <Text style={styles.menuItemText}>{item}</Text>
-                </Pressable>
-              ))}
-            </View>
-
-            <View style={styles.bottomEmptyBox}></View>
-
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <MenuKierowca 
+        visible={menuVisible} 
+        onClose={() => setMenuVisible(false)} 
+        navigation={navigation} 
+      />
     </View>
   );
 }
@@ -89,7 +56,7 @@ export default function HistoriaKierowca({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#e6e6e6',
   },
   header: {
     backgroundColor: '#0a1d56',
@@ -104,14 +71,15 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   logoImage: {
-    width: 220, 
+    width: 220,
     height: 60,
+    backgroundColor: '#fff',
   },
   menuButton: {
     padding: 0,
   },
   title: {
-    fontSize: 34,
+    fontSize: 28,
     fontWeight: '900',
     color: '#415a99',
     fontStyle: 'italic',
@@ -130,6 +98,13 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 20,
   },
+  monthHeader: {
+    fontSize: 20,
+    color: '#000',
+    marginHorizontal: 25,
+    marginTop: 15,
+    marginBottom: 5,
+  },
   historyItem: {
     paddingVertical: 15,
     paddingHorizontal: 25,
@@ -139,78 +114,9 @@ const styles = StyleSheet.create({
   lastHistoryItem: {
     borderBottomWidth: 0,
   },
-  historyTextBold: {
-    fontSize: 20,
+  historyText: {
+    fontSize: 16,
     color: '#000',
-    fontWeight: 'bold',
-    marginBottom: 2,
-  },
-  historyTextRegular: {
-    fontSize: 18,
-    color: '#000',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-  },
-  sideMenuContainer: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    right: 0,
-    width: '55%',
-    backgroundColor: '#0a1d56',
-    paddingTop: 50,
-    paddingBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: -5, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    elevation: 15,
-  },
-  profileBox: {
-    backgroundColor: '#cdd4e0',
-    borderRadius: 10,
-    marginHorizontal: 15,
-    paddingVertical: 15,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 15,
-  },
-  profileText: {
-    fontSize: 22,
-    color: '#1a1a1a',
-  },
-  sectionSeparator: {
-    height: 3,
-    backgroundColor: '#0a1d56',
-    marginHorizontal: 15,
-    marginVertical: 10,
-  },
-  menuListSection: {
-    backgroundColor: '#cdd4e0',
-    borderRadius: 10,
-    marginHorizontal: 15,
-    paddingVertical: 10,
-  },
-  menuItem: {
-    alignItems: 'center',
-    paddingVertical: 20,
-    borderBottomWidth: 0,
-    marginHorizontal: 30,
-  },
-  menuItemText: {
-    fontSize: 22,
-    color: '#1a1a1a',
-    textAlign: 'center',
-  },
-  bottomEmptyBox: {
-    backgroundColor: '#cdd4e0',
-    borderRadius: 10,
-    marginHorizontal: 15,
-    marginTop: 15,
-    marginBottom: 15,
-    flex: 1,
+    lineHeight: 22,
   },
 });

@@ -30,7 +30,7 @@ export default function LoginScreen({ navigation }: any) {
     if (email.toLowerCase() === 'kierowca') {
       navigation.navigate('MainKierowca');
     } else if (email.toLowerCase() === 'pracownik') {
-      navigation.navigate('MenuPracownik');
+      navigation.navigate('ZamowieniePracownik');
     } else {
       Alert.alert("Błąd", "Złe dane");
     }
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 70,
+    marginTop: 25,
   },
   buttonText: {
     color: '#FFFFFF',
