@@ -1,0 +1,274 @@
+/* --- BAZOWE USTAWIENIA --- */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; /* Bardziej nowoczesna czcionka */
+  background-color: #f4f7f6; /* Delikatne, jasnoszare tło strony */
+  overflow-x: hidden; 
+}
+
+.user-page-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: relative;
+}
+
+/* --- NAGŁÓWEK --- */
+.user-header {
+  background-color: #002255;
+  height: 60px;
+  display: flex;
+  border-radius: 0;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+  z-index: 500;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2); /* Lekki cień pod nagłówkiem */
+}
+
+.user-logo {
+  background-color: white;
+  height: 40px;
+  padding: 0 15px;
+  border-radius: 4px; /* Lekko zaokrąglone logo */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-logo-text {
+  color: #002255;
+  font-weight: 900;
+  font-style: italic;
+  font-size: 20px;
+  letter-spacing: 1px;
+}
+
+.user-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  color: white;
+}
+
+.welcome-text {
+  font-weight: 500;
+  font-size: 15px;
+}
+
+.user-menu-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 28px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: transform 0.2s;
+}
+
+.user-menu-btn:hover {
+  transform: scale(1.1); /* Przycisk lekko rośnie po najechaniu */
+}
+
+/* --- WYSUWANE MENU Z PRAWEJ --- */
+.user-side-menu {
+  position: absolute;
+  top: 60px; 
+  right: -300px; 
+  width: 260px;
+  height: calc(100vh - 60px); 
+  background-color: #ffffff; 
+  border-left: 1px solid #e0e0e0;
+  box-shadow: -4px 0 15px rgba(0,0,0,0.05); /* Cień rzucany na stronę */
+  display: flex;
+  flex-direction: column;
+  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Płynniejsza animacja */
+  z-index: 1000; 
+}
+
+.user-side-menu.open {
+  right: 0; 
+}
+
+.close-menu-btn {
+  align-self: flex-end;
+  background: none;
+  border: none;
+  padding: 15px;
+  cursor: pointer;
+  font-weight: bold;
+  color: #555;
+  transition: color 0.2s;
+}
+
+.close-menu-btn:hover {
+  color: #e74c3c;
+}
+
+.user-menu-header {
+  background-color: #f8f9fa; 
+  padding: 20px 15px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 16px;
+  color: #333;
+  border-bottom: 1px solid #eee;
+}
+
+.user-menu-item {
+  background: none;
+  border: none;
+  border-bottom: 1px solid #f0f0f0;
+  padding: 16px;
+  text-align: left;
+  padding-left: 20px;
+  font-size: 15px;
+  color: #444;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.user-menu-item:hover, .user-menu-item.active {
+  background-color: #f0f4f8;
+  color: #002255;
+  font-weight: bold;
+  padding-left: 25px; /* Lekko wsuwa tekst przy hoverze */
+}
+
+.user-menu-bottom {
+  margin-top: auto; 
+  display: flex;
+  flex-direction: column;
+}
+
+.logout-text {
+  color: #e74c3c;
+  font-weight: bold;
+  border-top: 1px solid #eee;
+}
+
+/* --- GŁÓWNA ZAWARTOŚĆ --- */
+.user-main-content {
+  display: flex;
+  flex: 1; 
+  padding: 20px; /* Więcej miejsca po bokach ekranu */
+  gap: 20px; 
+}
+
+/* --- LEWY PANEL (Formularz) --- */
+.user-sidebar {
+  width: 350px; /* Minimalnie szerszy panel */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Nowoczesna Karta Formularza */
+.form-card {
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08); /* Duży, miękki cień zamiast czarnej ramki */
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 20px;
+}
+
+.form-title {
+  margin: 0 0 10px 0;
+  color: #002255;
+  font-size: 22px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.input-group label {
+  font-weight: 700;
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+/* Nowoczesne Pola Wprowadzania Tekstu */
+.input-group input {
+  background-color: #f8f9fa;
+  border: 1px solid #dde1e5;
+  border-radius: 8px; /* Zaokrąglone rogi */
+  padding: 14px 16px;
+  font-size: 15px;
+  color: #222;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+/* Efekt po kliknięciu w pole */
+.input-group input:focus {
+  background-color: #ffffff;
+  border-color: #002255;
+  box-shadow: 0 0 0 3px rgba(0, 34, 85, 0.15); /* Niebieska poświata */
+}
+
+/* Nowoczesny Przycisk */
+.order-btn {
+  margin-top: 15px;
+  background-color: #002255;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 16px;
+  font-weight: bold;
+  font-size: 15px;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 34, 85, 0.2);
+  transition: all 0.3s ease;
+}
+
+.order-btn:hover {
+  background-color: #1a3c75; /* Jaśniejszy granat przy najechaniu */
+  transform: translateY(-2px); /* Przycisk lekko unosi się do góry */
+  box-shadow: 0 6px 15px rgba(0, 34, 85, 0.3);
+}
+
+.order-btn:active {
+  transform: translateY(0); /* Wraca przy kliknięciu */
+}
+
+/* --- PRAWY PANEL (Mapa) --- */
+.user-map-area {
+  flex: 1; 
+  display: flex;
+}
+
+/* Nowoczesna karta na mapę */
+.map-card {
+  flex: 1;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08); /* Ten sam miękki cień */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 2px dashed #dde1e5; /* Zamiast grubej czarnej ramy, lekko szara przerywana */
+  background-image: radial-gradient(#e0e5ec 1px, transparent 1px); /* Subtelna siateczka z tyłu, wygląda mega profi */
+  background-size: 20px 20px;
+}
+
+.map-placeholder-text {
+  font-weight: 800;
+  font-size: 24px;
+  color: #a0aab5;
+  letter-spacing: 1px;
+}
+
+.user-history-area {
+  flex: 1;
+}

@@ -1,19 +1,15 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom' 
 import { userService } from '../services/userService'
 import type { User, NewUser } from '../types/user.types'
 import '../styles/AdminPanel.css'
 
 function AdminPanel() {
+  // Zmienione domyślne sekcje na te ze zdjęcia
   const [activeSection, setActiveSection] = useState('users')
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   
-  const navigate = useNavigate()
-  // POBIERAMY ROLĘ
-  const role = localStorage.getItem('userRole');
-
   const [newUser, setNewUser] = useState<NewUser>({
     username: '',
     email: '',
@@ -24,21 +20,6 @@ function AdminPanel() {
     role: 'employee'
   })
 
-  // 🔥 TWARDA BLOKADA BEZPOŚREDNIO W WIDOKU
-  if (role !== 'admin') {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#f5f5f5' }}>
-        <h1 style={{ color: '#d32f2f' }}>⛔ Odmowa dostępu</h1>
-        <p style={{ fontSize: '18px' }}>Ta strona jest przeznaczona wyłącznie dla Administratorów.</p>
-        <button 
-          onClick={() => navigate('/home')} 
-          style={{ marginTop: '20px', padding: '10px 20px', backgroundColor: '#0033a0', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}
-        >
-          Wróć na Stronę Główną
-        </button>
-      </div>
-    );
-  }
   const fetchUsers = async () => {
     setLoading(true)
     try {
@@ -90,6 +71,7 @@ function AdminPanel() {
 
   return (
     <div className="admin-page-wrapper">
+
 
       {/* Główne okno aplikacji */}
       <div className="admin-main-container">
@@ -149,6 +131,8 @@ function AdminPanel() {
 
               {showForm && (
                 <form className="user-form" onSubmit={addUser} style={{ marginBottom: '30px', padding: '20px', background: '#f5f5f5', border: '1px solid #ccc' }}>
+                  {/* ... (Tutaj jest ten sam formularz z Twojego kodu, skróciłem w widoku, żeby nie zaśmiecać, 
+                          możesz tu wkleić całą resztę swoich inputów) ... */}
                   <h3>Nowy użytkownik</h3>
                   <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                     <input type="text" placeholder="Username *" required value={newUser.username} onChange={(e) => setNewUser({...newUser, username: e.target.value})} />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'; // 🔥 Dodano import useEffect
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/LoginPage.css';
 
@@ -7,11 +7,16 @@ const Login = () => {
   const [errorMsg, setErrorMsg] = useState('');
   const navigate = useNavigate();
 
-  // 🔥 DODANE: Sprawdzamy od razu przy wejściu, czy użytkownik jest już zalogowany
+  // Sprawdzamy od razu przy wejściu, czy użytkownik jest już zalogowany
   useEffect(() => {
     const isLogged = localStorage.getItem('loggedUser');
-    if (isLogged) {
-      navigate('/home'); // Jeśli ma sesję, wyrzucamy go na główną stronę
+    const userRole = localStorage.getItem('userRole'); // Pobieramy też rolę!
+
+    if (isLogged && userRole) {
+      // Przenosimy na odpowiedni dashboard na podstawie roli z localStorage
+      if (userRole === 'admin') navigate('/homeAdmin');
+      else if (userRole === 'driver') navigate('/homeDriver');
+      else if (userRole === 'employee') navigate('/homeUser');
     }
   }, [navigate]);
 
@@ -34,11 +39,23 @@ const Login = () => {
       const data = await response.json();
 
       if (response.ok) {
+        // Zapisujemy dane do pamięci przeglądarki
         localStorage.setItem('loggedUser', loginData.email);
         localStorage.setItem('authToken', data.access_token); 
-        localStorage.setItem('userRole', data.role);
+        localStorage.setItem('userRole', data.role); // Koniecznie zapisujemy rolę z backendu
         
-        navigate('/home');
+        // Magia przekierowania: sprawdzamy rolę, którą zwrócił backend
+        if (data.role === 'admin') {
+          navigate('/homeAdmin');
+        } else if (data.role === 'driver') {
+          navigate('/homeDriver');
+        } else if (data.role === 'employee') {
+          navigate('/homeUser');
+        } else {
+          // Zabezpieczenie, gdyby rola z backendu była jakaś inna
+          setErrorMsg("Błąd: Nieznana rola użytkownika.");
+        }
+        
       } else {
         setErrorMsg(data.message || "Błędny login lub hasło");
       }
@@ -46,8 +63,6 @@ const Login = () => {
       setErrorMsg("Błąd połączenia z serwerem");
     }
   };
-
-  // Funkcja handleBack została usunięta, skoro to i tak strona wejściowa :)
 
   return (
     <div className="login-wrapper">
@@ -59,7 +74,7 @@ const Login = () => {
         </div>
 
         <form className="login-form" onSubmit={handleSubmit}>
-          {errorMsg && <p style={{ color: 'red', textAlign: 'center' }}>{errorMsg}</p>}
+          {errorMsg && <p style={{ color: 'red', textAlign: 'center', fontWeight: 'bold' }}>{errorMsg}</p>}
 
           <div className="input-field">
             <input 

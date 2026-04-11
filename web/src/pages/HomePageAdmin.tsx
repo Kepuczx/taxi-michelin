@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../App.css'; 
-import '../styles/HomePage.css';
+import '../styles/HomePageAdmin.css';
 
 const HomePage = () => {
   const [message, setMessage] = useState('Łączenie z backendem...');

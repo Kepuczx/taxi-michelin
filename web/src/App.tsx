@@ -4,8 +4,10 @@ import AdminPanel from './pages/AdminPanel';
 
 import Login  from './pages/LoginPage';
 
-import HomePage from './pages/HomePage'; // Importujemy nowy komponent
 
+import HomePageAdmin from './pages/HomePageAdmin';
+import HomePageUser from './pages/HomePageUser';
+import HomePageDriver from './pages/HomePageDriver';
 
 
 function App() {
@@ -18,9 +20,21 @@ function App() {
 
         {/* Główna strona używa teraz komponentu HomePage */}
         <Route path="/" element={<Login />} />
-        <Route path="/home" element={<HomePage />} />
+
+        <Route path="/homeAdmin" element={<HomePageAdmin />} />
+        <Route path="/homeUser" element={<HomePageUser />} />
+        <Route path="/homeDriver" element={<HomePageDriver />} />
+       
+
         {/* Panel administratora */}
+
         <Route path="/admin" element={<AdminPanel />} />
+
+       
+
+        {/* Ścieżka do logowania - teraz całkowicie oddzielna */}
+
+        <Route path="/login" element={<Login />} />
 
       </Routes>
 

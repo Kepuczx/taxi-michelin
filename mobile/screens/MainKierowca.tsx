@@ -1,5 +1,6 @@
 import React from 'react';
-import { StyleSheet, Text, View, Pressable, ScrollView, Image } from 'react-native';
+import { StyleSheet, Text, View, Pressable, ScrollView, Image, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function MainKierowca({ navigation }: any) {
   const cars = [
@@ -10,6 +11,26 @@ export default function MainKierowca({ navigation }: any) {
     { id: 5, plates: 'NO XXXXX' },
   ];
 
+  const handleLogout = () => {
+    Alert.alert(
+      'Wylogowanie',
+      'Czy na pewno chcesz się wylogować?',
+      [
+        { text: 'Anuluj', style: 'cancel' },
+        {
+          text: 'Wyloguj',
+          style: 'destructive',
+          onPress: async () => {
+            await AsyncStorage.removeItem('userToken');
+            await AsyncStorage.removeItem('userRole');
+            await AsyncStorage.removeItem('userEmail');
+            navigation.replace('Login');
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -18,6 +39,9 @@ export default function MainKierowca({ navigation }: any) {
           style={styles.logoImage}
           resizeMode="contain"
         />
+        <Pressable onPress={handleLogout} style={styles.logoutButton}>
+          <Text style={styles.logoutButtonText}>Wyloguj</Text>
+        </Pressable>
       </View>
       
       <Text style={styles.title}>Wybierz samochód</Text>
@@ -59,12 +83,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderBottomWidth: 4,
     borderBottomColor: '#FFD700',
-    alignItems: 'flex-start',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   logoImage: { 
-    width: 220, 
-    height: 60,
+    width: 180, 
+    height: 50,
     backgroundColor: '#fff',
+  },
+  logoutButton: {
+    backgroundColor: '#dc3545',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  logoutButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
   title: { 
     fontSize: 28, 

@@ -17,7 +17,7 @@ export class AppController {
     const { username, password } = body;
 
     // Nasze "udawane" logowanie (mock)
-    if (username === 'admin' && password === 'admin') {
+    if (username === 'admin' && password === 'admin') { // do zmiany potem
       return {
         message: 'Zalogowano pomyślnie',
         token: 'fake-jwt-token-do-testow',

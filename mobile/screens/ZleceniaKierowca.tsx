@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, Pressable, ScrollView, Image, ImageBackground } from 'react-native';
+import { StyleSheet, Text, View, Pressable, ScrollView, Image, ImageBackground, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import MenuKierowca from '../components/MenuKierowca';
 
 export default function ZleceniaKierowca({ navigation }: any) {
@@ -13,6 +14,26 @@ export default function ZleceniaKierowca({ navigation }: any) {
     { id: 3, distance: '1km', passengers: '3 os', from: 'A', to: 'C' },
   ];
 
+  const handleLogout = () => {
+    Alert.alert(
+      'Wylogowanie',
+      'Czy na pewno chcesz się wylogować?',
+      [
+        { text: 'Anuluj', style: 'cancel' },
+        {
+          text: 'Wyloguj',
+          style: 'destructive',
+          onPress: async () => {
+            await AsyncStorage.removeItem('userToken');
+            await AsyncStorage.removeItem('userRole');
+            await AsyncStorage.removeItem('userEmail');
+            navigation.replace('Login');
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -21,9 +42,14 @@ export default function ZleceniaKierowca({ navigation }: any) {
           style={styles.logoImage}
           resizeMode="contain"
         />
-        <Pressable onPress={() => setMenuVisible(true)} style={styles.menuButton}>
-          <Ionicons name="menu" size={45} color="white" />
-        </Pressable>
+        <View style={styles.headerButtons}>
+          <Pressable onPress={() => setMenuVisible(true)} style={styles.menuButton}>
+            <Ionicons name="menu" size={45} color="white" />
+          </Pressable>
+          <Pressable onPress={handleLogout} style={styles.logoutButton}>
+            <Text style={styles.logoutButtonText}>Wyloguj</Text>
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.mapContainer}>
@@ -83,12 +109,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 10,
   },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   logoImage: {
-    width: 220,
-    height: 60,
+    width: 180,
+    height: 50,
+    backgroundColor: '#fff',
   },
   menuButton: {
     padding: 0,
+  },
+  logoutButton: {
+    backgroundColor: '#dc3545',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  logoutButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
   mapContainer: {
     flex: 1,

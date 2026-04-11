@@ -1,0 +1,306 @@
+/* --- BAZOWE USTAWIENIA --- */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: #f4f7f6; 
+  overflow-x: hidden; 
+}
+
+.driver-page-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: relative;
+}
+
+/* --- NAGŁÓWEK --- */
+.driver-header {
+  background-color: #002255;
+  height: 60px;
+  display: flex;
+  justify-content: space-between;
+  border-radius: 0;
+  align-items: center;
+  padding: 0 20px;
+  z-index: 500;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2); 
+}
+
+.driver-logo {
+  background-color: white;
+  height: 40px;
+  padding: 0 15px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.driver-logo-text {
+  color: #002255;
+  font-weight: 900;
+  font-style: italic;
+  font-size: 20px;
+  letter-spacing: 1px;
+}
+
+.driver-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  color: white;
+}
+
+.welcome-text {
+  font-weight: 500;
+  font-size: 15px;
+}
+
+.driver-menu-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 28px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: transform 0.2s;
+}
+
+.driver-menu-btn:hover {
+  transform: scale(1.1);
+}
+
+/* --- WYSUWANE MENU Z PRAWEJ --- */
+.driver-side-menu {
+  position: absolute;
+  top: 60px; 
+  right: -300px; 
+  width: 260px;
+  height: calc(100vh - 60px); 
+  background-color: #ffffff; 
+  border-left: 1px solid #e0e0e0;
+  box-shadow: -4px 0 15px rgba(0,0,0,0.05); 
+  display: flex;
+  flex-direction: column;
+  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+  z-index: 1000; 
+}
+
+.driver-side-menu.open {
+  right: 0; 
+}
+
+.close-menu-btn {
+  align-self: flex-end;
+  background: none;
+  border: none;
+  padding: 15px;
+  cursor: pointer;
+  font-weight: bold;
+  color: #555;
+  transition: color 0.2s;
+}
+
+.close-menu-btn:hover {
+  color: #e74c3c;
+}
+
+.driver-menu-header {
+  background-color: #f8f9fa; 
+  padding: 20px 15px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 16px;
+  color: #333;
+  border-bottom: 1px solid #eee;
+}
+
+.driver-menu-item {
+  background: none;
+  border: none;
+  border-bottom: 1px solid #f0f0f0;
+  padding: 16px;
+  text-align: left;
+  padding-left: 20px;
+  font-size: 15px;
+  color: #444;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.driver-menu-item:hover, .driver-menu-item.active {
+  background-color: #f0f4f8;
+  color: #002255;
+  font-weight: bold;
+  padding-left: 25px; 
+}
+
+.driver-menu-bottom {
+  margin-top: auto; 
+  display: flex;
+  flex-direction: column;
+}
+
+.logout-text {
+  color: #e74c3c;
+  font-weight: bold;
+  border-top: 1px solid #eee;
+}
+
+/* --- GŁÓWNA ZAWARTOŚĆ --- */
+.driver-main-content {
+  display: flex;
+  flex: 1; 
+  padding: 20px; 
+  gap: 20px; 
+}
+
+/* --- LEWY PANEL (Lista zleceń) --- */
+.driver-sidebar {
+  width: 350px; 
+  display: flex;
+  flex-direction: column;
+}
+
+.task-panel-card {
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08); 
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto; /* Pozwala przewijać zlecenia, gdy będzie ich dużo */
+}
+
+.panel-title {
+  margin: 0 0 20px 0;
+  color: #002255;
+  font-size: 22px;
+  font-weight: 800;
+  text-align: center;
+  border-bottom: 2px solid #f0f4f8;
+  padding-bottom: 15px;
+}
+
+/* KARTY POJEDYNCZYCH ZLECEŃ */
+.tasks-container {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.task-card {
+  background-color: #f8f9fa;
+  border: 1px solid #dde1e5;
+  border-radius: 8px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.task-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.task-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: bold;
+  color: #666;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 8px;
+}
+
+.task-time {
+  color: #e67e22; /* Pomarańczowy dla czasu */
+}
+
+.task-route {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 15px;
+  color: #222;
+  margin: 5px 0;
+}
+
+.route-point strong {
+  color: #002255;
+}
+
+.task-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 5px;
+}
+
+.btn-reject {
+  flex: 1;
+  background-color: #ffffff;
+  color: #e74c3c;
+  border: 1px solid #e74c3c;
+  border-radius: 6px;
+  padding: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-reject:hover {
+  background-color: #e74c3c;
+  color: #ffffff;
+}
+
+.btn-accept {
+  flex: 2; /* Przycisk przyjmij jest celowo szerszy i bardziej widoczny */
+  background-color: #2ecc71;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-accept:hover {
+  background-color: #27ae60;
+  transform: scale(1.02);
+}
+
+/* --- PRAWY PANEL (Mapa) --- */
+.driver-map-area {
+  flex: 1; 
+  display: flex;
+}
+
+.map-card {
+  flex: 1;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08); 
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 2px dashed #dde1e5; 
+  background-image: radial-gradient(#e0e5ec 1px, transparent 1px); 
+  background-size: 20px 20px;
+}
+
+.map-placeholder-text {
+  font-weight: 800;
+  font-size: 24px;
+  color: #a0aab5;
+  letter-spacing: 1px;
+}
+
+.driver-history-area {
+  flex: 1;
+}

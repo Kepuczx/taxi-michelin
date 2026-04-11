@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TextInput, Pressable, ImageBackground, Alert, KeyboardAvoidingView, Platform, ScrollView, Keyboard } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const backgroundImage = require('../assets/LoginBackground.jpg');
+
+// 🔥 UŻYJ SWOJEGO IP (z ipconfig)
+const API_URL = 'http://192.168.1.21:3000';
 
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState('');
@@ -10,6 +14,7 @@ export default function LoginScreen({ navigation }: any) {
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const [scale, setScale] = useState(1);
   const [moveUp, setMoveUp] = useState(0);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const showListener = Keyboard.addListener('keyboardDidShow', () => {
@@ -26,13 +31,64 @@ export default function LoginScreen({ navigation }: any) {
     };
   }, []);
 
-  const handleLogin = () => {
-    if (email.toLowerCase() === 'kierowca') {
-      navigation.navigate('MainKierowca');
-    } else if (email.toLowerCase() === 'pracownik') {
-      navigation.navigate('ZamowieniePracownik');
-    } else {
-      Alert.alert("Błąd", "Złe dane");
+  // 🔥 SPRAWDŹ CZY UŻYTKOWNIK JEST JUŻ ZALOGOWANY
+  useEffect(() => {
+    const checkLoggedIn = async () => {
+      const token = await AsyncStorage.getItem('userToken');
+      const role = await AsyncStorage.getItem('userRole');
+      if (token && role === 'admin') {
+        navigation.replace('AdminPanel');
+      } else if (token && (role === 'driver' || role === 'employee')) {
+        // Jeśli ktoś inny jest zalogowany – niech zostanie tam gdzie jest
+        // Ale tu nie robimy nic, bo jest na loginie
+      }
+    };
+    checkLoggedIn();
+  }, []);
+
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert("Błąd", "Wpisz email i hasło");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email, password: password })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // ZAPISZ DANE
+        await AsyncStorage.setItem('userToken', data.access_token);
+        await AsyncStorage.setItem('userRole', data.role);
+        await AsyncStorage.setItem('userEmail', email);
+        
+        console.log('Zalogowano jako:', data.role);
+        
+        // 🔥 PRZEKIEROWANIE NA PODSTAWIE ROLI
+        if (data.role === 'admin') {
+          navigation.replace('AdminPanel');
+        } else if (data.role === 'driver') {
+          navigation.replace('MainKierowca');
+        } else if (data.role === 'employee') {
+          navigation.replace('ZamowieniePracownik');
+        } else {
+          navigation.replace('ZamowieniePracownik');
+        }
+      } else {
+        Alert.alert("Błąd logowania", data.message || "Nieprawidłowy email lub hasło");
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      Alert.alert("Błąd", "Nie można połączyć się z serwerem.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -51,7 +107,7 @@ export default function LoginScreen({ navigation }: any) {
             <View style={styles.formContainer}>
               <TextInput
                 style={[styles.input, { backgroundColor: isEmailFocused ? '#d9e6f2' : '#FFFFFF' }]}
-                placeholder="E-mail"
+                placeholder="Email"
                 placeholderTextColor="#666"
                 value={email}
                 onChangeText={setEmail}
@@ -72,9 +128,13 @@ export default function LoginScreen({ navigation }: any) {
               />
               <Pressable
                 onPress={handleLogin}
-                style={({ pressed }) => [styles.button, { backgroundColor: pressed ? '#2a4d9c' : '#0a1d56' }]}
+                disabled={loading}
+                style={({ pressed }) => [
+                  styles.button,
+                  { backgroundColor: pressed ? '#2a4d9c' : '#0a1d56', opacity: loading ? 0.7 : 1 }
+                ]}
               >
-                <Text style={styles.buttonText}>Zaloguj</Text>
+                <Text style={styles.buttonText}>{loading ? 'Logowanie...' : 'Zaloguj'}</Text>
               </Pressable>
             </View>
           </View>
@@ -85,80 +145,17 @@ export default function LoginScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  mainContainer: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  backgroundContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    opacity: 0.3,
-  },
-  background: {
-    width: '100%',
-    height: '100%',
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-  },
-  overlay: {
-    alignItems: 'center',
-    paddingHorizontal: 30,
-    paddingVertical: 20,
-  },
-  headerContainer: {
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  title: {
-    fontSize: 54,
-    fontWeight: '900',
-    color: '#3b5998',
-    fontStyle: 'italic',
-    letterSpacing: 1,
-  },
-  subtitle: {
-    fontSize: 40,
-    fontWeight: 'bold',
-    color: '#3b5998',
-    letterSpacing: 3,
-    textAlign: 'center',
-    marginTop: 40,
-    marginBottom: 20,
-  },
-  formContainer: {
-    width: '100%',
-    alignItems: 'center',
-    gap: 15,
-  },
-  input: {
-    width: '85%',
-    height: 75,
-    borderColor: '#3b5998',
-    borderWidth: 1.5,
-    borderRadius: 15,
-    paddingHorizontal: 20,
-    fontSize: 18,
-    color: '#000',
-  },
-  button: {
-    width: '85%',
-    height: 75,
-    borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 25,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
+  mainContainer: { flex: 1, backgroundColor: '#fff' },
+  backgroundContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.3 },
+  background: { width: '100%', height: '100%' },
+  keyboardView: { flex: 1 },
+  scrollContent: { flexGrow: 1, justifyContent: 'center' },
+  overlay: { alignItems: 'center', paddingHorizontal: 30, paddingVertical: 20 },
+  headerContainer: { alignItems: 'center', marginBottom: 30 },
+  title: { fontSize: 54, fontWeight: '900', color: '#3b5998', fontStyle: 'italic', letterSpacing: 1 },
+  subtitle: { fontSize: 40, fontWeight: 'bold', color: '#3b5998', letterSpacing: 3, textAlign: 'center', marginTop: 40, marginBottom: 20 },
+  formContainer: { width: '100%', alignItems: 'center', gap: 15 },
+  input: { width: '85%', height: 75, borderColor: '#3b5998', borderWidth: 1.5, borderRadius: 15, paddingHorizontal: 20, fontSize: 18, color: '#000' },
+  button: { width: '85%', height: 75, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginTop: 25 },
+  buttonText: { color: '#FFFFFF', fontSize: 20, fontWeight: 'bold' },
 });

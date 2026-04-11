@@ -8,6 +8,7 @@ import ZleceniaKierowca from './screens/ZleceniaKierowca';
 import HistoriaKierowca from './screens/HistoriaKierowca';
 import ZamowieniePracownik from './screens/ZamowieniePracownik';
 import HistoriaPracownik from './screens/HistoriaPracownik';
+import AdminPanelScreen from './screens/AdminPanelScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -28,6 +29,7 @@ export default function App() {
         
         <Stack.Screen name="ZamowieniePracownik" component={ZamowieniePracownik} />
         <Stack.Screen name="HistoriaPracownik" component={HistoriaPracownik} />
+        <Stack.Screen name="AdminPanel" component={AdminPanelScreen} options={{ headerShown: false }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

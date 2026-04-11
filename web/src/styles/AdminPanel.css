@@ -17,7 +17,99 @@ body {
 /* Główne białe okno */
 .admin-main-container {
   background-color: #ffffff;
+  flex: 1; /* Zerujemy marginesy na całej stronie i dajemy szare tło */
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #888888; /* Szare tło ze zdjęcia */
+  font-family: Arial, sans-serif;
+}
+
+/* Główny kontener trzymający całość */
+.admin-page-wrapper {
+  min-height: 100vh;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Główne białe okno */
+.admin-main-container {
+  background-color: #ffffff;
   flex: 1; 
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.2);
+  
+  border-radius: 0; /* <--- TO LIKWIDUJE ZAOKRĄGLENIA GŁÓWNEGO OKNA */
+  overflow: hidden; /* Upewnia się, że nic nie wystaje poza ostre rogi */
+}
+
+/* Granatowy pasek na górze */
+.admin-blue-header {
+  background-color: #002255; 
+  height: 60px;
+  display: flex;
+  align-items: center;
+  padding-left: 20px;
+  
+  border-radius: 0; /* <--- TO LIKWIDUJE ZAOKRĄGLENIA PASKA */
+}
+
+/* Imitacja białego pudełka z logo z obrazka */
+.logo-placeholder {
+  background-color: white;
+  height: 40px;
+  padding: 0 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-text {
+  color: #002255;
+  font-weight: 900;
+  font-style: italic;
+  font-size: 20px;
+  letter-spacing: 1px;
+}
+
+/* Szary pasek z zakładkami nawigacji */
+.admin-grey-nav {
+  background-color: #e6e6e6; /* Jasnoszary */
+  height: 40px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+}
+
+/* Przyciski nawigacyjne w szarym pasku */
+.admin-grey-nav button {
+  background: none;
+  border: none;
+  height: 100%;
+  padding: 0 15px;
+  font-size: 12px;
+  color: #333;
+  cursor: pointer;
+}
+
+.admin-grey-nav button:hover {
+  background-color: #d4d4d4;
+}
+
+/* Opcjonalny efekt dla aktywnej zakładki */
+.admin-grey-nav button.active {
+  font-weight: bold;
+}
+
+/* Biały obszar zawartości pod zakładkami */
+.admin-content-area {
+  padding: 30px;
+  background-color: #ffffff;
+  flex: 1;
+  color: #333;
+}
   display: flex;
   flex-direction: column;
   box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.2);
