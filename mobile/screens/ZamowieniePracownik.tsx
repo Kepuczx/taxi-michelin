@@ -1,11 +1,43 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, Pressable, Image, ImageBackground, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, Pressable, Image, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MenuPracownik from '../components/MenuPracownik';
+import * as Location from 'expo-location';
+import MapView, { PROVIDER_DEFAULT, Region } from 'react-native-maps';
 
 export default function ZamowieniePracownik({ navigation }: any) {
   const [menuVisible, setMenuVisible] = useState(false);
+
+  // 🔥 Dodajemy stan dla regionu mapy (początkowo pusty lub Olsztyn jako fallback)
+  const [region, setRegion] = useState<Region>({
+    latitude: 53.7784,
+    longitude: 20.4801,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
+  });
+
+  // 🔥 POBIERANIE LOKALIZACJI PO WEJŚCIU NA EKRAN
+  useEffect(() => {
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Odmowa', 'Aplikacja potrzebuje dostępu do lokalizacji.');
+        return;
+      }
+
+      let location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      setRegion({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        latitudeDelta: 0.005, // Duże przybliżenie na ulicę
+        longitudeDelta: 0.005,
+      });
+    })();
+  }, []);
 
   const handleLogout = () => {
     Alert.alert(
@@ -46,11 +78,17 @@ export default function ZamowieniePracownik({ navigation }: any) {
       </View>
 
       <View style={styles.mapContainer}>
-        <ImageBackground
-          source={require('../assets/TempBackground.jpg')}
+        <MapView
           style={styles.mapBackground}
-          resizeMode="cover"
-        />
+          provider={PROVIDER_DEFAULT}
+          // 🔥 ZMIANA: Zastąpiono initialRegion stanem region, aby mapa reagowała na GPS
+          region={region} 
+          onRegionChangeComplete={setRegion} // 🔥 ZMIANA: Pozwala mapie zapamiętać nową pozycję przy przesuwaniu palcem
+          showsUserLocation={true} // Pokaże niebieską kropkę z Twoją pozycją
+          showsMyLocationButton={true} // 🔥 ZMIANA: Dodaje przycisk "celownika" do centrowania na użytkowniku
+        >
+          {/* Tu dla kierowcy zostawisz swoje <View style={styles.bottomSheet}> */}
+        </MapView>
       </View>
 
       <View style={styles.fixedOrderTaxiPanel}>
@@ -116,7 +154,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   mapBackground: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject, // 🔥 ZMIANA: Rozciąga mapę idealnie na cały pojemnik
   },
   fixedOrderTaxiPanel: {
     position: 'absolute',

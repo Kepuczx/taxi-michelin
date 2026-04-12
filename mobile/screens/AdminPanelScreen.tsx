@@ -16,7 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { AdminPanelStyles } from '../styles/AdminPanelStyles';
 
 // 🔥 UŻYJ SWOJEGO IP (z ipconfig)
-const API_URL = 'http://192.168.0.13:3000';
+
+const API_URL = 'http://192.168.55.111:3000';
 
 // Typy
 interface User {
