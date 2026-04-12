@@ -2,7 +2,6 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-// Upewnij się, że ścieżka do Twojego pliku user.entity.ts jest poprawna!
 import { User } from '../users/user.entity'; 
 
 @Injectable()
@@ -19,20 +18,27 @@ export class AuthService {
       where: { email: loginDto.email } 
     });
 
-    // 2. Sprawdzamy czy użytkownik istnieje, czy MA hasło (bo nullable: true) 
-    // i czy to hasło (ZWYKŁY TEKST) jest równe temu z formularza
+    // 2. Sprawdzamy czy użytkownik istnieje, czy MA hasło i czy hasło jest poprawne
     if (user && user.password && user.password === loginDto.password) {
       
-      // 3. Sukces! Generujemy bilet. Dobrą praktyką jest dodanie 'sub' (subject) jako ID.
+      // 3. Generujemy token
       const payload = { 
         sub: user.id, 
         email: user.email, 
         role: user.role 
       };
       
+      // 🔥 ZWRACAMY PEŁNE DANE UŻYTKOWNIKA
       return {
         access_token: this.jwtService.sign(payload),
         role: user.role,
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+        },
         message: `Witaj ${user.firstName}! Zalogowano pomyślnie jako ${user.role}.`,
       };
     }

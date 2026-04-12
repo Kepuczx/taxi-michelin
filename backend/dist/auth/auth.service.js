@@ -38,6 +38,13 @@ let AuthService = class AuthService {
             return {
                 access_token: this.jwtService.sign(payload),
                 role: user.role,
+                user: {
+                    id: user.id,
+                    email: user.email,
+                    firstName: user.firstName,
+                    lastName: user.lastName,
+                    role: user.role,
+                },
                 message: `Witaj ${user.firstName}! Zalogowano pomyślnie jako ${user.role}.`,
             };
         }

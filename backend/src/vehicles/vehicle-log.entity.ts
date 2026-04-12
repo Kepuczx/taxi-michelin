@@ -13,15 +13,14 @@ export class VehicleLog {
   @JoinColumn({ name: 'vehicle_id' })
   vehicle: Vehicle;
 
-  @Column({ name: 'vehicle_id' })  // ← DODANE!
+  @Column({ name: 'vehicle_id' })
   vehicleId: number;
 
   @ManyToOne(() => User)
   @JoinColumn({ name: 'driver_id' })
   driver: User;
 
-  // 🔥 TO BYŁ PROBLEM – brakowało @Column!
-  @Column({ name: 'driver_id', nullable: true, type: 'int' })  // ← DODANE!
+  @Column({ name: 'driver_id', nullable: true, type: 'int' })
   driverId: number | null;
 
   @Column({
@@ -50,6 +49,10 @@ export class VehicleLog {
 
   @Column({ name: 'distance_km', nullable: true, type: 'decimal', precision: 10, scale: 2 })
   distanceKm: number;
+
+  // 🔥 NOWE POLE – kto wykonał zmianę
+  @Column({ name: 'changed_by', nullable: true, length: 100 })
+  changedBy: string;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

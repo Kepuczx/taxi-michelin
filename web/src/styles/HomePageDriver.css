@@ -77,7 +77,7 @@ body {
   position: absolute;
   top: 60px; 
   right: -300px; 
-  width: 260px;
+  width: 280px;
   height: calc(100vh - 60px); 
   background-color: #ffffff; 
   border-left: 1px solid #e0e0e0;
@@ -149,6 +149,51 @@ body {
   border-top: 1px solid #eee;
 }
 
+/* --- AKTUALNY POJAZD W MENU --- */
+.driver-current-vehicle {
+  background-color: #f8f9fa;
+  margin: 10px 15px;
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #dde1e5;
+  text-align: center;
+}
+
+.vehicle-label {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 5px;
+}
+
+.vehicle-name {
+  font-size: 16px;
+  font-weight: bold;
+  color: #002255;
+}
+
+.vehicle-plate {
+  font-size: 13px;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.driver-release-btn {
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  width: 100%;
+  transition: all 0.2s;
+}
+
+.driver-release-btn:hover {
+  background-color: #c0392b;
+  transform: scale(1.02);
+}
+
 /* --- GŁÓWNA ZAWARTOŚĆ --- */
 .driver-main-content {
   display: flex;
@@ -172,7 +217,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow-y: auto; /* Pozwala przewijać zlecenia, gdy będzie ich dużo */
+  overflow-y: auto;
 }
 
 .panel-title {
@@ -219,7 +264,7 @@ body {
 }
 
 .task-time {
-  color: #e67e22; /* Pomarańczowy dla czasu */
+  color: #e67e22;
 }
 
 .task-route {
@@ -259,7 +304,7 @@ body {
 }
 
 .btn-accept {
-  flex: 2; /* Przycisk przyjmij jest celowo szerszy i bardziej widoczny */
+  flex: 2;
   background-color: #2ecc71;
   color: #ffffff;
   border: none;
@@ -303,4 +348,97 @@ body {
 
 .driver-history-area {
   flex: 1;
+}
+
+/* --- STYLE DLA WYBORU POJAZDU --- */
+.driver-selection-container {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+  background-color: #f4f7f6;
+}
+
+.driver-selection-card {
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  padding: 30px;
+  max-width: 600px;
+  width: 100%;
+}
+
+.driver-selection-card h2 {
+  margin: 0 0 10px 0;
+  color: #002255;
+  font-size: 22px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.driver-selection-card p {
+  text-align: center;
+  color: #666;
+  margin-bottom: 25px;
+}
+
+.driver-vehicles-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.driver-vehicle-item {
+  background-color: #f8f9fa;
+  border: 1px solid #dde1e5;
+  border-radius: 8px;
+  padding: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.driver-vehicle-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.driver-vehicle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.driver-vehicle-info strong {
+  color: #002255;
+  font-size: 16px;
+}
+
+.driver-vehicle-info span {
+  color: #555;
+  font-size: 14px;
+}
+
+.driver-select-btn {
+  background-color: #2ecc71;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.driver-select-btn:hover {
+  background-color: #27ae60;
+  transform: scale(1.02);
+}
+
+.no-vehicles {
+  text-align: center;
+  color: #e74c3c;
+  padding: 20px;
 }

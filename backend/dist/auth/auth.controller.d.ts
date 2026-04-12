@@ -5,6 +5,13 @@ export declare class AuthController {
     login(loginDto: any): Promise<{
         access_token: string;
         role: string;
+        user: {
+            id: number;
+            email: string;
+            firstName: string;
+            lastName: string;
+            role: string;
+        };
         message: string;
     }>;
 }

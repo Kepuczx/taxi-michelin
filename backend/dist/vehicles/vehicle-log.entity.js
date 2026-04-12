@@ -27,6 +27,7 @@ let VehicleLog = class VehicleLog {
     startLocation;
     endLocation;
     distanceKm;
+    changedBy;
     createdAt;
 };
 exports.VehicleLog = VehicleLog;
@@ -87,6 +88,10 @@ __decorate([
     (0, typeorm_1.Column)({ name: 'distance_km', nullable: true, type: 'decimal', precision: 10, scale: 2 }),
     __metadata("design:type", Number)
 ], VehicleLog.prototype, "distanceKm", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'changed_by', nullable: true, length: 100 }),
+    __metadata("design:type", String)
+], VehicleLog.prototype, "changedBy", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
     __metadata("design:type", Date)

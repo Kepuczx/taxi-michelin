@@ -15,5 +15,6 @@ export declare class VehicleLog {
     startLocation: string;
     endLocation: string;
     distanceKm: number;
+    changedBy: string;
     createdAt: Date;
 }

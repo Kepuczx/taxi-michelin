@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const backgroundImage = require('../assets/LoginBackground.jpg');
 
 // 🔥 UŻYJ SWOJEGO IP (z ipconfig)
-const API_URL = 'http://192.168.1.21:3000';
+const API_URL = 'http://192.168.0.13:3000';
 
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState('');
@@ -36,11 +36,14 @@ export default function LoginScreen({ navigation }: any) {
     const checkLoggedIn = async () => {
       const token = await AsyncStorage.getItem('userToken');
       const role = await AsyncStorage.getItem('userRole');
+      const userId = await AsyncStorage.getItem('userId');
+      
       if (token && role === 'admin') {
         navigation.replace('AdminPanel');
-      } else if (token && (role === 'driver' || role === 'employee')) {
-        // Jeśli ktoś inny jest zalogowany – niech zostanie tam gdzie jest
-        // Ale tu nie robimy nic, bo jest na loginie
+      } else if (token && role === 'driver') {
+        navigation.replace('MainKierowca');
+      } else if (token && role === 'employee') {
+        navigation.replace('ZamowieniePracownik');
       }
     };
     checkLoggedIn();
@@ -64,12 +67,19 @@ export default function LoginScreen({ navigation }: any) {
       const data = await response.json();
 
       if (response.ok) {
-        // ZAPISZ DANE
+        // 🔥 ZAPISUJEMY WSZYSTKIE DANE
         await AsyncStorage.setItem('userToken', data.access_token);
         await AsyncStorage.setItem('userRole', data.role);
         await AsyncStorage.setItem('userEmail', email);
         
+        // 🔥 DODANE: ZAPISUJEMY ID I IMIĘ/NAZWISKO
+        if (data.user && data.user.id) {
+          await AsyncStorage.setItem('userId', data.user.id.toString());
+          await AsyncStorage.setItem('userName', `${data.user.firstName} ${data.user.lastName}`);
+        }
+        
         console.log('Zalogowano jako:', data.role);
+        console.log('UserId:', data.user?.id);
         
         // 🔥 PRZEKIEROWANIE NA PODSTAWIE ROLI
         if (data.role === 'admin') {

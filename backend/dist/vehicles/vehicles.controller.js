@@ -26,23 +26,39 @@ let VehiclesController = class VehiclesController {
     findOne(id) {
         return this.vehiclesService.findOne(id);
     }
-    create(vehicleData) {
-        return this.vehiclesService.create(vehicleData);
+    create(vehicleData, req) {
+        const changedBy = req.headers['x-changed-by'] || 'system';
+        return this.vehiclesService.create(vehicleData, changedBy);
     }
-    update(id, vehicleData) {
-        return this.vehiclesService.update(id, vehicleData);
+    update(id, vehicleData, req) {
+        const changedBy = req.headers['x-changed-by'] || 'system';
+        return this.vehiclesService.update(id, vehicleData, changedBy);
     }
-    remove(id) {
+    remove(id, req) {
+        const changedBy = req.headers['x-changed-by'] || 'system';
         return this.vehiclesService.remove(id);
     }
-    assignDriver(id, driverId) {
-        return this.vehiclesService.assignDriver(id, driverId);
+    getLogsByVehicle(vehicleId) {
+        return this.vehiclesService.getLogsByVehicle(vehicleId);
     }
-    releaseDriver(id) {
-        return this.vehiclesService.releaseDriver(id);
+    getAllLogs() {
+        return this.vehiclesService.getAllLogs();
     }
-    reportBreakdown(id, body) {
-        return this.vehiclesService.reportBreakdown(id, body.description, body.photoUrl);
+    toggleBreakdown(id, body, req) {
+        const changedBy = req.headers['x-changed-by'] || 'system';
+        return this.vehiclesService.toggleBreakdown(id, body.isBreakdown, changedBy);
+    }
+    assignDriver(id, driverId, req) {
+        const changedBy = req.headers['x-changed-by'] || 'system';
+        return this.vehiclesService.assignDriver(id, driverId, changedBy);
+    }
+    releaseDriver(id, req) {
+        const changedBy = req.headers['x-changed-by'] || 'system';
+        return this.vehiclesService.releaseDriver(id, changedBy);
+    }
+    reportBreakdown(id, body, req) {
+        const changedBy = req.headers['x-changed-by'] || 'system';
+        return this.vehiclesService.reportBreakdown(id, body.description, changedBy, body.photoUrl);
     }
 };
 exports.VehiclesController = VehiclesController;
@@ -62,46 +78,74 @@ __decorate([
 __decorate([
     (0, common_1.Post)(),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], VehiclesController.prototype, "create", null);
 __decorate([
     (0, common_1.Patch)(':id'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Object]),
+    __metadata("design:paramtypes", [Number, Object, Object]),
     __metadata("design:returntype", Promise)
 ], VehiclesController.prototype, "update", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(1, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [Number, Object]),
     __metadata("design:returntype", Promise)
 ], VehiclesController.prototype, "remove", null);
+__decorate([
+    (0, common_1.Get)('vehicle-logs/vehicle/:vehicleId'),
+    __param(0, (0, common_1.Param)('vehicleId', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number]),
+    __metadata("design:returntype", void 0)
+], VehiclesController.prototype, "getLogsByVehicle", null);
+__decorate([
+    (0, common_1.Get)('vehicle-logs'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], VehiclesController.prototype, "getAllLogs", null);
+__decorate([
+    (0, common_1.Patch)(':id/toggle-breakdown'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, Object, Object]),
+    __metadata("design:returntype", void 0)
+], VehiclesController.prototype, "toggleBreakdown", null);
 __decorate([
     (0, common_1.Patch)(':id/assign-driver/:driverId'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Param)('driverId', common_1.ParseIntPipe)),
+    __param(2, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Number]),
+    __metadata("design:paramtypes", [Number, Number, Object]),
     __metadata("design:returntype", Promise)
 ], VehiclesController.prototype, "assignDriver", null);
 __decorate([
     (0, common_1.Patch)(':id/release-driver'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(1, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [Number, Object]),
     __metadata("design:returntype", Promise)
 ], VehiclesController.prototype, "releaseDriver", null);
 __decorate([
     (0, common_1.Post)(':id/report-breakdown'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Object]),
+    __metadata("design:paramtypes", [Number, Object, Object]),
     __metadata("design:returntype", Promise)
 ], VehiclesController.prototype, "reportBreakdown", null);
 exports.VehiclesController = VehiclesController = __decorate([

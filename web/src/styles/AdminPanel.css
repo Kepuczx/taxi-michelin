@@ -1,72 +1,42 @@
-/* Zerujemy marginesy na całej stronie i dajemy szare tło */
+/* --- BAZOWE USTAWIENIA --- */
 body {
   margin: 0;
   padding: 0;
-  background-color: #888888; /* Szare tło ze zdjęcia */
-  font-family: Arial, sans-serif;
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: #f4f7f6;
+  overflow-x: hidden;
 }
 
-/* Główny kontener trzymający całość */
 .admin-page-wrapper {
-  min-height: 100vh;
-  padding: 0;
   display: flex;
   flex-direction: column;
+  height: 100vh;
+  position: relative;
 }
 
-/* Główne białe okno */
-.admin-main-container {
-  background-color: #ffffff;
-  flex: 1; /* Zerujemy marginesy na całej stronie i dajemy szare tło */
-body {
-  margin: 0;
-  padding: 0;
-  background-color: #888888; /* Szare tło ze zdjęcia */
-  font-family: Arial, sans-serif;
-}
-
-/* Główny kontener trzymający całość */
-.admin-page-wrapper {
-  min-height: 100vh;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-/* Główne białe okno */
-.admin-main-container {
-  background-color: #ffffff;
-  flex: 1; 
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.2);
-  
-  border-radius: 0; /* <--- TO LIKWIDUJE ZAOKRĄGLENIA GŁÓWNEGO OKNA */
-  overflow: hidden; /* Upewnia się, że nic nie wystaje poza ostre rogi */
-}
-
-/* Granatowy pasek na górze */
-.admin-blue-header {
-  background-color: #002255; 
+/* --- NAGŁÓWEK --- */
+.admin-header {
+  background-color: #002255;
   height: 60px;
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  padding-left: 20px;
-  
-  border-radius: 0; /* <--- TO LIKWIDUJE ZAOKRĄGLENIA PASKA */
+  padding: 0 20px;
+  z-index: 500;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
 }
 
-/* Imitacja białego pudełka z logo z obrazka */
-.logo-placeholder {
+.admin-logo {
   background-color: white;
   height: 40px;
   padding: 0 15px;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.logo-text {
+.admin-logo-text {
   color: #002255;
   font-weight: 900;
   font-style: italic;
@@ -74,112 +44,434 @@ body {
   letter-spacing: 1px;
 }
 
-/* Szary pasek z zakładkami nawigacji */
-.admin-grey-nav {
-  background-color: #e6e6e6; /* Jasnoszary */
-  height: 40px;
+.admin-header-actions {
   display: flex;
   align-items: center;
-  padding: 0 10px;
+  gap: 20px;
+  color: white;
 }
 
-/* Przyciski nawigacyjne w szarym pasku */
-.admin-grey-nav button {
+.welcome-text {
+  font-weight: 500;
+  font-size: 15px;
+}
+
+.admin-menu-btn {
   background: none;
   border: none;
-  height: 100%;
-  padding: 0 15px;
-  font-size: 12px;
-  color: #333;
+  color: white;
+  font-size: 28px;
   cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: transform 0.2s;
 }
 
-.admin-grey-nav button:hover {
-  background-color: #d4d4d4;
+.admin-menu-btn:hover {
+  transform: scale(1.1);
 }
 
-/* Opcjonalny efekt dla aktywnej zakładki */
-.admin-grey-nav button.active {
-  font-weight: bold;
-}
-
-/* Biały obszar zawartości pod zakładkami */
-.admin-content-area {
-  padding: 30px;
+/* --- WYSUWANE MENU Z PRAWEJ --- */
+.admin-side-menu {
+  position: absolute;
+  top: 60px;
+  right: -300px;
+  width: 280px;
+  height: calc(100vh - 60px);
   background-color: #ffffff;
-  flex: 1;
-  color: #333;
-}
+  border-left: 1px solid #e0e0e0;
+  box-shadow: -4px 0 15px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
-  box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.2);
-  
-  border-radius: 0; /* <--- TO LIKWIDUJE ZAOKRĄGLENIA GŁÓWNEGO OKNA */
-  overflow: hidden; /* Upewnia się, że nic nie wystaje poza ostre rogi */
+  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1000;
 }
 
-/* Granatowy pasek na górze */
-.admin-blue-header {
-  background-color: #002255; 
-  height: 60px;
-  display: flex;
-  align-items: center;
-  padding-left: 20px;
-  
-  border-radius: 0; /* <--- TO LIKWIDUJE ZAOKRĄGLENIA PASKA */
+.admin-side-menu.open {
+  right: 0;
 }
 
-/* Imitacja białego pudełka z logo z obrazka */
-.logo-placeholder {
-  background-color: white;
-  height: 40px;
-  padding: 0 15px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.logo-text {
-  color: #002255;
-  font-weight: 900;
-  font-style: italic;
-  font-size: 20px;
-  letter-spacing: 1px;
-}
-
-/* Szary pasek z zakładkami nawigacji */
-.admin-grey-nav {
-  background-color: #e6e6e6; /* Jasnoszary */
-  height: 40px;
-  display: flex;
-  align-items: center;
-  padding: 0 10px;
-}
-
-/* Przyciski nawigacyjne w szarym pasku */
-.admin-grey-nav button {
+.close-menu-btn {
+  align-self: flex-end;
   background: none;
   border: none;
-  height: 100%;
-  padding: 0 15px;
-  font-size: 12px;
-  color: #333;
+  padding: 15px;
   cursor: pointer;
-}
-
-.admin-grey-nav button:hover {
-  background-color: #d4d4d4;
-}
-
-/* Opcjonalny efekt dla aktywnej zakładki */
-.admin-grey-nav button.active {
   font-weight: bold;
+  color: #555;
+  transition: color 0.2s;
 }
 
-/* Biały obszar zawartości pod zakładkami */
-.admin-content-area {
-  padding: 30px;
-  background-color: #ffffff;
-  flex: 1;
+.close-menu-btn:hover {
+  color: #e74c3c;
+}
+
+.admin-menu-header {
+  background-color: #f8f9fa;
+  padding: 20px 15px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 16px;
   color: #333;
+  border-bottom: 1px solid #eee;
+}
+
+.admin-menu-item {
+  background: none;
+  border: none;
+  border-bottom: 1px solid #f0f0f0;
+  padding: 16px;
+  text-align: left;
+  padding-left: 20px;
+  font-size: 15px;
+  color: #444;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.admin-menu-item:hover,
+.admin-menu-item.active {
+  background-color: #f0f4f8;
+  color: #002255;
+  font-weight: bold;
+  padding-left: 25px;
+}
+
+.admin-menu-bottom {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.logout-text {
+  color: #e74c3c;
+  font-weight: bold;
+  border-top: 1px solid #eee;
+}
+
+/* --- GŁÓWNY OBSZAR ROBOCZY --- */
+.admin-main-content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.admin-content-card {
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  padding: 24px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.card-title {
+  margin: 0;
+  color: #002255;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+/* --- PRZYCISKI --- */
+.btn-add {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.btn-add:hover {
+  background-color: #218838;
+}
+
+.btn-save {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.btn-save:hover {
+  background-color: #218838;
+}
+
+.btn-cancel {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.btn-cancel:hover {
+  background-color: #5a6268;
+}
+
+.btn-edit {
+  background-color: #f39c12;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 5px;
+  font-size: 12px;
+}
+
+.btn-edit:hover {
+  background-color: #e67e22;
+}
+
+.btn-delete {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.btn-delete:hover {
+  background-color: #c82333;
+}
+
+/* --- FORMULARZE --- */
+.admin-form {
+  background-color: #f8f9fa;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.admin-form h3 {
+  color: #002255;
+  margin-bottom: 16px;
+  font-size: 18px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.form-grid input,
+.form-grid select {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.edit-form {
+  background-color: #fff3cd;
+  border: 1px solid #ffc107;
+}
+
+/* --- TABELE --- */
+.table-container {
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.admin-table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #002255;
+}
+
+.admin-table tr:hover {
+  background-color: #f8f9fa;
+}
+
+/* --- STATUSY I BADGE --- */
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-available {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.status-in-use {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.status-unavailable {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.role-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.role-badge.admin {
+  background-color: #002255;
+  color: white;
+}
+
+.role-badge.driver {
+  background-color: #28a745;
+  color: white;
+}
+
+.role-badge.employee {
+  background-color: #17a2b8;
+  color: white;
+}
+
+.event-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.event-start {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.event-end {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.event-ride {
+  background-color: #d1ecf1;
+  color: #0c5460;
+}
+
+.event-breakdown {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.event-note {
+  background-color: #e9ecef;
+  color: #495057;
+}
+
+.breakdown-btn {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.breakdown-active {
+  background-color: #dc3545;
+}
+
+/* --- WYBÓR POJAZDU --- */
+.vehicle-selector {
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.vehicle-selector label {
+  font-weight: 600;
+  color: #002255;
+}
+
+.vehicle-selector select {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  min-width: 250px;
+  font-size: 14px;
+}
+
+/* --- PUSTY STAN --- */
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  color: #666;
+}
+
+/* --- RESPONSYWNOŚĆ --- */
+@media (max-width: 768px) {
+  .admin-main-content {
+    padding: 12px;
+  }
+  
+  .admin-content-card {
+    padding: 16px;
+  }
+  
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .admin-table th,
+  .admin-table td {
+    padding: 8px;
+    font-size: 12px;
+  }
+  
+  .vehicle-selector {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .welcome-text {
+    display: none;
+  }
 }
