@@ -22,7 +22,7 @@ let UsersService = class UsersService {
     constructor(usersRepository) {
         this.usersRepository = usersRepository;
     }
-    findAll() {
+    async findAll() {
         return this.usersRepository.find();
     }
     async findOne(id) {
@@ -34,17 +34,31 @@ let UsersService = class UsersService {
     }
     async create(userData) {
         const existingUser = await this.usersRepository.findOneBy({
-            email: userData.email
+            email: userData.email,
         });
-        if (existingUser) {
+        if (existingUser)
             throw new Error('Użytkownik z tym emailem już istnieje');
-        }
         const newUser = this.usersRepository.create(userData);
         return this.usersRepository.save(newUser);
     }
     async update(id, userData) {
         await this.usersRepository.update(id, userData);
         return this.findOne(id);
+    }
+    async updateUser(id, updateData) {
+        const user = await this.usersRepository.findOneBy({ id: +id });
+        if (!user) {
+            throw new common_1.NotFoundException(`Użytkownik o id ${id} nie istnieje`);
+        }
+        const dataToUpdate = {};
+        if (updateData.email) {
+            dataToUpdate.email = updateData.email;
+        }
+        if (updateData.password && updateData.password.trim() !== '') {
+            dataToUpdate.password = updateData.password;
+        }
+        await this.usersRepository.update(+id, dataToUpdate);
+        return { message: 'Dane zapisane (plain text)' };
     }
     async remove(id) {
         const result = await this.usersRepository.delete(id);

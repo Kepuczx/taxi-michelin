@@ -8,4 +8,10 @@ export declare class UsersController {
     create(userData: Partial<User>): Promise<User>;
     update(id: string, userData: Partial<User>): Promise<User>;
     remove(id: string): Promise<void>;
+    updateUser(id: string, body: {
+        email?: string;
+        password?: string;
+    }): Promise<{
+        message: string;
+    }>;
 }

@@ -10,7 +10,7 @@ export class UsersService {
     private usersRepository: Repository<User>,
   ) {}
 
-  findAll(): Promise<User[]> {
+  async findAll(): Promise<User[]> {
     return this.usersRepository.find();
   }
 
@@ -22,22 +22,47 @@ export class UsersService {
     return user;
   }
 
+  // Tworzenie użytkownika - hasło zapisywane "luzem"
   async create(userData: Partial<User>): Promise<User> {
-    // Sprawdź czy email już istnieje
-    const existingUser = await this.usersRepository.findOneBy({ 
-      email: userData.email 
+    const existingUser = await this.usersRepository.findOneBy({
+      email: userData.email,
     });
-    if (existingUser) {
-      throw new Error('Użytkownik z tym emailem już istnieje');
-    }
+    if (existingUser) throw new Error('Użytkownik z tym emailem już istnieje');
 
     const newUser = this.usersRepository.create(userData);
     return this.usersRepository.save(newUser);
   }
 
+  // Zwykły update (dla starych metod Put)
   async update(id: number, userData: Partial<User>): Promise<User> {
     await this.usersRepository.update(id, userData);
     return this.findOne(id);
+  }
+
+  // --- NOWA PROSTA EDYCJA (BEZ BCRYPTA) ---
+  async updateUser(
+    id: string,
+    updateData: { email?: string; password?: string },
+  ) {
+    const user = await this.usersRepository.findOneBy({ id: +id });
+    if (!user) {
+      throw new NotFoundException(`Użytkownik o id ${id} nie istnieje`);
+    }
+
+    const dataToUpdate: Partial<User> = {};
+
+    if (updateData.email) {
+      dataToUpdate.email = updateData.email;
+    }
+
+    // Zapisujemy hasło dokładnie takie, jakie przyszło z modala
+    if (updateData.password && updateData.password.trim() !== '') {
+      dataToUpdate.password = updateData.password;
+    }
+
+    await this.usersRepository.update(+id, dataToUpdate);
+
+    return { message: 'Dane zapisane (plain text)' };
   }
 
   async remove(id: number): Promise<void> {

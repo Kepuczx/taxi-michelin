@@ -1,4 +1,11 @@
-import { Controller, Get, Post, Body, UnauthorizedException } from '@nestjs/common';
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AppService } from './app.service';
 
 @Controller()

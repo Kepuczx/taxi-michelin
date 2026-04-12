@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../App.css'; 
 import '../styles/HomePage.css';
 
 const HomePage = () => {
   const [message, setMessage] = useState('Łączenie z backendem...');
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab] = useState('dashboard');
   
   // 🔥 Od razu ładujemy użytkownika z pamięci przeglądarki!
   const [loggedUser, setLoggedUser] = useState<string | null>(() => localStorage.getItem('loggedUser'));
@@ -18,11 +18,13 @@ const HomePage = () => {
     fetch('http://localhost:3000')
       .then(res => res.text())
       .then(data => setMessage(`✅ Połączono: ${data}`))
-      .catch(err => setMessage('❌ Brak połączenia z backendem'));
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      .catch(() => setMessage('❌ Brak połączenia z backendem'));
 
     // 2. Sprawdzanie logowania i AUTOMATYCZNE PRZEKIEROWANIE 🔥
     const user = localStorage.getItem('loggedUser');
     if (user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoggedUser(user);
     } else {
       // Jeśli nie ma użytkownika w pamięci, natychmiast wyrzuć go na stronę logowania
