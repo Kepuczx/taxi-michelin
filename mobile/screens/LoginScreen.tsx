@@ -6,7 +6,7 @@ const backgroundImage = require('../assets/LoginBackground.jpg');
 
 // 🔥 UŻYJ SWOJEGO IP (z ipconfig)
 
-const API_URL = 'http://192.168.55.111:3000';
+const API_URL = 'http://192.168.0.13:3000';
 
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState('');

@@ -1,5 +1,5 @@
 // mobile/styles/MainKierowcaStyles.ts
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 
 export const MainKierowcaStyles = StyleSheet.create({
   container: {
@@ -8,7 +8,7 @@ export const MainKierowcaStyles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#0a1d56',
-    paddingTop: 50,
+    paddingTop: Platform.OS === 'ios' ? 50 : 40,
     paddingBottom: 20,
     paddingHorizontal: 20,
     borderBottomWidth: 4,
@@ -42,7 +42,8 @@ export const MainKierowcaStyles = StyleSheet.create({
     height: '100%',
     backgroundColor: '#fff',
     zIndex: 1001,
-    paddingTop: 20,
+    paddingTop: Platform.OS === 'ios' ? 50 : 40,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
     shadowColor: '#000',
     shadowOffset: { width: -2, height: 0 },
     shadowOpacity: 0.2,
@@ -94,7 +95,7 @@ export const MainKierowcaStyles = StyleSheet.create({
   },
   releaseBtn: {
     backgroundColor: '#dc3545',
-    paddingVertical: 6,
+    paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 4,
     width: '100%',
@@ -106,7 +107,8 @@ export const MainKierowcaStyles = StyleSheet.create({
     textAlign: 'center',
   },
   menuItem: {
-    padding: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
@@ -121,10 +123,12 @@ export const MainKierowcaStyles = StyleSheet.create({
     color: '#002255',
     fontWeight: 'bold',
   },
+  // 🔥 POPRAWIONY KONTENER NA DOLE MENU
   menuBottom: {
     marginTop: 'auto',
     borderTopWidth: 1,
     borderTopColor: '#eee',
+    paddingBottom: Platform.OS === 'ios' ? 30 : 20,
   },
   logoutText: {
     color: '#e74c3c',

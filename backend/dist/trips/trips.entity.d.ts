@@ -1,0 +1,32 @@
+import { User } from '../users/user.entity';
+import { Vehicle } from '../vehicles/vehicle.entity';
+export type TripStatus = 'pending' | 'assigned' | 'in_progress' | 'completed' | 'cancelled';
+export declare class Trip {
+    id: number;
+    client: User;
+    clientId: number;
+    driver: User;
+    driverId: number;
+    vehicle: Vehicle;
+    vehicleId: number;
+    pickupLat: number;
+    pickupLng: number;
+    pickupAddress: string;
+    dropoffLat: number;
+    dropoffLng: number;
+    dropoffAddress: string;
+    routePolyline: string;
+    distanceKm: number;
+    durationMin: number;
+    status: TripStatus;
+    requestedAt: Date;
+    assignedAt: Date;
+    startedAt: Date;
+    completedAt: Date;
+    cancelledAt: Date;
+    passengerCount: number;
+    notes: string;
+    cancellationReason: string;
+    createdAt: Date;
+    updatedAt: Date;
+}
