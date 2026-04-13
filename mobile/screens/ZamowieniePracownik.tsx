@@ -8,11 +8,9 @@ import * as Location from 'expo-location';
 import axios from 'axios';
 
 import MenuPracownik from '../components/MenuPracownik';
-import { API_URL } from './config';
 import MapViewDirections from 'react-native-maps-directions';
+import { GOOGLE_MAPS_API_KEY, API_URL } from './config';
 
-// PODSTAW TWÓJ KLUCZ GOOGLE API
-const GOOGLE_MAPS_API_KEY = 'AIzaSyB4jErR8YFq22gziSEFfw8W60v-qsYUoY8';
 
 export default function ZamowieniePracownik({ navigation }: any) {
   const [menuVisible, setMenuVisible] = useState(false);

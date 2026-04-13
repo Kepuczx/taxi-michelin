@@ -9,7 +9,9 @@ import { Platform } from 'react-native';
 const isDevelopment = __DEV__;
 
 // Twój aktualny adres IP do testów lokalnych
-const LOCAL_IP = '192.168.55.111'; 
+const LOCAL_IP = '192.168.55.107'; 
+
+export const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 
 // Adres serwera w internecie (wpiszesz go, gdy już wrzucisz backend na serwer)
 const PRODUCTION_URL = 'https://api.twoja-domena-taxi.pl';
@@ -17,5 +19,7 @@ const PRODUCTION_URL = 'https://api.twoja-domena-taxi.pl';
 export const API_URL = isDevelopment
   ? `http://${LOCAL_IP}:3000`
   : PRODUCTION_URL;
+
+
 
 console.log(`[Config] Aplikacja łączy się z: ${API_URL}`);
