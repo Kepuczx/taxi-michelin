@@ -1,477 +1,112 @@
-/* --- BAZOWE USTAWIENIA --- */
-body {
-  margin: 0;
-  padding: 0;
-  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  background-color: #f4f7f6;
-  overflow-x: hidden;
-}
-
-.admin-page-wrapper {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  position: relative;
-}
-
-/* --- NAGŁÓWEK --- */
-.admin-header {
-  background-color: #002255;
-  height: 60px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 20px;
-  z-index: 500;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-}
-
-.admin-logo {
-  background-color: white;
-  height: 40px;
-  padding: 0 15px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.admin-logo-text {
-  color: #002255;
-  font-weight: 900;
-  font-style: italic;
-  font-size: 20px;
-  letter-spacing: 1px;
-}
-
-.admin-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  color: white;
-}
-
-.welcome-text {
-  font-weight: 500;
-  font-size: 15px;
-}
-
-.admin-menu-btn {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 28px;
-  cursor: pointer;
-  padding: 0;
-  line-height: 1;
-  transition: transform 0.2s;
-}
-
-.admin-menu-btn:hover {
-  transform: scale(1.1);
-}
-
-/* --- WYSUWANE MENU Z PRAWEJ --- */
-.admin-side-menu {
-  position: absolute;
-  top: 60px;
-  right: -300px;
-  width: 280px;
-  height: calc(100vh - 60px);
-  background-color: #ffffff;
-  border-left: 1px solid #e0e0e0;
-  box-shadow: -4px 0 15px rgba(0, 0, 0, 0.05);
-  display: flex;
-  flex-direction: column;
-  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 1000;
-}
-
-.admin-side-menu.open {
-  right: 0;
-}
-
-.close-menu-btn {
-  align-self: flex-end;
-  background: none;
-  border: none;
-  padding: 15px;
-  cursor: pointer;
-  font-weight: bold;
-  color: #555;
-  transition: color 0.2s;
-}
-
-.close-menu-btn:hover {
-  color: #e74c3c;
-}
-
-.admin-menu-header {
-  background-color: #f8f9fa;
-  padding: 20px 15px;
-  text-align: center;
-  font-weight: bold;
-  font-size: 16px;
-  color: #333;
-  border-bottom: 1px solid #eee;
-}
-
-.admin-menu-item {
-  background: none;
-  border: none;
-  border-bottom: 1px solid #f0f0f0;
-  padding: 16px;
-  text-align: left;
-  padding-left: 20px;
-  font-size: 15px;
-  color: #444;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.admin-menu-item:hover,
-.admin-menu-item.active {
-  background-color: #f0f4f8;
-  color: #002255;
-  font-weight: bold;
-  padding-left: 25px;
-}
-
-.admin-menu-bottom {
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-}
-
-.logout-text {
-  color: #e74c3c;
-  font-weight: bold;
-  border-top: 1px solid #eee;
-}
-
-/* --- GŁÓWNY OBSZAR ROBOCZY --- */
-.admin-main-content {
-  flex: 1;
-  padding: 20px;
-  overflow-y: auto;
-}
-
+/* --- KARTY TREŚCI I TABELE --- */
 .admin-content-card {
+  width: 100%;
+  max-width: 1200px;
   background-color: #ffffff;
   border-radius: 12px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
-  padding: 24px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08); 
+  padding: 30px;
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-  gap: 15px;
+  margin-bottom: 25px;
+  border-bottom: 2px solid #f0f4f8;
+  padding-bottom: 15px;
 }
 
 .card-title {
   margin: 0;
   color: #002255;
   font-size: 22px;
+}
+
+/* --- NOWY LAYOUT PULPITU Z MAPĄ --- */
+.map-dashboard-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  max-width: 1200px;
+  height: calc(100vh - 120px); /* Rozciąga się na wysokość ekranu */
+}
+
+/* Wąski pasek statusu połączenia */
+.admin-status-banner {
+  border-radius: 8px;
+  padding: 15px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 16px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.banner-ok {
+  background-color: #e8f8f5;
+  color: #27ae60;
+  border: 1px solid #c8e6c9;
+}
+
+.banner-error {
+  background-color: #fdedec;
+  color: #c0392b;
+  border: 1px solid #f5b7b1;
+}
+
+/* Wielka wyśrodkowana mapa */
+.admin-map-card {
+  flex: 1; /* Wypełnia całą dostępną resztę miejsca pod paskiem */
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08); 
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 2px dashed #dde1e5; 
+  background-image: radial-gradient(#e0e5ec 1px, transparent 1px); 
+  background-size: 20px 20px;
+}
+
+.map-placeholder-text {
   font-weight: 800;
+  font-size: 24px;
+  color: #a0aab5;
+  letter-spacing: 1px;
 }
 
-/* --- PRZYCISKI --- */
-.btn-add {
-  background-color: #28a745;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: background-color 0.2s;
-}
 
-.btn-add:hover {
-  background-color: #218838;
-}
+/* --- PRZYCISKI W KARTACH --- */
+.btn-add { background-color: #002255; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+.btn-add:hover { background-color: #1a3c75; }
+.btn-save { background-color: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+.btn-cancel { background-color: #bdc3c7; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+.btn-edit { background-color: #f39c12; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-right: 5px; }
+.btn-delete { background-color: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
 
-.btn-save {
-  background-color: #28a745;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.btn-save:hover {
-  background-color: #218838;
-}
-
-.btn-cancel {
-  background-color: #6c757d;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.btn-cancel:hover {
-  background-color: #5a6268;
-}
-
-.btn-edit {
-  background-color: #f39c12;
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-right: 5px;
-  font-size: 12px;
-}
-
-.btn-edit:hover {
-  background-color: #e67e22;
-}
-
-.btn-delete {
-  background-color: #dc3545;
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-}
-
-.btn-delete:hover {
-  background-color: #c82333;
-}
+/* Przycisk Awarii */
+.breakdown-btn { background-color: #2ecc71; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+.breakdown-active { background-color: #e74c3c; }
 
 /* --- FORMULARZE --- */
-.admin-form {
-  background-color: #f8f9fa;
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 24px;
-}
-
-.admin-form h3 {
-  color: #002255;
-  margin-bottom: 16px;
-  font-size: 18px;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.form-grid input,
-.form-grid select {
-  padding: 10px 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 14px;
-}
-
-.form-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.edit-form {
-  background-color: #fff3cd;
-  border: 1px solid #ffc107;
-}
+.admin-form { background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #e0e0e0; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+.form-grid input, .form-grid select { padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+.form-actions { display: flex; gap: 10px; }
 
 /* --- TABELE --- */
-.table-container {
-  overflow-x: auto;
-}
+.table-container { overflow-x: auto; }
+.modern-table { width: 100%; border-collapse: collapse; }
+.modern-table th, .modern-table td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #e0e0e0; }
+.modern-table th { background-color: #f0f4f8; color: #333; font-weight: bold; }
+.modern-table tr:hover { background-color: #f9fbfc; }
 
-.admin-table {
-  width: 100%;
-  border-collapse: collapse;
-}
+.role-badge, .status-badge { padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+.employee { background-color: #e8f4f8; color: #2980b9; }
+.driver { background-color: #eafaf1; color: #27ae60; }
+.admin { background-color: #fdedec; color: #c0392b; }
 
-.admin-table th,
-.admin-table td {
-  padding: 12px;
-  text-align: left;
-  border-bottom: 1px solid #eee;
-}
-
-.admin-table th {
-  background-color: #f8f9fa;
-  font-weight: 600;
-  color: #002255;
-}
-
-.admin-table tr:hover {
-  background-color: #f8f9fa;
-}
-
-/* --- STATUSY I BADGE --- */
-.status-badge {
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.status-available {
-  background-color: #d4edda;
-  color: #155724;
-}
-
-.status-in-use {
-  background-color: #fff3cd;
-  color: #856404;
-}
-
-.status-unavailable {
-  background-color: #f8d7da;
-  color: #721c24;
-}
-
-.role-badge {
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.role-badge.admin {
-  background-color: #002255;
-  color: white;
-}
-
-.role-badge.driver {
-  background-color: #28a745;
-  color: white;
-}
-
-.role-badge.employee {
-  background-color: #17a2b8;
-  color: white;
-}
-
-.event-badge {
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.event-start {
-  background-color: #d4edda;
-  color: #155724;
-}
-
-.event-end {
-  background-color: #f8d7da;
-  color: #721c24;
-}
-
-.event-ride {
-  background-color: #d1ecf1;
-  color: #0c5460;
-}
-
-.event-breakdown {
-  background-color: #f8d7da;
-  color: #721c24;
-}
-
-.event-note {
-  background-color: #e9ecef;
-  color: #495057;
-}
-
-.breakdown-btn {
-  background-color: #28a745;
-  color: white;
-  border: none;
-  padding: 4px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-}
-
-.breakdown-active {
-  background-color: #dc3545;
-}
-
-/* --- WYBÓR POJAZDU --- */
-.vehicle-selector {
-  margin-bottom: 24px;
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  flex-wrap: wrap;
-}
-
-.vehicle-selector label {
-  font-weight: 600;
-  color: #002255;
-}
-
-.vehicle-selector select {
-  padding: 10px 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  min-width: 250px;
-  font-size: 14px;
-}
-
-/* --- PUSTY STAN --- */
-.empty-state {
-  text-align: center;
-  padding: 40px;
-  background-color: #f9f9f9;
-  border-radius: 8px;
-  color: #666;
-}
-
-/* --- RESPONSYWNOŚĆ --- */
-@media (max-width: 768px) {
-  .admin-main-content {
-    padding: 12px;
-  }
-  
-  .admin-content-card {
-    padding: 16px;
-  }
-  
-  .card-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .admin-table th,
-  .admin-table td {
-    padding: 8px;
-    font-size: 12px;
-  }
-  
-  .vehicle-selector {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  
-  .welcome-text {
-    display: none;
-  }
-}
+.status-available { background-color: #eafaf1; color: #27ae60; }
+.status-in-use { background-color: #fef5e7; color: #f39c12; }
+.status-unavailable { background-color: #fdedec; color: #c0392b; }

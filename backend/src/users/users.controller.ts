@@ -5,6 +5,7 @@ import {
   Body,
   Param,
   Put,
+  Patch, // Dodano brakujący import
   Delete,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
@@ -21,7 +22,8 @@ export class UsersController {
 
   @Get(':id')
   findOne(@Param('id') id: string): Promise<User> {
-    return this.usersService.findOne(+id);
+    // Jeśli id to UUID (Supabase), nie używaj +id (konwersji na liczbę)
+    return this.usersService.findOne(id as any);
   }
 
   @Post()
@@ -29,13 +31,21 @@ export class UsersController {
     return this.usersService.create(userData);
   }
 
-  @Put(':id')
-  update(@Param('id') id: string, @Body() userData: Partial<User>): Promise<User> {
-    return this.usersService.update(+id, userData);
+  // ZOSTAWIAMY TYLKO JEDNĄ METODĘ UPDATE
+  // Używamy @Patch, bo edytujemy tylko wybrane pola (email/hasło)
+  @Patch(':id')
+  async update(
+    @Param('id') id: string, 
+    @Body() body: any,
+  ) {
+    // Wywołujemy funkcję w serwisie - upewnij się, że w users.service.ts 
+    // funkcja nazywa się update(id, userData)
+    return this.usersService.update(id, body);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string): Promise<void> {
-    return this.usersService.remove(+id);
+    // Usunięto +id, aby obsługiwać UUID jako string
+    return this.usersService.remove(id as any);
   }
 }

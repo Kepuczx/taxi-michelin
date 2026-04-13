@@ -20,14 +20,22 @@ export const userService = {
     return response.data;
   },
 
-  // Aktualizuj użytkownika
-  async update(id: number, userData: Partial<NewUser>): Promise<User> {
-    const response = await api.put(`/users/${id}`, userData);
+ 
+async update(id: number | string, userData: any) {
+    // 1. Używamy .patch(), bo tak ustawiliśmy w kontrolerze NestJS (@Patch)
+    // 2. id może być stringiem (UUID), co teraz backend już akceptuje
+    const response = await api.patch(`/users/${id}`, userData);
+    
+    // Zwracamy dane, które przyszły z backendu (zaktualizowany obiekt użytkownika)
     return response.data;
   },
+
 
   // Usuń użytkownika
   async delete(id: number): Promise<void> {
     await api.delete(`/users/${id}`);
   }
+
+
+
 };

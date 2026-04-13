@@ -8,6 +8,13 @@ const HomePageUser = () => {
   const [pickupLocation, setPickupLocation] = useState('');
   const [destination, setDestination] = useState('');
 
+  const [firstName, setFirstName] = useState<string>(() => {
+    const fullName = localStorage.getItem('userName');
+    // split(' ') dzieli tekst na tablicę po spacji (np. ["Jan", "Kowalski"])
+    // [0] bierze pierwszy element (czyli "Jan")
+    return fullName ? fullName.split(' ')[0] : 'Pracownik';
+  });
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('order');
 
@@ -16,12 +23,17 @@ const HomePageUser = () => {
     if (user) setLoggedUser(user);
   }, []);
 
-const handleLogout = () => {
-    localStorage.removeItem('loggedUser');
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userRole'); // 🔥 Dodane: Czyszczenie roli
-    setLoggedUser(null); // Opcjonalne, ale dobre dla bezpieczeństwa stanu
-    navigate('/');
+  const handleLogout = () => {
+    if (window.confirm('Czy na pewno chcesz się wylogować?')) {
+      localStorage.removeItem('loggedUser');
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userRole');
+      localStorage.removeItem('userEmail');
+      localStorage.removeItem('userName');
+      localStorage.removeItem('userId');
+      setLoggedUser(null);
+      navigate('/');
+    }
   };
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
@@ -42,7 +54,7 @@ const handleLogout = () => {
           <span className="user-logo-text">MICHELIN</span>
         </div>
         <div className="user-header-actions">
-          <span className="welcome-text">Witaj, {loggedUser}!</span>
+          <span className="welcome-text">Witaj, {firstName}!</span>
           <button className="user-menu-btn" onClick={toggleMenu}>☰</button>
         </div>
       </header>
@@ -51,7 +63,7 @@ const handleLogout = () => {
       <div className={`user-side-menu ${isMenuOpen ? 'open' : ''}`}>
         <button className="close-menu-btn" onClick={toggleMenu}>✕ Zamknij</button>
         
-        <div className="user-menu-header">👤 Twój Profil</div>
+        <div className="user-menu-header">Twój Profil</div>
         <button className="user-menu-item">Rezerwacja auta</button>
         <button className={`user-menu-item ${activeTab === 'order' ? 'active' : ''}`} onClick={() => { setActiveTab('order'); setIsMenuOpen(false); }}>Zamów TAXI</button>
         <button className="user-menu-item">Status przejazdu</button>

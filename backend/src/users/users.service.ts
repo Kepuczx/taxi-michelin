@@ -35,10 +35,10 @@ export class UsersService {
     return this.usersRepository.save(newUser);
   }
 
-  async update(id: number, userData: Partial<User>): Promise<User> {
-    await this.usersRepository.update(id, userData);
-    return this.findOne(id);
-  }
+async update(id: any, userData: Partial<User>): Promise<User> {
+  await this.usersRepository.update(id, userData);
+  return this.findOne(id);
+}
 
   async remove(id: number): Promise<void> {
     const result = await this.usersRepository.delete(id);
@@ -46,4 +46,6 @@ export class UsersService {
       throw new NotFoundException(`Użytkownik o id ${id} nie istnieje`);
     }
   }
+  
+
 }

@@ -52,6 +52,7 @@ const Login = () => {
           localStorage.setItem('userId', data.user.id.toString());
           localStorage.setItem('userName', `${data.user.firstName} ${data.user.lastName}`);
           localStorage.setItem('userEmail', data.user.email);
+          
         } else {
           // Jeśli backend nie zwraca user.id, spróbuj z sub z tokena (ale lepiej poprawić backend)
           console.warn('Backend nie zwrócił user.id');

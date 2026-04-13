@@ -1,78 +1,444 @@
-/* Główne tło i układ nagłówka */
-.home-header {
-  background-color: #001a4d;
-  padding: 20px 30px;
-  border-radius: 0; /* Jeśli chcesz ostre rogi jak wcześniej gadaliśmy, zmień to na 0 */
-  margin-bottom: 20px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+/* --- BAZOWE USTAWIENIA --- */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: #f4f7f6; 
+  overflow-x: hidden; 
+}
+
+.admin-page-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
   position: relative;
 }
 
-/* Kontener na tytuł i przyciski w nagłówku */
-.home-header-content {
+/* --- NAGŁÓWEK --- */
+.admin-header {
+  background-color: #002255;
+  height: 60px;
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
+  padding: 0 20px;
+  z-index: 500;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2); 
 }
 
-/* Napis TAXI MICHELIN */
-.home-title {
-  margin: -10px 0 0 -15px;
-  padding: 0;
-  color: #355e96;
-  font-style: italic;
-  font-weight: 800;
-  font-size: 52px;
-  letter-spacing: 1px;
-  line-height: 1;
-}
-
-/* Prawa strona nagłówka (przyciski) */
-.home-header-actions {
+.admin-logo {
+  background-color: white;
+  height: 40px;
+  padding: 0 15px;
+  border-radius: 4px;
   display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-logo-text {
+  color: #002255;
+  font-weight: 900;
+  font-style: italic;
+  font-size: 20px;
+  letter-spacing: 1px;
+}
+
+.admin-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  color: white;
+}
+
+.welcome-text {
+  font-weight: 500;
+  font-size: 15px;
+}
+
+.admin-menu-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 28px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: transform 0.2s;
+}
+
+.admin-menu-btn:hover {
+  transform: scale(1.1);
+}
+
+/* --- WYSUWANE MENU Z PRAWEJ --- */
+.admin-side-menu {
+  position: absolute;
+  top: 60px; 
+  right: -300px; 
+  width: 280px;
+  height: calc(100vh - 60px); 
+  background-color: #ffffff; 
+  border-left: 1px solid #e0e0e0;
+  box-shadow: -4px 0 15px rgba(0,0,0,0.05); 
+  display: flex;
+  flex-direction: column;
+  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+  z-index: 1000; 
+}
+
+.admin-side-menu.open {
+  right: 0; 
+}
+
+.close-menu-btn {
+  align-self: flex-end;
+  background: none;
+  border: none;
+  padding: 15px;
+  cursor: pointer;
+  font-weight: bold;
+  color: #555;
+  transition: color 0.2s;
+  outline: none;
+}
+
+.close-menu-btn:hover { color: #e74c3c; }
+
+.admin-menu-header {
+  background-color: #f8f9fa; 
+  padding: 20px 15px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 16px;
+  color: #333;
+  border-bottom: 1px solid #eee;
+}
+
+.admin-menu-item {
+  background: none;
+  border: none;
+  border-bottom: 1px solid #f0f0f0;
+  padding: 18px;
+  text-align: left;
+  padding-left: 20px;
+  font-size: 15px;
+  color: #444;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.admin-menu-item:hover, .admin-menu-item.active {
+  background-color: #f0f4f8;
+  color: #002255;
+  font-weight: bold;
+  padding-left: 25px; 
+}
+
+.admin-menu-bottom {
+  margin-top: auto; 
+  display: flex;
+  flex-direction: column;
+}
+
+.logout-text {
+  color: #e74c3c;
+  font-weight: bold;
+  border-top: 1px solid #eee;
+}
+
+/* --- GŁÓWNA ZAWARTOŚĆ --- */
+.admin-main-content {
+  display: flex;
+  flex: 1; 
+  padding: 30px; 
+  justify-content: center;
+  align-items: flex-start;
+  overflow-y: auto;
+}
+
+/* --- KARTY TREŚCI --- */
+.admin-content-card, .admin-status-card {
+  width: 100%;
+  max-width: 1200px;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08); 
+  padding: 30px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+  border-bottom: 1px solid #d5dce5; 
+  padding-bottom: 15px;
+}
+
+.card-title {
+  margin: 0;
+  color: #002255;
+  font-size: 22px;
+}
+
+/* --- 🔥 POPRAWIONA WYSZUKIWARKA 🔥 --- */
+.search-bar-container {
+  display: flex;
+  align-items: center;
   gap: 15px;
+  margin-bottom: 20px;
+  background: transparent;
+  padding: 10px 5px;
+}
+
+.search-input {
+  flex: 1;
+  background-color: #ffffff; 
+  color: #000000;          
+  padding: 12px 15px;
+  font-size: 14px;
+  outline: none;
+  
+  border: 4px solid #002255; 
+  border-radius: 4px;
+}
+
+.results-count {
+  font-size: 13px;
+  color: #666;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* --- PRZYCISKI GŁÓWNE --- */
+.btn-add {
+  background-color: #002255;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-add:hover { background-color: #1a3c75; }
+
+.btn-save { background-color: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+.btn-cancel { background-color: #bdc3c7; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+
+/* --- FORMULARZE --- */
+.admin-form {
+  background-color: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 25px;
+  border: 1px solid #e0e0e0;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.form-grid input, .form-grid select {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* --- TABELE I ROLE --- */
+.table-container {
+  overflow-x: auto;
+  margin-top: 10px;
+}
+
+.modern-table {
+  width: 100%;
+  border-collapse: separate; 
+  border-spacing: 0;
+}
+
+.modern-table th, .modern-table td {
+  padding: 16px 15px; 
+  text-align: left;
+  border-bottom: 1px solid #f0f0f0; 
+  color: #222222; 
+  font-size: 15px; 
+}
+
+.modern-table th {
+  background-color: transparent; 
+  color: #666666; 
+  font-weight: 600;
+  border-bottom: 2px solid #e0e0e0; 
+  text-transform: uppercase;
+  font-size: 13px; 
+  letter-spacing: 0.5px;
+}
+
+.modern-table tr:hover td { 
+  background-color: #fcfcfc; 
+}
+
+/* --- PAGINACJA --- */
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  margin-top: 25px;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+}
+
+.pagination-btn {
+  padding: 8px 16px;
+  background-color: #002255;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: opacity 0.2s, background-color 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background-color: #1a3c75;
+}
+
+.pagination-btn:disabled {
+  background-color: #bdc3c7;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* --- 🔥 POPRAWIONE ROLE (BRAK KOLORÓW) 🔥 --- */
+.role-badge {
+  font-size: 14px; 
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #000000; /* Czarny tekst danych */
+  background-color: transparent;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid transparent; /* Ukryta ramka domyślnie */
+  transition: all 0.2s ease;
+}
+
+/* Granatowa obramówka na hover przy roli */
+.role-badge:hover {
+  border: 1px solid #002255;
+  color: #002255;
+}
+
+/* Usunięcie kropek przed rolami */
+.role-badge::before {
+  display: none !important;
+}
+
+/* --- STATUSY FLOTY (NIERUSZANE) --- */
+.status-badge { font-size: 13px; font-weight: 500; }
+.status-available { background-color: #f4f8f5; color: #5c8b6b; padding: 4px 10px; border-radius: 4px; border: 1px solid #e0ede4;}
+.status-in-use { background-color: #fdfaf3; color: #b08d51; padding: 4px 10px; border-radius: 4px; border: 1px solid #faeedb;}
+.status-unavailable { background-color: #fdf5f5; color: #b56c6c; padding: 4px 10px; border-radius: 4px; border: 1px solid #fae1e1;}
+
+/* --- 🔥 POPRAWIONE AKCJE (CZARNY TEKST, GRANAT NA HOVER) 🔥 --- */
+.table-actions {
+  display: flex;
+  gap: 8px;
   align-items: center;
 }
 
-/* Powitanie zalogowanego użytkownika */
-.user-greeting {
-  color: white;
-  font-weight: bold;
+.btn-delete, .btn-edit { 
+  background-color: transparent; 
+  color: #000000; /* Czarny tekst danych */
+  border: 1px solid transparent; 
+  padding: 6px 12px; 
+  border-radius: 4px; 
+  cursor: pointer; 
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
-/* Bazowy styl dla wszystkich przycisków w nagłówku */
-.header-btn {
-  color: white;
-  padding: 10px 24px;
-  border: none;
-  border-radius: 8px; /* Tutaj też możesz dać 0, jeśli chcesz kanciaste przyciski */
+/* Granatowa ramka na hover dla akcji */
+.btn-delete:hover, .btn-edit:hover { 
+  background-color: transparent;
+  border: 1px solid #002255; 
+  color: #002255; 
+}
+
+/* --- POZOSTAŁE STYLE (NIERUSZANE) --- */
+.breakdown-btn {
+  background-color: transparent;
+  color: #6a9c78;
+  border: 1px solid #e0ede4;
+  padding: 5px 12px;
+  border-radius: 4px;
   cursor: pointer;
-  font-weight: bold;
-  font-size: 16px;
-  transition: opacity 0.2s;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.breakdown-btn::before {
+  content: '';
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background-color: #6a9c78;
 }
 
-.header-btn:hover {
-  opacity: 0.9;
+.map-dashboard-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  max-width: 1200px;
+  height: calc(100vh - 140px); 
 }
 
-/* Kolory poszczególnych przycisków */
-.btn-admin {
-  background-color: #2c3e50;
-}
-
-.btn-logout {
-  background-color: #e74c3c;
-}
-
-.btn-login {
-  background-color: #004b93;
-}
-
-/* Komunikat o statusie połączenia */
-.status-message {
-  margin: 15px 0 0 0;
-  font-weight: 600;
+.admin-status-banner {
+  border-radius: 8px;
+  padding: 15px;
   text-align: center;
-  color: #2ecc71;
+  font-weight: bold;
+}
+
+.banner-ok { background-color: #e8f8f5; color: #27ae60; border: 1px solid #c8e6c9; }
+.banner-error { background-color: #fdedec; color: #c0392b; border: 1px solid #f5b7b1; }
+
+.admin-map-card {
+  flex: 1; 
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08); 
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 2px dashed #dde1e5; 
+  background-image: radial-gradient(#e0e5ec 1px, transparent 1px); 
+  background-size: 20px 20px;
+}
+
+.map-placeholder-text {
+  font-weight: 800;
+  font-size: 24px;
+  color: #a0aab5;
+  letter-spacing: 1px;
 }

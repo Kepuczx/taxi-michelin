@@ -101,6 +101,7 @@ body {
   font-weight: bold;
   color: #555;
   transition: color 0.2s;
+  outline: none;
 }
 
 .close-menu-btn:hover {
