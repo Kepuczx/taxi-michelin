@@ -2,15 +2,17 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Trip } from './trips.entity';
+import { TripsGateway } from './trips.gateway';
 
 @Injectable()
 export class TripsService {
   constructor(
     @InjectRepository(Trip)
     private tripRepository: Repository<Trip>,
+    // 🔥 Wstrzykujemy Gateway do serwisu
+    private readonly tripsGateway: TripsGateway, 
   ) {}
 
-  // Klient zamawia kurs
   async requestTrip(clientId: number, data: any): Promise<Trip> {
     const trip = this.tripRepository.create({
       clientId,
@@ -24,7 +26,14 @@ export class TripsService {
       notes: data.notes,
       status: 'pending',
     });
-    return this.tripRepository.save(trip);
+    
+    // Zapisujemy do bazy
+    const savedTrip = await this.tripRepository.save(trip);
+    
+    // 🔥 WYSYŁAMY POWIADOMIENIE NA ŻYWO!
+    this.tripsGateway.broadcastNewTrip(savedTrip);
+
+    return savedTrip;
   }
 
   // Kierowca przyjmuje kurs

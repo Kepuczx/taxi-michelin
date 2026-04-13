@@ -12,6 +12,7 @@ const typeorm_1 = require("@nestjs/typeorm");
 const trips_service_1 = require("./trips.service");
 const trips_controller_1 = require("./trips.controller");
 const trips_entity_1 = require("./trips.entity");
+const trips_gateway_1 = require("./trips.gateway");
 let TripsModule = class TripsModule {
 };
 exports.TripsModule = TripsModule;
@@ -19,7 +20,7 @@ exports.TripsModule = TripsModule = __decorate([
     (0, common_1.Module)({
         imports: [typeorm_1.TypeOrmModule.forFeature([trips_entity_1.Trip])],
         controllers: [trips_controller_1.TripsController],
-        providers: [trips_service_1.TripsService],
+        providers: [trips_service_1.TripsService, trips_gateway_1.TripsGateway],
         exports: [trips_service_1.TripsService],
     })
 ], TripsModule);

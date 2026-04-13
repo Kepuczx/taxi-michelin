@@ -17,10 +17,13 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const trips_entity_1 = require("./trips.entity");
+const trips_gateway_1 = require("./trips.gateway");
 let TripsService = class TripsService {
     tripRepository;
-    constructor(tripRepository) {
+    tripsGateway;
+    constructor(tripRepository, tripsGateway) {
         this.tripRepository = tripRepository;
+        this.tripsGateway = tripsGateway;
     }
     async requestTrip(clientId, data) {
         const trip = this.tripRepository.create({
@@ -35,7 +38,9 @@ let TripsService = class TripsService {
             notes: data.notes,
             status: 'pending',
         });
-        return this.tripRepository.save(trip);
+        const savedTrip = await this.tripRepository.save(trip);
+        this.tripsGateway.broadcastNewTrip(savedTrip);
+        return savedTrip;
     }
     async acceptTrip(tripId, driverId) {
         const trip = await this.tripRepository.findOne({ where: { id: tripId } });
@@ -92,6 +97,7 @@ exports.TripsService = TripsService;
 exports.TripsService = TripsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(trips_entity_1.Trip)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        trips_gateway_1.TripsGateway])
 ], TripsService);
 //# sourceMappingURL=trips.service.js.map

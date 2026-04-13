@@ -1,8 +1,10 @@
 import { Repository } from 'typeorm';
 import { Trip } from './trips.entity';
+import { TripsGateway } from './trips.gateway';
 export declare class TripsService {
     private tripRepository;
-    constructor(tripRepository: Repository<Trip>);
+    private readonly tripsGateway;
+    constructor(tripRepository: Repository<Trip>, tripsGateway: TripsGateway);
     requestTrip(clientId: number, data: any): Promise<Trip>;
     acceptTrip(tripId: number, driverId: number): Promise<Trip>;
     startTrip(tripId: number, driverId: number): Promise<Trip>;

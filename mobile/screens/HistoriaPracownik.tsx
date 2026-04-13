@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, Pressable, ScrollView, Image, Alert } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MenuPracownik from '../components/MenuPracownik';
+import { API_URL } from './config';
 
 export default function HistoriaPracownik({ navigation }: any) {
   const [menuVisible, setMenuVisible] = useState(false);

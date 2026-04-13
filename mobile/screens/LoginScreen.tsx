@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TextInput, Pressable, ImageBackground, Alert, KeyboardAvoidingView, Platform, ScrollView, Keyboard } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_URL } from './config';
 
 const backgroundImage = require('../assets/LoginBackground.jpg');
 
 // 🔥 UŻYJ SWOJEGO IP (z ipconfig)
 
-const API_URL = 'http://192.168.0.13:3000';
 
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState('');

@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, Pressable, ScrollView, Image, Alert } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MenuKierowca from '../components/MenuKierowca';
+import { API_URL } from './config';
 
 export default function HistoriaKierowca({ navigation }: any) {
   const [menuVisible, setMenuVisible] = useState(false);
@@ -34,6 +35,7 @@ export default function HistoriaKierowca({ navigation }: any) {
       ]
     );
   };
+  
 
   return (
     <View style={styles.container}>

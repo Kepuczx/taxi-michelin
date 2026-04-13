@@ -15,9 +15,10 @@ import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
 import { AdminPanelStyles } from '../styles/AdminPanelStyles';
 
+import { API_URL } from './config';
 // 🔥 UŻYJ SWOJEGO IP (z ipconfig)
 
-const API_URL = 'http://192.168.0.13:3000';
+
 
 // Typy
 interface User {

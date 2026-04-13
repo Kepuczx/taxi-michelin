@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, Pressable, ScrollView, Image, ImageBackground, 
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MenuKierowca from '../components/MenuKierowca';
+import { API_URL } from './config';
 
 export default function ZleceniaKierowca({ navigation }: any) {
   const [menuVisible, setMenuVisible] = useState(false);

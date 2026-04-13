@@ -1,4 +1,7 @@
+import { io, Socket } from 'socket.io-client';
+
 import React, { useState, useEffect } from 'react';
+
 import {
   StyleSheet,
   Text,
@@ -14,8 +17,9 @@ import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
 import { MainKierowcaStyles } from '../styles/MainKierowcaStyles';
 
+import { API_URL } from './config';
 // 🔥 UŻYJ SWOJEGO IP (z ipconfig)
-const API_URL = 'http://192.168.0.13:3000';
+
 
 interface Vehicle {
   id: number;
@@ -33,6 +37,15 @@ interface Vehicle {
   };
 }
 
+interface Trip {
+  id: number;
+  pickupAddress: string;
+  dropoffAddress: string;
+  passengerCount: number;
+  distanceKm?: number;
+  status: string;
+}
+
 export default function MainKierowca({ navigation }: any) {
   const [loggedUser, setLoggedUser] = useState<string | null>('Kierowca');
   const [userId, setUserId] = useState<number | null>(null);
@@ -44,9 +57,24 @@ export default function MainKierowca({ navigation }: any) {
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [assignedVehicle, setAssignedVehicle] = useState<Vehicle | null>(null);
+  
   const [loading, setLoading] = useState(true);
 
+  const [availableTasks, setAvailableTasks] = useState<Trip[]>([]); // Giełda zleceń
+  const [activeTrip, setActiveTrip] = useState<Trip | null>(null);   // Przyjęty kurs
+  const [socket, setSocket] = useState<Socket | null>(null);
+
   useEffect(() => {
+    const newSocket = io(API_URL, { transports: ['websocket'] });
+    setSocket(newSocket);
+
+    // Nasłuchiwanie na nowe zlecenia z backendu
+    newSocket.on('newTrip', (trip: Trip) => {
+      setAvailableTasks(prev => [...prev, trip]);
+      Alert.alert('Nowe zlecenie!', `${trip.pickupAddress} -> ${trip.dropoffAddress}`);
+    });
+
+
     const getData = async () => {
       const storedToken = await AsyncStorage.getItem('userToken');
       const role = await AsyncStorage.getItem('userRole');
@@ -74,6 +102,11 @@ export default function MainKierowca({ navigation }: any) {
       fetchVehiclesAndCheckAssignment(storedToken, id ? parseInt(id) : null);
     };
     getData();
+
+    // 🔥 4. FUNKCJA CZYSZCZĄCA (ZAPOBIEGA WYCIEKOM PAMIĘCI I DUBLOWANIU ALERTÓW)
+    return () => {
+      newSocket.disconnect();
+    };
   }, []);
 
   const fetchVehiclesAndCheckAssignment = async (authToken: string | null, driverId: number | null) => {
@@ -183,8 +216,54 @@ export default function MainKierowca({ navigation }: any) {
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const closeMenu = () => setIsMenuOpen(false);
 
-  const handleAcceptTask = (id: number) => {
-    Alert.alert('Przyjęto zlecenie', `Rozpoczynanie nawigacji dla zlecenia #${id}...`);
+  const handleAcceptTask = async (tripId: number) => {
+    if (!userId || !token) {
+      Alert.alert('Błąd', 'Brak autoryzacji do przyjęcia kursu.');
+      return;
+    }
+
+    try {
+      // 1. Uderzamy do backendu, aby zaktualizować status w bazie
+      const response = await axios.patch(
+        `${API_URL}/trips/${tripId}/accept`,
+        { driverId: userId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // Ustawiamy przyjęty kurs jako aktywny
+      setActiveTrip(response.data);
+      // 2. Jeśli się udało, usuwamy to zlecenie z listy "Dostępnych" (bo już jest Twoje)
+      setAvailableTasks(prev => prev.filter(t => t.id !== tripId));
+
+      Alert.alert('Sukces!', `Zlecenie #${tripId} zostało przypisane do Ciebie. Możesz ruszać.`);
+      
+      // Opcjonalnie: tutaj mógłbyś przełączyć widok na "Aktywne Zlecenie" lub pokazać mapę
+    } catch (error: any) {
+      console.error('Błąd akceptacji kursu:', error);
+      Alert.alert(
+        'Błąd', 
+        error.response?.data?.message || 'Nie udało się przypisać kursu. Być może ktoś inny był szybszy.'
+      );
+    }
+  };
+
+  // Start kursu (Klient wsiadł)
+  const handleStartTrip = async () => {
+    if (!activeTrip) return;
+    try {
+      const resp = await axios.patch(`${API_URL}/trips/${activeTrip.id}/start`, { driverId: userId });
+      setActiveTrip(resp.data); // Zmienia status na 'in_progress'
+    } catch (e) { Alert.alert('Błąd', 'Nie udało się wystartować.'); }
+  };
+
+  // Zakończenie kursu
+  const handleCompleteTrip = async () => {
+    if (!activeTrip) return;
+    try {
+      await axios.patch(`${API_URL}/trips/${activeTrip.id}/complete`, { driverId: userId });
+      setActiveTrip(null); // Czyścimy panel, status zmienia się na 'completed'
+      Alert.alert('Sukces', 'Kurs zakończony!');
+    } catch (e) { Alert.alert('Błąd', 'Nie udało się zakończyć.'); }
   };
 
   if (loading) {
@@ -268,6 +347,8 @@ export default function MainKierowca({ navigation }: any) {
     );
   }
 
+  
+
   // Widok główny (gdy ma przypisany pojazd)
   return (
     <View style={MainKierowcaStyles.container}>
@@ -341,52 +422,86 @@ export default function MainKierowca({ navigation }: any) {
                 <Text style={MainKierowcaStyles.panelTitle}>Dostępne zlecenia</Text>
 
                 <View style={MainKierowcaStyles.tasksContainer}>
-                  <View style={MainKierowcaStyles.taskItem}>
-                    <View style={MainKierowcaStyles.taskHeader}>
-                      <Text style={MainKierowcaStyles.taskTime}>Teraz</Text>
-                      <Text style={MainKierowcaStyles.taskDistance}>2.5 km stąd</Text>
-                    </View>
-                    <View style={MainKierowcaStyles.taskRoute}>
-                      <Text><Text style={MainKierowcaStyles.bold}>Od:</Text> Brama Główna</Text>
-                      <Text><Text style={MainKierowcaStyles.bold}>Do:</Text> Magazyn 4</Text>
-                    </View>
-                    <View style={MainKierowcaStyles.taskActions}>
-                      <Pressable style={MainKierowcaStyles.rejectBtn}>
-                        <Text style={MainKierowcaStyles.rejectBtnText}>Odrzuć</Text>
-                      </Pressable>
-                      <Pressable style={MainKierowcaStyles.acceptBtn} onPress={() => handleAcceptTask(1)}>
-                        <Text style={MainKierowcaStyles.acceptBtnText}>Przyjmij</Text>
-                      </Pressable>
-                    </View>
-                  </View>
-
-                  <View style={MainKierowcaStyles.taskItem}>
-                    <View style={MainKierowcaStyles.taskHeader}>
-                      <Text style={MainKierowcaStyles.taskTime}>Za 15 min</Text>
-                      <Text style={MainKierowcaStyles.taskDistance}>4.0 km stąd</Text>
-                    </View>
-                    <View style={MainKierowcaStyles.taskRoute}>
-                      <Text><Text style={MainKierowcaStyles.bold}>Od:</Text> Biurowiec A</Text>
-                      <Text><Text style={MainKierowcaStyles.bold}>Do:</Text> Dworzec PKP</Text>
-                    </View>
-                    <View style={MainKierowcaStyles.taskActions}>
-                      <Pressable style={MainKierowcaStyles.rejectBtn}>
-                        <Text style={MainKierowcaStyles.rejectBtnText}>Odrzuć</Text>
-                      </Pressable>
-                      <Pressable style={MainKierowcaStyles.acceptBtn} onPress={() => handleAcceptTask(2)}>
-                        <Text style={MainKierowcaStyles.acceptBtnText}>Przyjmij</Text>
-                      </Pressable>
-                    </View>
-                  </View>
+                  {availableTasks.length === 0 ? (
+                    <Text style={{ padding: 20, textAlign: 'center', color: '#666', fontSize: 16 }}>
+                      Oczekujesz na zlecenia... ☕
+                    </Text>
+                  ) : (
+                    availableTasks.map((task) => (
+                      <View key={task.id} style={MainKierowcaStyles.taskItem}>
+                        <View style={MainKierowcaStyles.taskHeader}>
+                          <Text style={MainKierowcaStyles.taskTime}>Nowe</Text>
+                          <Text style={MainKierowcaStyles.taskDistance}>
+                            {task.distanceKm ? `${task.distanceKm} km` : '---'}
+                          </Text>
+                        </View>
+                        <View style={MainKierowcaStyles.taskRoute}>
+                          <Text><Text style={MainKierowcaStyles.bold}>Od:</Text> {task.pickupAddress}</Text>
+                          <Text><Text style={MainKierowcaStyles.bold}>Do:</Text> {task.dropoffAddress}</Text>
+                        </View>
+                        <View style={MainKierowcaStyles.taskActions}>
+                          <Pressable 
+                            style={MainKierowcaStyles.rejectBtn}
+                            // Funkcja odrzucenia - po prostu usuwa kurs z widoku TEGO KIEROWCY
+                            onPress={() => setAvailableTasks(prev => prev.filter(t => t.id !== task.id))}
+                          >
+                            <Text style={MainKierowcaStyles.rejectBtnText}>Odrzuć</Text>
+                          </Pressable>
+                          <Pressable 
+                            style={MainKierowcaStyles.acceptBtn} 
+                            onPress={() => handleAcceptTask(task.id)}
+                          >
+                            <Text style={MainKierowcaStyles.acceptBtnText}>Przyjmij</Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                    ))
+                  )}
                 </View>
               </View>
             </View>
 
             {/* Prawy panel - mapa */}
+            {/* Prawy panel - Mapa i Sterowanie */}
             <View style={MainKierowcaStyles.mapArea}>
-              <View style={MainKierowcaStyles.mapCard}>
-                <Text style={MainKierowcaStyles.mapPlaceholder}>Podgląd Mapy i Nawigacji</Text>
-              </View>
+              {activeTrip ? (
+                <View style={{ flex: 1, backgroundColor: '#fff', borderRadius: 15, padding: 15 }}>
+                  <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#0a1d56', marginBottom: 10 }}>
+                    {activeTrip.status === 'in_progress' ? '🚖 Kurs w trakcie' : '📍 Dojazd do klienta'}
+                  </Text>
+
+                  {/* Tu w przyszłości wstawisz <MapView> z trasą Google */}
+                  <View style={{ flex: 1, backgroundColor: '#eee', justifyContent: 'center', alignItems: 'center', borderRadius: 10 }}>
+                    <Text style={{ textAlign: 'center', padding: 10 }}>
+                      Trasa: {activeTrip.pickupAddress} {'\n'} {'->'} {'\n'} {activeTrip.dropoffAddress}
+                    </Text>
+                  </View>
+              
+                  {/* PRZYCISKI STEROWANIA STATUSAMI */}
+                  <View style={{ marginTop: 20 }}>
+                    {activeTrip.status !== 'in_progress' ? (
+                      <Pressable 
+                        style={{ backgroundColor: '#28a745', padding: 15, borderRadius: 10, alignItems: 'center' }} 
+                        onPress={handleStartTrip}
+                      >
+                        <Text style={{ color: 'white', fontWeight: 'bold' }}>KLIENT WSIADŁ - START</Text>
+                      </Pressable>
+                    ) : (
+                      <Pressable 
+                        style={{ backgroundColor: '#dc3545', padding: 15, borderRadius: 10, alignItems: 'center' }} 
+                        onPress={handleCompleteTrip}
+                      >
+                        <Text style={{ color: 'white', fontWeight: 'bold' }}>ZAKOŃCZ KURS</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                </View>
+              ) : (
+                <View style={MainKierowcaStyles.mapCard}>
+                  <Text style={MainKierowcaStyles.mapPlaceholder}>Nie masz aktywnego zlecenia.</Text>
+                  <Text style={{ color: '#666', marginTop: 10 }}>Wybierz kurs z listy po lewej stronie.</Text>
+                </View>
+              )}
             </View>
           </View>
         )}
