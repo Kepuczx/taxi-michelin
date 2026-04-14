@@ -195,7 +195,7 @@ body {
 .search-input {
   flex: 1;
   background-color: #ffffff; 
-  color: #000000;          
+  color: #000000;           
   padding: 12px 15px;
   font-size: 14px;
   outline: none;
@@ -227,10 +227,10 @@ body {
 .btn-save { background-color: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
 .btn-cancel { background-color: #bdc3c7; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
 
-/* --- FORMULARZE --- */
+/* --- FORMULARZE (Białe tło + Granatowa ramka) --- */
 .admin-form {
   background-color: #f8f9fa;
-  padding: 20px;
+  padding: 25px;
   border-radius: 8px;
   margin-bottom: 25px;
   border: 1px solid #e0e0e0;
@@ -238,15 +238,34 @@ body {
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 15px;
   margin-bottom: 20px;
 }
 
-.form-grid input, .form-grid select {
-  padding: 10px;
-  border: 1px solid #ccc;
+.admin-form input, 
+.admin-form select {
+  background-color: #ffffff; /* Białe tło */
+  color: #000000;           /* Czarny tekst */
+  padding: 12px 15px;
+  font-size: 14px;
+  outline: none;
+  
+  /* Granatowa obramówka */
+  border: 4px solid #002255; 
   border-radius: 4px;
+  box-sizing: border-box; 
+  transition: all 0.2s ease;
+}
+
+.admin-form input:focus, 
+.admin-form select:focus {
+  background-color: #f0f4f8; 
+  border-color: #1a3c75;     
+}
+
+.admin-form input::placeholder {
+  color: #999;
 }
 
 .form-actions {
@@ -386,8 +405,8 @@ body {
 /* --- POZOSTAŁE STYLE (NIERUSZANE) --- */
 .breakdown-btn {
   background-color: transparent;
-  color: #6a9c78;
-  border: 1px solid #e0ede4;
+  color: #27ae60; 
+  border: 1px solid #c8e6c9;
   padding: 5px 12px;
   border-radius: 4px;
   cursor: pointer;
@@ -395,13 +414,32 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  transition: all 0.2s;
 }
+
 .breakdown-btn::before {
   content: '';
   display: inline-block;
-  width: 6px; height: 6px;
+  width: 6px; 
+  height: 6px;
   border-radius: 50%;
-  background-color: #6a9c78;
+  background-color: #27ae60;
+}
+
+/* Stan awarii: Awaria (Czerwony) */
+.breakdown-btn.breakdown-active {
+  background-color: #fdedec; /* Delikatne czerwone tło */
+  color: #c0392b;            /* Czerwony tekst */
+  border: 1px solid #f5b7b1; /* Czerwona ramka */
+}
+
+.breakdown-btn.breakdown-active::before {
+  background-color: #c0392b; /* Czerwona kropka */
+}
+
+/* Delikatny hover, żeby było widać, że można w to kliknąć */
+.breakdown-btn:hover {
+  filter: brightness(0.95);
 }
 
 .map-dashboard-layout {

@@ -16,31 +16,27 @@ const HomePageAdmin = () => {
   const [loggedUser, setLoggedUser] = useState<string | null>(() => localStorage.getItem('loggedUser'));
   const role = localStorage.getItem('userRole');
   
-  const [firstName, setFirstName] = useState<string>(() => {
-    const fullName = localStorage.getItem('userName');
-    return fullName ? fullName.split(' ')[0] : 'Admin';
-  });
-
   const itemsPerPage = 5;
+  const adminEmail = localStorage.getItem("userEmail") || 'system'
+  const adminName = localStorage.getItem('userName') || 'Admin'
+  const firstNameAdmin = adminName.split(' ')[0];
 
-  // --- LOGIKA UZYTKOWNIKOW ---
+  // ==================== STAN: UŻYTKOWNICY ====================
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false); 
   const [searchTermUsers, setSearchTermUsers] = useState('');
   const [currentPageUsers, setCurrentPageUsers] = useState(1);
-
   const [newUser, setNewUser] = useState<NewUser>({
     username: '', email: '', password: '', firstName: '', lastName: '', phone: '', role: 'employee'
   });
-
   const [showEditUserForm, setShowEditUserForm] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editUserData, setEditUserData] = useState({
     username: '', email: '', password: '', firstName: '', lastName: '', phone: '', role: 'employee' as any
   });
 
-  // --- LOGIKA FLOTY ---
+  // ==================== STAN: FLOTA ====================
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loadingVehicles, setLoadingVehicles] = useState(false);
   const [showVehicleForm, setShowVehicleForm] = useState(false);
@@ -48,39 +44,53 @@ const HomePageAdmin = () => {
   const [currentPageVehicles, setCurrentPageVehicles] = useState(1);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [showEditVehicleForm, setShowEditVehicleForm] = useState(false);
-
   const [newVehicle, setNewVehicle] = useState<NewVehicle>({
     registration: '', brand: '', model: '', passengerCapacity: 4, status: 'dostępny', isBreakdown: false, notes: ''
   });
 
-  const adminEmail = localStorage.getItem('loggedUser') || 'system';
+  // ==================== STAN: RAPORTY (LOGI) ====================
+  const [vehicleLogs, setVehicleLogs] = useState<VehicleLog[]>([]);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<number | null>(null);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+  const [currentPageReports, setCurrentPageReports] = useState(1);
 
   // ==================== FUNKCJE POMOCNICZE ====================
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
   const handleLogout = () => {
-    if (window.confirm('Czy na pewno chcesz sie wylogowac?')) {
-      localStorage.clear();
+    if (window.confirm('Czy na pewno chcesz się wylogować?')) {
+      localStorage.removeItem('userToken');
+      localStorage.removeItem('userRole');
+      localStorage.removeItem('userEmail');
+      localStorage.removeItem('userName');
+      localStorage.removeItem('userId');
+      localStorage.removeItem('loggedUser');
       setLoggedUser(null);
       navigate('/');
     }
   };
 
-  // ==================== LOGIKA: UZYTKOWNICY ====================
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString('pl-PL');
+  };
+
+  const getEventTypeLabel = (eventType: string) => {
+    switch(eventType) {
+      case 'rozpoczęcie_pracy': return 'Rozpoczęcie';
+      case 'zakończenie_pracy': return 'Zakończenie';
+      case 'przejazd': return 'Przejazd';
+      case 'awaria': return 'Awaria';
+      default: return 'Uwagi';
+    }
+  };
+
+  // ==================== LOGIKA: UŻYTKOWNICY ====================
   const fetchUsers = async () => {
     setLoading(true);
     try { const data = await userService.getAll(); setUsers(data); }
     catch (error) { console.error(error); }
     finally { setLoading(false); }
   };
-
-  const filteredUsers = users.filter(u => 
-    u.username.toLowerCase().includes(searchTermUsers.toLowerCase()) ||
-    u.email.toLowerCase().includes(searchTermUsers.toLowerCase())
-  );
-
-  const totalPagesUsers = Math.ceil(filteredUsers.length / itemsPerPage);
-  const currentUsers = filteredUsers.slice((currentPageUsers - 1) * itemsPerPage, currentPageUsers * itemsPerPage);
 
   const addUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,16 +102,21 @@ const HomePageAdmin = () => {
     } catch (error) { console.error(error); }
   };
 
+  const deleteUser = async (id: number) => {
+    if (window.confirm('Czy na pewno usunąć użytkownika?')) {
+      try {
+        await userService.delete(id);
+        fetchUsers();
+      } catch (error) { console.error('Błąd usuwania użytkownika:', error); }
+    }
+  };
+
   const startEditUser = (user: User) => {
     setEditingUser(user);
     setEditUserData({
-      username: user.username || '',
-      email: user.email || '',
-      password: '',
-      firstName: user.firstName || '',
-      lastName: user.lastName || '',
-      phone: user.phone || '',
-      role: user.role || 'employee'
+      username: user.username || '', email: user.email || '', password: '',
+      firstName: user.firstName || '', lastName: user.lastName || '',
+      phone: user.phone || '', role: user.role || 'employee'
     });
     setShowEditUserForm(true);
     setShowForm(false);
@@ -116,8 +131,15 @@ const HomePageAdmin = () => {
       await userService.update(editingUser.id, payload);
       setShowEditUserForm(false);
       fetchUsers();
-    } catch (error) { alert('Blad aktualizacji'); }
+    } catch (error) { alert('Błąd aktualizacji użytkownika'); }
   };
+
+  const filteredUsers = users.filter(u => 
+    u.username.toLowerCase().includes(searchTermUsers.toLowerCase()) ||
+    u.email.toLowerCase().includes(searchTermUsers.toLowerCase())
+  );
+  const totalPagesUsers = Math.ceil(filteredUsers.length / itemsPerPage);
+  const currentUsers = filteredUsers.slice((currentPageUsers - 1) * itemsPerPage, currentPageUsers * itemsPerPage);
 
   // ==================== LOGIKA: FLOTA ====================
   const fetchVehicles = async () => {
@@ -127,15 +149,6 @@ const HomePageAdmin = () => {
     finally { setLoadingVehicles(false); }
   };
 
-  const filteredVehicles = vehicles.filter(v => 
-    v.registration.toLowerCase().includes(searchTermVehicles.toLowerCase()) ||
-    v.brand.toLowerCase().includes(searchTermVehicles.toLowerCase()) ||
-    v.model.toLowerCase().includes(searchTermVehicles.toLowerCase())
-  );
-
-  const totalPagesVehicles = Math.ceil(filteredVehicles.length / itemsPerPage);
-  const currentVehicles = filteredVehicles.slice((currentPageVehicles - 1) * itemsPerPage, currentPageVehicles * itemsPerPage);
-
   const addVehicle = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -143,46 +156,88 @@ const HomePageAdmin = () => {
       setShowVehicleForm(false);
       setNewVehicle({ registration: '', brand: '', model: '', passengerCapacity: 4, status: 'dostępny', isBreakdown: false, notes: '' });
       fetchVehicles();
-    } catch (error) { alert('Blad dodawania'); }
+    } catch (error) { alert('Błąd dodawania pojazdu'); }
   };
 
+  const deleteVehicle = async (id: number) => {
+    if (window.confirm('Na pewno usunąć pojazd?')) {
+      try {
+        await vehicleService.delete(id, adminEmail)
+        fetchVehicles()
+      } catch (error) {
+        console.error('Błąd usuwania pojazdu:', error)
+        alert('Błąd usuwania pojazdu')
+      }
+    }
+  }
+
   const startEditVehicle = (v: Vehicle) => {
-    setEditingVehicle(v);
+    setEditingVehicle({...v}); // Kopia obiektu
     setShowEditVehicleForm(true);
     setShowVehicleForm(false);
   };
 
-  const updateVehicle = async (e: React.FormEvent) => {
+  const updateVehicleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingVehicle) return;
     try {
       await vehicleService.update(editingVehicle.id, { ...editingVehicle }, adminEmail);
       setShowEditVehicleForm(false);
+      setEditingVehicle(null);
       fetchVehicles();
-    } catch (error) { alert('Blad aktualizacji'); }
+    } catch (error) { alert('Błąd aktualizacji pojazdu'); }
   };
 
   const toggleBreakdown = async (id: number, currentStatus: boolean, name: string) => {
-    if (window.confirm(`Zmienic status awarii dla ${name}?`)) {
+    if (window.confirm(`Zmienić status awarii dla ${name}?`)) {
       try {
         await vehicleService.update(id, { isBreakdown: !currentStatus }, adminEmail);
         fetchVehicles();
-      } catch (error) { alert('Blad'); }
+      } catch (error) { alert('Błąd zmiany statusu awarii'); }
     }
   };
+
+  const filteredVehicles = vehicles.filter(v => 
+    v.registration.toLowerCase().includes(searchTermVehicles.toLowerCase()) ||
+    v.brand.toLowerCase().includes(searchTermVehicles.toLowerCase()) ||
+    v.model.toLowerCase().includes(searchTermVehicles.toLowerCase())
+  );
+  const totalPagesVehicles = Math.ceil(filteredVehicles.length / itemsPerPage);
+  const currentVehicles = filteredVehicles.slice((currentPageVehicles - 1) * itemsPerPage, currentPageVehicles * itemsPerPage);
+
+  // ==================== LOGIKA: RAPORTY (LOGI) ====================
+  const fetchLogsForVehicle = async (vehicleId: number) => {
+    setLoadingLogs(true);
+    try {
+      const data = await vehicleLogService.getByVehicleId(vehicleId);
+      setVehicleLogs(data);
+    } catch (error) { console.error('Błąd pobierania logów:', error); }
+    finally { setLoadingLogs(false); }
+  };
+
+  const handleVehicleSelect = (vehicleId: number) => {
+    setSelectedVehicleId(vehicleId);
+    setCurrentPageReports(1);
+    if (vehicleId) fetchLogsForVehicle(vehicleId);
+    else setVehicleLogs([]);
+  };
+
+  const totalPagesReports = Math.ceil(vehicleLogs.length / itemsPerPage);
+  const currentReports = vehicleLogs.slice((currentPageReports - 1) * itemsPerPage, currentPageReports * itemsPerPage);
 
   // ==================== EFFECTY ====================
   useEffect(() => {
     if (activeTab === 'users') fetchUsers();
     else if (activeTab === 'fleet') fetchVehicles();
+    else if (activeTab === 'reports') fetchVehicles(); 
   }, [activeTab]);
 
   useEffect(() => {
     const user = localStorage.getItem('loggedUser');
     if (!user || role !== 'admin') navigate('/');
     fetch('http://localhost:3000').then(res => res.text())
-      .then(data => setMessage(`Polaczono z backendem: ${data}`))
-      .catch(() => setMessage('Brak polaczenia z serwerem'));
+      .then(data => setMessage(`Połączono z backendem: ${data}`))
+      .catch(() => setMessage('Brak połączenia z serwerem'));
   }, [navigate, role]);
 
   const translateRole = (role: string) => {
@@ -191,51 +246,53 @@ const HomePageAdmin = () => {
   };
 
   return (
-    <div className="admin-page-wrapper"> {/* Główna strona - kursy */}
+    <div className="admin-page-wrapper">
       <header className="admin-header">
         <div className="admin-logo"><span className="admin-logo-text">MICHELIN</span></div>
         <div className="admin-header-actions">
-          <span className="welcome-text">Witaj, {firstName}!</span>
+          <span className="welcome-text">Witaj, {firstNameAdmin}!</span>
           <button className="admin-menu-btn" onClick={toggleMenu}>☰</button>
         </div>
       </header>
 
       <div className={`admin-side-menu ${isMenuOpen ? 'open' : ''}`}>
         <button className="close-menu-btn" onClick={toggleMenu}>Zamknij</button> 
-        <div className="admin-menu-header">Panel Administratora</div> {/* boczne przyciski */}
+        <div className="admin-menu-header">Panel Administratora</div>
         <button className={`admin-menu-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMenuOpen(false);}}>Kursy</button>
-        <button className={`admin-menu-item ${activeTab === 'users' ? 'active' : ''}`} onClick={() => {setActiveTab('users'); setIsMenuOpen(false);}}>Uzytkownicy</button>
+        <button className={`admin-menu-item ${activeTab === 'users' ? 'active' : ''}`} onClick={() => {setActiveTab('users'); setIsMenuOpen(false);}}>Użytkownicy</button>
         <button className={`admin-menu-item ${activeTab === 'fleet' ? 'active' : ''}`} onClick={() => {setActiveTab('fleet'); setIsMenuOpen(false);}}>Flota</button>
         <button className={`admin-menu-item ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => {setActiveTab('reports'); setIsMenuOpen(false);}}>Raporty</button>
         <div className="admin-menu-bottom">
-          <button className="admin-menu-item logout-text" onClick={handleLogout}>Wyloguj sie</button>
+          <button className="admin-menu-item logout-text" onClick={handleLogout}>Wyloguj się</button>
         </div>
       </div>
 
       <div className="admin-main-content">
+        {/* DASHBOARD */}
         {activeTab === 'dashboard' && (
           <div className="map-dashboard-layout">
-            <div className={`admin-status-banner ${message.includes('Polaczono') ? 'banner-ok' : 'banner-error'}`}>{message}</div>
+            <div className={`admin-status-banner ${message.includes('Połączono') ? 'banner-ok' : 'banner-error'}`}>{message}</div>
             <div className="admin-map-card"><span className="map-placeholder-text">Podgląd Mapy</span></div>
           </div>
         )}
 
+        {/* UŻYTKOWNICY */}
         {activeTab === 'users' && (
           <div className="admin-content-card">
             <div className="card-header">
-              <h2 className="card-title">Zarządzanie uzytkownikami</h2>
+              <h2 className="card-title">Zarządzanie użytkownikami</h2>
               <button className="btn-add" onClick={() => {setShowForm(!showForm); setShowEditUserForm(false);}}>
-                {showForm ? 'Anuluj' : 'Dodaj uzytkownika'}
+                {showForm ? 'Anuluj' : 'Dodaj użytkownika'}
               </button>
             </div>
 
             <div className="search-bar-container">
-              <input type="text" className="search-input" placeholder="Wyszukaj uzytkownika po nazwie lub emailu" value={searchTermUsers} onChange={(e) => {setSearchTermUsers(e.target.value); setCurrentPageUsers(1);}} />
+              <input type="text" className="search-input" placeholder="Wyszukaj użytkownika..." value={searchTermUsers} onChange={(e) => {setSearchTermUsers(e.target.value); setCurrentPageUsers(1);}} />
               <span className="results-count">Znaleziono: {filteredUsers.length}</span>
             </div>
 
             {showForm && (
-              <form className="admin-form" onSubmit={addUser}> {/* Dodawanie użytkowników */}
+              <form className="admin-form" onSubmit={addUser}>
                 <div className="form-grid">
                   <input type="text" placeholder="Username *" required value={newUser.username} onChange={e => setNewUser({...newUser, username: e.target.value})} />
                   <input type="email" placeholder="Email *" required value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} />
@@ -254,11 +311,11 @@ const HomePageAdmin = () => {
             )}
 
             {showEditUserForm && editingUser && (
-              <form className="admin-form edit-form" onSubmit={updateUserSubmit}> {/* Edycja użytkowników */}
+              <form className="admin-form edit-form" onSubmit={updateUserSubmit}>
                 <div className="form-grid">
                   <input type="text" placeholder="Username *" value={editUserData.username} onChange={e => setEditUserData({...editUserData, username: e.target.value})} />
                   <input type="email" placeholder="Email *" value={editUserData.email} onChange={e => setEditUserData({...editUserData, email: e.target.value})} />
-                  <input type="text" placeholder="Hasło *" value={editUserData.password} onChange={e => setEditUserData({...editUserData, password: e.target.value})} />
+                  <input type="text" placeholder="Nowe Hasło" value={editUserData.password} onChange={e => setEditUserData({...editUserData, password: e.target.value})} />
                   <input type="text" placeholder="Imie *" value={editUserData.firstName} onChange={e => setEditUserData({...editUserData, firstName: e.target.value})} />
                   <input type="text" placeholder="Nazwisko *" value={editUserData.lastName} onChange={e => setEditUserData({...editUserData, lastName: e.target.value})} />
                   <input type="text" placeholder="Telefon *" value={editUserData.phone} onChange={e => setEditUserData({...editUserData, phone: e.target.value})} />
@@ -287,7 +344,7 @@ const HomePageAdmin = () => {
                       <td>
                         <div className="table-actions">
                           <button className="btn-edit" onClick={() => startEditUser(u)}>Edytuj</button>
-                          <button className="btn-delete" onClick={() => {if(window.confirm('Usunac?')) userService.delete(u.id).then(fetchUsers)}}>Usun</button>
+                          <button className="btn-delete" onClick={() => deleteUser(u.id)}>Usuń</button>
                         </div>
                       </td>
                     </tr>
@@ -299,50 +356,55 @@ const HomePageAdmin = () => {
               <div className="pagination-container">
                 <button className="pagination-btn" disabled={currentPageUsers === 1} onClick={() => setCurrentPageUsers(v => v - 1)}>Poprzednia</button>
                 <span className="pagination-info">Strona {currentPageUsers} z {totalPagesUsers}</span>
-                <button className="pagination-btn" disabled={currentPageUsers === totalPagesUsers} onClick={() => setCurrentPageUsers(v => v + 1)}>Nastepna</button>
+                <button className="pagination-btn" disabled={currentPageUsers === totalPagesUsers} onClick={() => setCurrentPageUsers(v => v + 1)}>Następna</button>
               </div>
             )}
           </div>
         )}
 
+        {/* FLOTA */}
         {activeTab === 'fleet' && (
           <div className="admin-content-card">
             <div className="card-header">
-              <h2 className="card-title">Zarzadzanie flota</h2>
+              <h2 className="card-title">Zarządzanie flotą</h2>
               <button className="btn-add" onClick={() => {setShowVehicleForm(!showVehicleForm); setShowEditVehicleForm(false);}}>
                 {showVehicleForm ? 'Anuluj' : 'Dodaj pojazd'}
               </button>
             </div>
 
             <div className="search-bar-container">
-              <input type="text" className="search-input" placeholder="Wyszukaj pojazd" value={searchTermVehicles} onChange={(e) => {setSearchTermVehicles(e.target.value); setCurrentPageVehicles(1);}} />
+              <input type="text" className="search-input" placeholder="Wyszukaj pojazd..." value={searchTermVehicles} onChange={(e) => {setSearchTermVehicles(e.target.value); setCurrentPageVehicles(1);}} />
               <span className="results-count">Znaleziono: {filteredVehicles.length}</span>
             </div>
 
             {showVehicleForm && (
               <form className="admin-form" onSubmit={addVehicle}>
                 <div className="form-grid">
-                  <input type="text" placeholder="Rejestracja *" required onChange={e => setNewVehicle({...newVehicle, registration: e.target.value})} />
-                  <input type="text" placeholder="Marka *" required onChange={e => setNewVehicle({...newVehicle, brand: e.target.value})} />
-                  <input type="text" placeholder="Model *" required onChange={e => setNewVehicle({...newVehicle, model: e.target.value})} />
+                  <input type="text" placeholder="Rejestracja *" required value={newVehicle.registration} onChange={e => setNewVehicle({...newVehicle, registration: e.target.value})} />
+                  <input type="text" placeholder="Marka *" required value={newVehicle.brand} onChange={e => setNewVehicle({...newVehicle, brand: e.target.value})} />
+                  <input type="text" placeholder="Model *" required value={newVehicle.model} onChange={e => setNewVehicle({...newVehicle, model: e.target.value})} />
                 </div>
                 <button type="submit" className="btn-save">Zapisz</button>
               </form>
             )}
 
             {showEditVehicleForm && editingVehicle && (
-              <form className="admin-form edit-form" onSubmit={updateVehicle}>
+              <form className="admin-form edit-form" onSubmit={updateVehicleSubmit}>
                 <div className="form-grid">
                   <input type="text" value={editingVehicle.registration} onChange={e => setEditingVehicle({...editingVehicle, registration: e.target.value})} />
                   <select value={editingVehicle.status} onChange={e => setEditingVehicle({...editingVehicle, status: e.target.value as any})}>
-                    <option value="dostępny">Dostepny</option>
-                    <option value="w użyciu">W uzyciu</option>
-                    <option value="niedostępny">Niedostepny</option>
+                    <option value="dostępny">Dostępny</option>
+                    <option value="w użyciu">W użyciu</option>
+                    <option value="niedostępny">Niedostępny</option>
+                  </select>
+                  <select value={editingVehicle.isBreakdown ? 'true' : 'false'} onChange={e => setEditingVehicle({...editingVehicle, isBreakdown: e.target.value === 'true'})} >
+                    <option value="false">Sprawny</option>
+                    <option value="true">Awaria</option>
                   </select>
                 </div>
                 <div className="form-actions">
                   <button type="submit" className="btn-save">Zapisz zmiany</button>
-                  <button type="button" onClick={() => setShowEditVehicleForm(false)} className="btn-cancel">Anuluj</button>
+                  <button type="button" onClick={() => {setShowEditVehicleForm(false); setEditingVehicle(null);}} className="btn-cancel">Anuluj</button>
                 </div>
               </form>
             )}
@@ -359,7 +421,7 @@ const HomePageAdmin = () => {
                       <td>
                         <div className="table-actions">
                           <button className="btn-edit" onClick={() => startEditVehicle(v)}>Edytuj</button>
-                          <button className="btn-delete" onClick={() => {if(window.confirm('Usunac?')) vehicleService.delete(v.id, adminEmail).then(fetchVehicles)}}>Usun</button>
+                          <button className="btn-delete" onClick={() => deleteVehicle(v.id)}>Usuń</button>
                         </div>
                       </td>
                     </tr>
@@ -371,9 +433,53 @@ const HomePageAdmin = () => {
               <div className="pagination-container">
                 <button className="pagination-btn" disabled={currentPageVehicles === 1} onClick={() => setCurrentPageVehicles(v => v - 1)}>Poprzednia</button>
                 <span className="pagination-info">Strona {currentPageVehicles} z {totalPagesVehicles}</span>
-                <button className="pagination-btn" disabled={currentPageVehicles === totalPagesVehicles} onClick={() => setCurrentPageVehicles(v => v + 1)}>Nastepna</button>
+                <button className="pagination-btn" disabled={currentPageVehicles === totalPagesVehicles} onClick={() => setCurrentPageVehicles(v => v + 1)}>Następna</button>
               </div>
             )}
+          </div>
+        )}
+
+        {/* RAPORTY */}
+        {activeTab === 'reports' && (
+          <div className="admin-content-card">
+            <div className="card-header"><h2 className="card-title">Raporty - Historia pojazdów</h2></div>
+            <div className="search-bar-container">
+              <label className="results-count" style={{marginRight: '10px'}}>Wybierz pojazd:</label>
+              <select className="search-input" style={{maxWidth: '400px'}} value={selectedVehicleId || ''} onChange={(e) => handleVehicleSelect(Number(e.target.value))}>
+                <option value="">-- Wybierz z listy --</option>
+                {vehicles.map(v => (<option key={v.id} value={v.id}>{v.brand} {v.model} ({v.registration})</option>))}
+              </select>
+            </div>
+
+            {selectedVehicleId ? (
+              loadingLogs ? <p>Ładowanie historii...</p> : (
+                <>
+                  <div className="table-container">
+                    <table className="modern-table">
+                      <thead><tr><th>Data</th><th>Zdarzenie</th><th>Opis</th><th>Kierowca</th><th>Zmienił</th></tr></thead>
+                      <tbody>
+                        {currentReports.map(log => (
+                          <tr key={log.id}>
+                            <td>{formatDate(log.eventTime)}</td>
+                            <td><span className="role-badge">{getEventTypeLabel(log.eventType)}</span></td>
+                            <td>{log.description || '-'}</td>
+                            <td>{log.driver ? `${log.driver.firstName} ${log.driver.lastName}` : '-'}</td>
+                            <td>{log.changedBy || 'System'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {totalPagesReports > 1 && (
+                    <div className="pagination-container">
+                      <button className="pagination-btn" disabled={currentPageReports === 1} onClick={() => setCurrentPageReports(v => v - 1)}>Poprzednia</button>
+                      <span className="pagination-info">Strona {currentPageReports} z {totalPagesReports}</span>
+                      <button className="pagination-btn" disabled={currentPageReports === totalPagesReports} onClick={() => setCurrentPageReports(v => v + 1)}>Następna</button>
+                    </div>
+                  )}
+                </>
+              )
+            ) : (<div style={{padding: '40px', textAlign: 'center', color: '#666'}}>Wybierz pojazd powyżej.</div>)}
           </div>
         )}
       </div>
