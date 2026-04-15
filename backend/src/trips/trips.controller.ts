@@ -1,7 +1,8 @@
-import { Controller, Post, Get, Body, Param, Patch } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Patch, UseGuards } from '@nestjs/common';
 import { TripsService } from './trips.service';
 
 @Controller('trips')
+
 export class TripsController {
   constructor(private readonly tripsService: TripsService) { }
 
@@ -42,5 +43,10 @@ async acceptTrip(@Param('id') id: string, @Body('driverId') driverId: number) {
   @Patch(':id/complete')
   async completeTrip(@Param('id') id: string, @Body('driverId') driverId: number) {
     return this.tripsService.completeTrip(+id, driverId); // Wywołuje logikę zakończenia kursu
+  }
+
+  @Get('pending')
+  async getPendingTrips() {
+    return this.tripsService.getPendingTrips();
   }
 }

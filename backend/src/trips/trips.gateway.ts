@@ -29,4 +29,10 @@ export class TripsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.emit('newTrip', trip);
     console.log(`[WebSocket] Wysłano powiadomienie o nowym kursie #${trip.id}`);
   }
+  // 🔥 Ta funkcja zostanie wywołana z trips.service.ts przy akceptacji
+  broadcastTripAccepted(tripId: number) {
+    // Wysyłamy samo ID zlecenia do wszystkich klientów
+    this.server.emit('tripAccepted', tripId);
+    console.log(`[WebSocket] Kurs #${tripId} zniknął z giełdy (został przyjęty)`);
+  }
 }

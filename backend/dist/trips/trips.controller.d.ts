@@ -8,4 +8,5 @@ export declare class TripsController {
     getDriverActiveTrips(driverId: string): Promise<import("./trips.entity").Trip[]>;
     startTrip(id: string, driverId: number): Promise<import("./trips.entity").Trip>;
     completeTrip(id: string, driverId: number): Promise<import("./trips.entity").Trip>;
+    getPendingTrips(): Promise<import("./trips.entity").Trip[]>;
 }

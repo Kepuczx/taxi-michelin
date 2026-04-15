@@ -6,4 +6,5 @@ export declare class TripsGateway implements OnGatewayConnection, OnGatewayDisco
     handleConnection(client: Socket): void;
     handleDisconnect(client: Socket): void;
     broadcastNewTrip(trip: Trip): void;
+    broadcastTripAccepted(tripId: number): void;
 }

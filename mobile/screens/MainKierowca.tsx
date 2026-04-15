@@ -1,7 +1,5 @@
 import { io, Socket } from 'socket.io-client';
-
-import React, { useState, useEffect } from 'react';
-
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -11,15 +9,28 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  Platform, 
+  Linking,
+  Dimensions
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
 import { MainKierowcaStyles } from '../styles/MainKierowcaStyles';
 
-import { API_URL } from './config';
-// 🔥 UŻYJ SWOJEGO IP (z ipconfig)
+import { API_URL, GOOGLE_MAPS_API_KEY } from './config';
+import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
+import MapViewDirections from 'react-native-maps-directions';
+import * as Location from 'expo-location';
 
+// 🔥 NOWE IMPORTY Z DOKUMENTACJI V0.14+
+import { 
+  NavigationView,
+  NavigationProvider,
+  useNavigation,
+  NavigationSessionStatus,
+  TaskRemovedBehavior
+} from '@googlemaps/react-native-navigation-sdk';
 
 interface Vehicle {
   id: number;
@@ -44,16 +55,23 @@ interface Trip {
   passengerCount: number;
   distanceKm?: number;
   status: string;
+  pickupLat: string | number;
+  pickupLng: string | number;
+  dropoffLat: string | number;
+  dropoffLng: string | number;
 }
 
-export default function MainKierowca({ navigation }: any) {
+// =========================================================================
+// GŁÓWNY KOMPONENT KIEROWCY (Zawiera całe Twoje oryginalne UI)
+// =========================================================================
+function MainKierowcaContent({ navigation }: any) {
   const [loggedUser, setLoggedUser] = useState<string | null>('Kierowca');
   const [userId, setUserId] = useState<number | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('tasks');
+  const [activeTab, setActiveTab] = useState<'tasks' | 'map' | 'history'>('tasks');
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [assignedVehicle, setAssignedVehicle] = useState<Vehicle | null>(null);
@@ -63,6 +81,88 @@ export default function MainKierowca({ navigation }: any) {
   const [availableTasks, setAvailableTasks] = useState<Trip[]>([]); // Giełda zleceń
   const [activeTrip, setActiveTrip] = useState<Trip | null>(null);   // Przyjęty kurs
   const [socket, setSocket] = useState<Socket | null>(null);
+  
+  const [driverLocation, setDriverLocation] = useState<any>(null);
+  const [isMapReady, setIsMapReady] = useState(false);
+
+  // 🔥 KONTROLERY Z NOWEJ WERSJI GOOGLE SDK
+  const mapCtrl = React.useRef<any>(null);
+  const { navigationController } = useNavigation();
+
+  // 1. INICJALIZACJA NAWIGACJI GOOGLE (Zgodnie z nowym README)
+  const initializeNavigation = useCallback(async () => {
+    try {
+      const termsAccepted = await navigationController.showTermsAndConditionsDialog();
+      if (!termsAccepted) {
+        console.warn('Odrzucono regulamin nawigacji');
+        return;
+      }
+
+      const status = await navigationController.init();
+      if (status === NavigationSessionStatus.OK) {
+        console.log('✅ Silnik Navigation SDK zainicjalizowany.');
+      } else {
+        console.error('Błąd inicjalizacji:', status);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, [navigationController]);
+
+  useEffect(() => {
+    initializeNavigation();
+  }, [initializeNavigation]);
+
+
+  // 2. Śledzenie lokalizacji GPS kierowcy (Z poprawionym targetem kamery)
+  useEffect(() => {
+    let positionSubscription: any;
+    (async () => {
+      // 1. Prosimy o uprawnienia (Foreground + Accuracy)
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      
+      // Dodatkowe sprawdzenie dokładności (tylko Android)
+      const providerStatus = await Location.getProviderStatusAsync();
+      
+      if (status !== 'granted' || !providerStatus.locationServicesEnabled) {
+        Alert.alert(
+          'Brak lokalizacji',
+          'Aplikacja potrzebuje dokładnego GPS. Sprawdź czy masz włączony GPS w telefonie.'
+        );
+        return;
+      }
+
+      console.log("GPS jest gotowy i uprawniony.");
+
+      // 2. Śledzenie pozycji
+      positionSubscription = await Location.watchPositionAsync(
+        { 
+          accuracy: Location.Accuracy.BestForNavigation,
+          distanceInterval: 5, 
+          timeInterval: 1000 
+        },
+        (loc) => {
+          setDriverLocation(loc);
+          
+          // WYMUSZONE CENTROWANIE (Tylko gdy mapa jest gotowa i nie mamy kursu)
+          if (isMapReady && mapCtrl.current && !activeTrip) {
+            try {
+              mapCtrl.current.moveCamera({
+                target: { // Zmienione z 'center' na 'target' dla kompatybilności z V0.14
+                  lat: loc.coords.latitude,
+                  lng: loc.coords.longitude
+                },
+                zoom: 17,
+                bearing: 0,
+                tilt: 0
+              });
+            } catch (e) {}
+          }
+        }
+      );
+    })();
+    return () => positionSubscription?.remove();
+  }, [isMapReady, activeTrip]);
 
   useEffect(() => {
     const newSocket = io(API_URL, { transports: ['websocket'] });
@@ -70,10 +170,17 @@ export default function MainKierowca({ navigation }: any) {
 
     // Nasłuchiwanie na nowe zlecenia z backendu
     newSocket.on('newTrip', (trip: Trip) => {
-      setAvailableTasks(prev => [...prev, trip]);
+      setAvailableTasks(prev => {
+        if (prev.some(t => t.id === trip.id)) return prev;
+        return [...prev, trip];
+      });
       Alert.alert('Nowe zlecenie!', `${trip.pickupAddress} -> ${trip.dropoffAddress}`);
     });
 
+    // Zniknięcie zlecenia (przyjęte przez kogoś innego)
+    newSocket.on('tripAccepted', (tripId: number) => {
+      setAvailableTasks(prev => prev.filter(t => t.id !== tripId));
+    });
 
     const getData = async () => {
       const storedToken = await AsyncStorage.getItem('userToken');
@@ -81,11 +188,6 @@ export default function MainKierowca({ navigation }: any) {
       const id = await AsyncStorage.getItem('userId');
       const name = await AsyncStorage.getItem('userName');
       const email = await AsyncStorage.getItem('userEmail');
-
-      console.log('🔑 Token:', storedToken ? `${storedToken.substring(0, 30)}...` : 'BRAK');
-      console.log('👤 Rola:', role);
-      console.log('🆔 UserId:', id);
-      console.log('📛 UserName:', name);
 
       if (role !== 'driver') {
         Alert.alert('Brak dostępu', 'Ta strona jest tylko dla kierowców', [
@@ -100,10 +202,10 @@ export default function MainKierowca({ navigation }: any) {
       if (email) setLoggedUser(email);
 
       fetchVehiclesAndCheckAssignment(storedToken, id ? parseInt(id) : null);
+      fetchPendingTrips(storedToken);
     };
     getData();
 
-    // 🔥 4. FUNKCJA CZYSZCZĄCA (ZAPOBIEGA WYCIEKOM PAMIĘCI I DUBLOWANIU ALERTÓW)
     return () => {
       newSocket.disconnect();
     };
@@ -129,6 +231,18 @@ export default function MainKierowca({ navigation }: any) {
       Alert.alert('Błąd', 'Nie udało się pobrać listy pojazdów');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPendingTrips = async (authToken: string | null) => {
+    if (!authToken) return;
+    try {
+      const response = await axios.get(`${API_URL}/trips/pending`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      setAvailableTasks(response.data);
+    } catch (error) {
+      console.error('Błąd pobierania oczekujących zleceń:', error);
     }
   };
 
@@ -223,47 +337,62 @@ export default function MainKierowca({ navigation }: any) {
     }
 
     try {
-      // 1. Uderzamy do backendu, aby zaktualizować status w bazie
       const response = await axios.patch(
         `${API_URL}/trips/${tripId}/accept`,
         { driverId: userId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // Ustawiamy przyjęty kurs jako aktywny
       setActiveTrip(response.data);
-      // 2. Jeśli się udało, usuwamy to zlecenie z listy "Dostępnych" (bo już jest Twoje)
       setAvailableTasks(prev => prev.filter(t => t.id !== tripId));
 
       Alert.alert('Sukces!', `Zlecenie #${tripId} zostało przypisane do Ciebie. Możesz ruszać.`);
-      
-      // Opcjonalnie: tutaj mógłbyś przełączyć widok na "Aktywne Zlecenie" lub pokazać mapę
     } catch (error: any) {
       console.error('Błąd akceptacji kursu:', error);
-      Alert.alert(
-        'Błąd', 
-        error.response?.data?.message || 'Nie udało się przypisać kursu. Być może ktoś inny był szybszy.'
-      );
+      Alert.alert('Błąd', error.response?.data?.message || 'Nie udało się przypisać kursu.');
     }
   };
 
-  // Start kursu (Klient wsiadł)
-  const handleStartTrip = async () => {
-    if (!activeTrip) return;
+  // 🔥 AKTUALIZACJA WYZNACZANIA TRASY (Nowe API v0.14)
+  const handleStartNavigation = async (type: 'pickup' | 'dropoff') => {
+    if (!activeTrip || !isMapReady) {
+      Alert.alert('Chwileczkę', 'Mapa jeszcze się ładuje...');
+      return;
+    }
+
+    const lat = type === 'pickup' ? activeTrip.pickupLat : activeTrip.dropoffLat;
+    const lng = type === 'pickup' ? activeTrip.pickupLng : activeTrip.dropoffLng;
+    const title = type === 'pickup' ? activeTrip.pickupAddress : activeTrip.dropoffAddress;
+
     try {
-      const resp = await axios.patch(`${API_URL}/trips/${activeTrip.id}/start`, { driverId: userId });
-      setActiveTrip(resp.data); // Zmienia status na 'in_progress'
-    } catch (e) { Alert.alert('Błąd', 'Nie udało się wystartować.'); }
+      const waypoint = {
+        title: title || 'Cel',
+        position: { lat: Number(lat), lng: Number(lng) }
+      };
+
+      await navigationController.setDestinations([waypoint], { routingOptions: { travelMode: 1 } });
+      await navigationController.startGuidance();
+    } catch (error) {
+      console.error("Błąd nawigacji:", error);
+      Alert.alert("Błąd", "Nie udało się uruchomić nawigacji.");
+    }
   };
 
-  // Zakończenie kursu
+  // 🔥 AKTUALIZACJA KOŃCZENIA KURSU (Nowe API v0.14)
   const handleCompleteTrip = async () => {
     if (!activeTrip) return;
     try {
       await axios.patch(`${API_URL}/trips/${activeTrip.id}/complete`, { driverId: userId });
-      setActiveTrip(null); // Czyścimy panel, status zmienia się na 'completed'
+      setActiveTrip(null); 
+      
+      // Czyszczenie trasy po kursie
+      await navigationController.stopGuidance();
+      await navigationController.clearDestinations();
+      
       Alert.alert('Sukces', 'Kurs zakończony!');
-    } catch (e) { Alert.alert('Błąd', 'Nie udało się zakończyć.'); }
+    } catch (e) { 
+      Alert.alert('Błąd', 'Nie udało się zakończyć.'); 
+    }
   };
 
   if (loading) {
@@ -287,7 +416,6 @@ export default function MainKierowca({ navigation }: any) {
     );
   }
 
-  // Widok wyboru pojazdu (gdy nie ma przypisanego)
   if (!assignedVehicle) {
     const availableVehicles = vehicles.filter(v => v.status === 'dostępny' && !v.isBreakdown);
     return (
@@ -303,7 +431,6 @@ export default function MainKierowca({ navigation }: any) {
           </Pressable>
         </View>
 
-        {/* Wysuwane menu */}
         {isMenuOpen && <Pressable style={MainKierowcaStyles.overlay} onPress={closeMenu} />}
         <View style={[MainKierowcaStyles.sideMenu, isMenuOpen && MainKierowcaStyles.sideMenuOpen]}>
           <Pressable style={MainKierowcaStyles.closeMenuBtn} onPress={closeMenu}>
@@ -319,7 +446,6 @@ export default function MainKierowca({ navigation }: any) {
           </View>
         </View>
 
-        {/* Widok wyboru pojazdu */}
         <ScrollView style={MainKierowcaStyles.selectionContainer}>
           <View style={MainKierowcaStyles.selectionCard}>
             <Text style={MainKierowcaStyles.selectionTitle}>🚗 Wybór pojazdu</Text>
@@ -347,9 +473,6 @@ export default function MainKierowca({ navigation }: any) {
     );
   }
 
-  
-
-  // Widok główny (gdy ma przypisany pojazd)
   return (
     <View style={MainKierowcaStyles.container}>
       <View style={MainKierowcaStyles.header}>
@@ -363,7 +486,6 @@ export default function MainKierowca({ navigation }: any) {
         </Pressable>
       </View>
 
-      {/* Wysuwane menu */}
       {isMenuOpen && <Pressable style={MainKierowcaStyles.overlay} onPress={closeMenu} />}
       <View style={[MainKierowcaStyles.sideMenu, isMenuOpen && MainKierowcaStyles.sideMenuOpen]}>
         <Pressable style={MainKierowcaStyles.closeMenuBtn} onPress={closeMenu}>
@@ -373,7 +495,6 @@ export default function MainKierowca({ navigation }: any) {
           <Text style={MainKierowcaStyles.menuHeaderText}>👤 Profil Kierowcy</Text>
         </View>
 
-        {/* Aktualny pojazd w menu */}
         {assignedVehicle && (
           <View style={MainKierowcaStyles.currentVehicle}>
             <Text style={MainKierowcaStyles.vehicleLabel}>Twój pojazd:</Text>
@@ -412,100 +533,107 @@ export default function MainKierowca({ navigation }: any) {
         </View>
       </View>
 
-      {/* Główna zawartość */}
-      <ScrollView style={MainKierowcaStyles.mainContent}>
+      <View style={[MainKierowcaStyles.mainContent, { flex: 1 }]}>
         {activeTab === 'tasks' && (
-          <View style={MainKierowcaStyles.tasksLayout}>
-            {/* Lewy panel - lista zleceń */}
-            <View style={MainKierowcaStyles.sidebar}>
-              <View style={MainKierowcaStyles.taskCard}>
-                <Text style={MainKierowcaStyles.panelTitle}>Dostępne zlecenia</Text>
-
-                <View style={MainKierowcaStyles.tasksContainer}>
+          <View style={{ flex: 1, flexDirection: 'column' }}>
+            
+            {/* 1. LISTA ZLECEŃ */}
+            {!activeTrip && (
+              <View style={{ height: 250, backgroundColor: '#f8f9fa' }}>
+                <Text style={[MainKierowcaStyles.panelTitle, { padding: 10 }]}>Dostępne zlecenia</Text>
+                <ScrollView>
                   {availableTasks.length === 0 ? (
-                    <Text style={{ padding: 20, textAlign: 'center', color: '#666', fontSize: 16 }}>
-                      Oczekujesz na zlecenia... ☕
-                    </Text>
+                    <Text style={{ padding: 20, textAlign: 'center', color: '#666' }}>Oczekujesz na zlecenia... ☕</Text>
                   ) : (
                     availableTasks.map((task) => (
-                      <View key={task.id} style={MainKierowcaStyles.taskItem}>
-                        <View style={MainKierowcaStyles.taskHeader}>
-                          <Text style={MainKierowcaStyles.taskTime}>Nowe</Text>
-                          <Text style={MainKierowcaStyles.taskDistance}>
-                            {task.distanceKm ? `${task.distanceKm} km` : '---'}
-                          </Text>
+                      <View key={task.id} style={[MainKierowcaStyles.taskItem, { flexDirection: 'row', alignItems: 'center', padding: 10, margin: 10, backgroundColor: '#fff', borderRadius: 8, elevation: 2 }]}>
+                        
+                        {/* Szczegóły zlecenia */}
+                        <View style={{ flex: 1, paddingRight: 10 }}>
+                          <Text style={{ fontWeight: 'bold', fontSize: 14, color: '#0a1d56' }}>📍 Skąd: {task.pickupAddress}</Text>
+                          <Text style={{ fontWeight: 'bold', fontSize: 14, color: '#0a1d56', marginTop: 4 }}>🏁 Dokąd: {task.dropoffAddress}</Text>
+                          <Text style={{ fontSize: 12, color: '#666', marginTop: 4 }}>👤 Pasażerów: {task.passengerCount}</Text>
                         </View>
-                        <View style={MainKierowcaStyles.taskRoute}>
-                          <Text><Text style={MainKierowcaStyles.bold}>Od:</Text> {task.pickupAddress}</Text>
-                          <Text><Text style={MainKierowcaStyles.bold}>Do:</Text> {task.dropoffAddress}</Text>
-                        </View>
-                        <View style={MainKierowcaStyles.taskActions}>
-                          <Pressable 
-                            style={MainKierowcaStyles.rejectBtn}
-                            // Funkcja odrzucenia - po prostu usuwa kurs z widoku TEGO KIEROWCY
-                            onPress={() => setAvailableTasks(prev => prev.filter(t => t.id !== task.id))}
-                          >
-                            <Text style={MainKierowcaStyles.rejectBtnText}>Odrzuć</Text>
-                          </Pressable>
-                          <Pressable 
-                            style={MainKierowcaStyles.acceptBtn} 
-                            onPress={() => handleAcceptTask(task.id)}
-                          >
-                            <Text style={MainKierowcaStyles.acceptBtnText}>Przyjmij</Text>
-                          </Pressable>
-                        </View>
+
+                        {/* Przycisk akceptacji */}
+                        <Pressable 
+                          style={[{ backgroundColor: '#28a745', padding: 10, borderRadius: 8, justifyContent: 'center' }]} 
+                          onPress={() => handleAcceptTask(task.id)}
+                        >
+                          <Text style={{ color: 'white', fontWeight: 'bold' }}>Przyjmij</Text>
+                        </Pressable>
+
                       </View>
                     ))
                   )}
-                </View>
+                </ScrollView>
               </View>
-            </View>
+            )}
 
-            {/* Prawy panel - mapa */}
-            {/* Prawy panel - Mapa i Sterowanie */}
-            <View style={MainKierowcaStyles.mapArea}>
-              {activeTrip ? (
-                <View style={{ flex: 1, backgroundColor: '#fff', borderRadius: 15, padding: 15 }}>
-                  <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#0a1d56', marginBottom: 10 }}>
-                    {activeTrip.status === 'in_progress' ? '🚖 Kurs w trakcie' : '📍 Dojazd do klienta'}
+            {/* 2. MAPA I NAWIGACJA */}
+            <View style={{ flex: 1, borderTopWidth: 2, borderColor: '#0a1d56' }}>
+              
+              {/* 🔥 NOWY KOMPONENT NAWIGACJI (Bez starych refów i wycofanych atrybutów) */}
+              <NavigationView
+                 style={{ flex: 1 }}
+                 onMapViewControllerCreated={(ctrl: any) => { mapCtrl.current = ctrl; }} 
+                 navigationUIEnabled={true}      
+                 myLocationEnabled={true}        
+                 myLocationButtonEnabled={true}  
+                 onMapReady={() => {
+                   console.log('Mapa gotowa');
+                   setIsMapReady(true);
+                 }}
+              />
+        
+              {/* PANEL AKTYWNEGO ZLECENIA */}
+              {activeTrip && (
+                <View style={{ 
+                  position: 'absolute', 
+                  bottom: 0, 
+                  left: 0, 
+                  right: 0, 
+                  backgroundColor: 'white', 
+                  padding: 15,
+                  borderTopLeftRadius: 20,
+                  borderTopRightRadius: 20,
+                  elevation: 10 
+                }}>
+                  <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#0a1d56', marginBottom: 10, textAlign: 'center' }}>
+                    Zlecenie #{activeTrip.id} w toku
                   </Text>
-
-                  {/* Tu w przyszłości wstawisz <MapView> z trasą Google */}
-                  <View style={{ flex: 1, backgroundColor: '#eee', justifyContent: 'center', alignItems: 'center', borderRadius: 10 }}>
-                    <Text style={{ textAlign: 'center', padding: 10 }}>
-                      Trasa: {activeTrip.pickupAddress} {'\n'} {'->'} {'\n'} {activeTrip.dropoffAddress}
-                    </Text>
+                  
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <Pressable 
+                      style={{ flex: 1, backgroundColor: isMapReady ? '#007bff' : '#ccc', padding: 12, borderRadius: 8, marginRight: 5, alignItems: 'center' }} 
+                      onPress={() => handleStartNavigation('pickup')}
+                      disabled={!isMapReady}
+                    >
+                      <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 12 }}>{isMapReady ? 'PO KLIENTA' : 'ŁADOWANIE...'}</Text>
+                    </Pressable>
+              
+                    <Pressable 
+                      style={{ flex: 1, backgroundColor: isMapReady ? '#17a2b8' : '#ccc', padding: 12, borderRadius: 8, marginLeft: 5, alignItems: 'center' }} 
+                      onPress={() => handleStartNavigation('dropoff')}
+                      disabled={!isMapReady}
+                    >
+                      <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 12 }}>{isMapReady ? 'DO CELU' : 'ŁADOWANIE...'}</Text>
+                    </Pressable>
                   </View>
               
-                  {/* PRZYCISKI STEROWANIA STATUSAMI */}
-                  <View style={{ marginTop: 20 }}>
-                    {activeTrip.status !== 'in_progress' ? (
-                      <Pressable 
-                        style={{ backgroundColor: '#28a745', padding: 15, borderRadius: 10, alignItems: 'center' }} 
-                        onPress={handleStartTrip}
-                      >
-                        <Text style={{ color: 'white', fontWeight: 'bold' }}>KLIENT WSIADŁ - START</Text>
-                      </Pressable>
-                    ) : (
-                      <Pressable 
-                        style={{ backgroundColor: '#dc3545', padding: 15, borderRadius: 10, alignItems: 'center' }} 
-                        onPress={handleCompleteTrip}
-                      >
-                        <Text style={{ color: 'white', fontWeight: 'bold' }}>ZAKOŃCZ KURS</Text>
-                      </Pressable>
-                    )}
-                  </View>
-                </View>
-              ) : (
-                <View style={MainKierowcaStyles.mapCard}>
-                  <Text style={MainKierowcaStyles.mapPlaceholder}>Nie masz aktywnego zlecenia.</Text>
-                  <Text style={{ color: '#666', marginTop: 10 }}>Wybierz kurs z listy po lewej stronie.</Text>
+                  <Pressable 
+                    style={{ backgroundColor: '#dc3545', padding: 15, borderRadius: 8, alignItems: 'center' }} 
+                    onPress={handleCompleteTrip}
+                  >
+                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>✅ ZAKOŃCZ KURS</Text>
+                  </Pressable>
                 </View>
               )}
             </View>
           </View>
         )}
 
+        {/* ORYGINALNA HISTORIA KURSÓW */}
         {activeTab === 'history' && (
           <View style={MainKierowcaStyles.historyArea}>
             <View style={MainKierowcaStyles.taskCard}>
@@ -514,7 +642,25 @@ export default function MainKierowca({ navigation }: any) {
             </View>
           </View>
         )}
-      </ScrollView>
+      </View>
     </View>
+  );
+}
+
+// =========================================================================
+// 🔥 GLOBALNY WRAPPER (Wymagany w Google Navigation SDK v0.14+)
+// =========================================================================
+export default function MainKierowca(props: any) {
+  return (
+    <NavigationProvider
+      termsAndConditionsDialogOptions={{
+        title: 'Regulamin Google Maps',
+        companyName: 'Michelin Taxi',
+        showOnlyDisclaimer: false,
+      }}
+      taskRemovedBehavior={TaskRemovedBehavior.CONTINUE_SERVICE}
+    >
+      <MainKierowcaContent {...props} />
+    </NavigationProvider>
   );
 }

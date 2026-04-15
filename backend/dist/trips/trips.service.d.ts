@@ -7,6 +7,7 @@ export declare class TripsService {
     constructor(tripRepository: Repository<Trip>, tripsGateway: TripsGateway);
     requestTrip(clientId: number, data: any): Promise<Trip>;
     acceptTrip(tripId: number, driverId: number): Promise<Trip>;
+    getPendingTrips(): Promise<Trip[]>;
     startTrip(tripId: number, driverId: number): Promise<Trip>;
     completeTrip(tripId: number, driverId: number): Promise<Trip>;
     getDriverActiveTrips(driverId: number): Promise<Trip[]>;

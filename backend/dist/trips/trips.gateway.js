@@ -24,6 +24,10 @@ let TripsGateway = class TripsGateway {
         this.server.emit('newTrip', trip);
         console.log(`[WebSocket] Wysłano powiadomienie o nowym kursie #${trip.id}`);
     }
+    broadcastTripAccepted(tripId) {
+        this.server.emit('tripAccepted', tripId);
+        console.log(`[WebSocket] Kurs #${tripId} zniknął z giełdy (został przyjęty)`);
+    }
 };
 exports.TripsGateway = TripsGateway;
 __decorate([

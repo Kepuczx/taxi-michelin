@@ -40,19 +40,17 @@ export default function ZamowieniePracownik({ navigation }: any) {
   useEffect(() => {
     (async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Odmowa', 'Aplikacja potrzebuje GPS do działania.');
-        return;
-      }
+      if (status !== 'granted') return;
 
       let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const newCoords = {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      };
+      const newCoords = { latitude: location.coords.latitude, longitude: location.coords.longitude };
 
-      // Odwrócone geokodowanie (opcjonalnie można tu użyć API Google dla nazwy adresu)
-      setPickup(prev => ({ ...prev, coords: newCoords }));
+      // 🔥 DODAJ TO: Pobieramy adres Twojej aktualnej pozycji
+      const [address] = await Location.reverseGeocodeAsync(newCoords);
+      const myAddr = address ? `${address.street || 'Moja lokalizacja'} ${address.name || ''}` : "Moja lokalizacja";
+
+      setPickup({ address: myAddr, coords: newCoords }); // Ustawiamy punkt startowy
+      
       setRegion({
         ...newCoords,
         latitudeDelta: 0.005,
@@ -100,8 +98,29 @@ export default function ZamowieniePracownik({ navigation }: any) {
       setLoading(false);
     }
   };
+  // Funkcja obsługująca kliknięcie w dowolny punkt na mapie
+  const onMapPress = async (e: any) => {
+    const coords = e.nativeEvent.coordinate;
+    
+    // Opcjonalnie: pobieramy nazwę ulicy dla klikniętego punktu (za darmo z Expo)
+    try {
+      const [address] = await Location.reverseGeocodeAsync(coords);
+      const fullAddress = address 
+        ? `${address.street || ''} ${address.name || ''}, ${address.city || ''}`.trim().replace(/^,/, '')
+        : "Wybrany punkt na mapie";
+      
+      setDestination({
+        address: fullAddress || "Wybrany punkt",
+        coords: coords
+      });
+    } catch (err) {
+      setDestination({ address: "Punkt na mapie", coords });
+    }
+  };
 
   return (
+    
+
     <View style={styles.container}>
       <View style={styles.header}>
         <Image source={require('../assets/MichelinLogo.png')} style={styles.logoImage} resizeMode="contain" />
@@ -117,9 +136,15 @@ export default function ZamowieniePracownik({ navigation }: any) {
           provider={PROVIDER_DEFAULT}
           region={region}
           showsUserLocation={true}
+          // 🔥 TA LINIA DODAJE MOŻLIWOŚĆ KLIKANIA:
+          onPress={onMapPress}
 >          
           {/* Znaczniki (Markery) */}
           <Marker coordinate={pickup.coords} title="Skąd" pinColor="blue" />
+          <Marker coordinate={pickup.coords} title="Twoja lokalizacja" pinColor="blue" />
+  {destination.address !== '' && (
+    <Marker coordinate={destination.coords} title="Cel" pinColor="red" />
+  )}
           
           {destination.address !== '' && (
             <>
@@ -150,42 +175,46 @@ export default function ZamowieniePracownik({ navigation }: any) {
       </View>
 
       {/* PANEL WYSZUKIWANIA */}
-      <View style={styles.searchPanel}>
-        <View style={styles.inputWrapper}>
+      {/* Dodano zIndex do kontenera, aby był ponad mapą */}
+      <View style={[styles.searchPanel, { zIndex: 999 }]}> 
+        <View style={[styles.inputWrapper, { zIndex: 2 }]}>
           <Ionicons name="location" size={20} color="#0a1d56" style={styles.inputIcon} />
           <GooglePlacesAutocomplete
-            placeholder='Skąd?'
-            fetchDetails={true}
-            onPress={(data, details = null) => {
-              const coords = {
-                latitude: details?.geometry.location.lat || 0,
-                longitude: details?.geometry.location.lng || 0,
-              };
-              setPickup({ address: data.description, coords });
-              setRegion({ ...coords, latitudeDelta: 0.005, longitudeDelta: 0.005 });
-            }}
-            query={{ key: GOOGLE_MAPS_API_KEY, language: 'pl' }}
-            styles={autocompleteStyles}
-          />
+  placeholder='Skąd?'
+  fetchDetails={true}
+  keyboardShouldPersistTaps="handled"
+  // 🔥 DODAJ TO, ABY ZOBACZYĆ BŁĄD W KONSOLI:
+  onFail={(error) => console.error("BŁĄD GOOGLE PLACES:", error)}
+  onPress={(data, details = null) => {
+    // Twoja logika...
+  }}
+  query={{ 
+    key: GOOGLE_MAPS_API_KEY, 
+    language: 'pl',
+    types: 'address' // ogranicza do konkretnych adresów
+  }}
+  styles={autocompleteStyles}
+/>
         </View>
 
-        <View style={styles.inputWrapper}>
+        <View style={[styles.inputWrapper, { zIndex: 1 }]}>
           <Ionicons name="flag" size={20} color="#dc3545" style={styles.inputIcon} />
           <GooglePlacesAutocomplete
-            placeholder='Dokąd?'
-            fetchDetails={true}
-            onPress={(data, details = null) => {
-              const coords = {
-                latitude: details?.geometry.location.lat || 0,
-                longitude: details?.geometry.location.lng || 0,
-              };
-              setDestination({ address: data.description, coords });
-              // Centrowanie na celu
-              setRegion({ ...coords, latitudeDelta: 0.005, longitudeDelta: 0.005 });
-            }}
-            query={{ key: GOOGLE_MAPS_API_KEY, language: 'pl' }}
-            styles={autocompleteStyles}
-          />
+  placeholder='Skąd?'
+  fetchDetails={true}
+  keyboardShouldPersistTaps="handled"
+  // 🔥 DODAJ TO, ABY ZOBACZYĆ BŁĄD W KONSOLI:
+  onFail={(error) => console.error("BŁĄD GOOGLE PLACES:", error)}
+  onPress={(data, details = null) => {
+    // Twoja logika...
+  }}
+  query={{ 
+    key: GOOGLE_MAPS_API_KEY, 
+    language: 'pl',
+    types: 'address' // ogranicza do konkretnych adresów
+  }}
+  styles={autocompleteStyles}
+/>
         </View>
 
         <Pressable 
@@ -201,6 +230,9 @@ export default function ZamowieniePracownik({ navigation }: any) {
     </View>
   );
 }
+
+
+
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
@@ -220,23 +252,24 @@ const styles = StyleSheet.create({
   mapBackground: { ...StyleSheet.absoluteFillObject },
   searchPanel: {
     position: 'absolute',
-    top: 110, // Pod headerem
+    top: 110,
     left: 10,
     right: 10,
     backgroundColor: 'rgba(255,255,255,0.95)',
     borderRadius: 15,
     padding: 15,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 5,
-    zIndex: 200,
+    // 🔥 Zwiększamy elevation do 15+, aby na pewno było nad mapą
+    elevation: 20, 
+    zIndex: 1000,
+    // 🔥 USUNĄĆ jeśli masz: overflow: 'hidden'
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 10,
-    zIndex: 300,
+    // 🔥 Każdy wrapper musi mieć malejący zIndex, 
+    // aby "Skąd" nie zasłaniało listy "Dokąd"
+    zIndex: 10, 
   },
   inputIcon: { marginRight: 10 },
   orderButton: {
@@ -249,8 +282,14 @@ const styles = StyleSheet.create({
   orderButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
 });
 
+// POPRAWIONE STYLE AUTOCOMPLETE
 const autocompleteStyles = {
-  container: { flex: 1 },
+  container: {
+    // 🔥 Zmiana na 0 pozwala liście swobodnie "wypaść" poza kontener
+    flex: 0, 
+    width: '100%',
+    zIndex: 1000,
+  },
   textInput: {
     height: 45,
     color: '#5d5d5d',
@@ -258,12 +297,28 @@ const autocompleteStyles = {
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 5,
+    backgroundColor: '#ffffff', // Upewnij się, że tło jest białe
   },
   listView: {
-    position: 'absolute',
-    top: 45,
+    // 🔥 Pozycjonowanie absolutne względem pola tekstowego
+    position: 'absolute' as const,
+    top: 45, 
+    left: 0,
+    right: 0,
     backgroundColor: 'white',
-    zIndex: 1000,
-    elevation: 10,
-  }
+    borderRadius: 5,
+    elevation: 10, // Dla Androida
+    zIndex: 5000,  // Bardzo wysoki priorytet
+    maxHeight: 200, // Zabezpieczenie wysokości
+  },
+  row: {
+    backgroundColor: '#FFFFFF',
+    padding: 13,
+    height: 44,
+    flexDirection: 'row',
+  },
+  separator: {
+    height: 0.5,
+    backgroundColor: '#c8c7cc',
+  },
 };

@@ -44,7 +44,21 @@ export class TripsService {
     trip.driverId = driverId;
     trip.status = 'assigned';
     trip.assignedAt = new Date();
-    return this.tripRepository.save(trip);
+    
+    const savedTrip = await this.tripRepository.save(trip);
+
+    // 🔥 WYSYŁAMY POWIADOMIENIE, ŻE KURS JEST JUŻ ZAJĘTY
+    this.tripsGateway.broadcastTripAccepted(tripId);
+
+    return savedTrip;
+  }
+
+  // 🔥 DODAJEMY BRAKUJĄCĄ METODĘ DLA ENDPOINTU /pending
+  async getPendingTrips(): Promise<Trip[]> {
+    return this.tripRepository.find({
+      where: { status: 'pending' },
+      order: { requestedAt: 'DESC' }, // Najnowsze na górze
+    });
   }
 
   // Rozpoczęcie kursu

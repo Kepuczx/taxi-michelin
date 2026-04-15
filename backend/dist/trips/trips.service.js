@@ -49,7 +49,15 @@ let TripsService = class TripsService {
         trip.driverId = driverId;
         trip.status = 'assigned';
         trip.assignedAt = new Date();
-        return this.tripRepository.save(trip);
+        const savedTrip = await this.tripRepository.save(trip);
+        this.tripsGateway.broadcastTripAccepted(tripId);
+        return savedTrip;
+    }
+    async getPendingTrips() {
+        return this.tripRepository.find({
+            where: { status: 'pending' },
+            order: { requestedAt: 'DESC' },
+        });
     }
     async startTrip(tripId, driverId) {
         const trip = await this.tripRepository.findOne({ where: { id: tripId } });

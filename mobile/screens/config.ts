@@ -9,7 +9,7 @@ import { Platform } from 'react-native';
 const isDevelopment = __DEV__;
 
 // Twój aktualny adres IP do testów lokalnych
-const LOCAL_IP = '192.168.55.107'; 
+const LOCAL_IP = '192.168.55.110'; 
 
 export const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 

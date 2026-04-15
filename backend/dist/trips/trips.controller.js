@@ -38,6 +38,9 @@ let TripsController = class TripsController {
     async completeTrip(id, driverId) {
         return this.tripsService.completeTrip(+id, driverId);
     }
+    async getPendingTrips() {
+        return this.tripsService.getPendingTrips();
+    }
 };
 exports.TripsController = TripsController;
 __decorate([
@@ -85,6 +88,12 @@ __decorate([
     __metadata("design:paramtypes", [String, Number]),
     __metadata("design:returntype", Promise)
 ], TripsController.prototype, "completeTrip", null);
+__decorate([
+    (0, common_1.Get)('pending'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], TripsController.prototype, "getPendingTrips", null);
 exports.TripsController = TripsController = __decorate([
     (0, common_1.Controller)('trips'),
     __metadata("design:paramtypes", [trips_service_1.TripsService])
