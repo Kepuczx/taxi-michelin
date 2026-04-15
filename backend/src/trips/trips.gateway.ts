@@ -16,6 +16,9 @@ export class TripsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server!: Server;
 
+  // Przechowywanie połączeń (roomy dla tripów)
+  private tripRooms: Map<number, Set<string>> = new Map();
+
   constructor(
     @Inject(forwardRef(() => TripsService))
     private readonly tripsService: TripsService,
@@ -27,6 +30,63 @@ export class TripsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   handleDisconnect(client: Socket) {
     console.log(`[WebSocket] Odłączono klienta: ${client.id}`);
+    
+    // Usuń klienta ze wszystkich roomów
+    for (const [tripId, clients] of this.tripRooms.entries()) {
+      if (clients.has(client.id)) {
+        clients.delete(client.id);
+        if (clients.size === 0) {
+          this.tripRooms.delete(tripId);
+        }
+        break;
+      }
+    }
+  }
+
+  // Dołącz do roomu danego kursu
+  @SubscribeMessage('joinTripRoom')
+  handleJoinTripRoom(client: Socket, tripId: number) {
+    const roomName = `trip:${tripId}`;
+    client.join(roomName);
+    
+    if (!this.tripRooms.has(tripId)) {
+      this.tripRooms.set(tripId, new Set());
+    }
+    this.tripRooms.get(tripId)!.add(client.id);
+    
+    console.log(`[WebSocket] Klient ${client.id} dołączył do roomu ${roomName}`);
+    client.emit('joinedTripRoom', { tripId, success: true });
+  }
+
+  // Opuszczenie roomu
+  @SubscribeMessage('leaveTripRoom')
+  handleLeaveTripRoom(client: Socket, tripId: number) {
+    const roomName = `trip:${tripId}`;
+    client.leave(roomName);
+    
+    const clients = this.tripRooms.get(tripId);
+    if (clients) {
+      clients.delete(client.id);
+      if (clients.size === 0) {
+        this.tripRooms.delete(tripId);
+      }
+    }
+    
+    console.log(`[WebSocket] Klient ${client.id} opuścił room ${roomName}`);
+  }
+
+  // 🔥 KIEROWCA: wysyła lokalizację
+  @SubscribeMessage('driverLocation')
+  handleDriverLocation(client: Socket, data: { tripId: number; location: { lat: number; lng: number } }) {
+    const roomName = `trip:${data.tripId}`;
+    console.log(`[WebSocket] Lokalizacja kierowcy dla kursu ${data.tripId}:`, data.location);
+    
+    // Wyślij do wszystkich w roomie (oprócz nadawcy)
+    client.to(roomName).emit('driverLocation', {
+      tripId: data.tripId,
+      location: data.location,
+      timestamp: new Date().toISOString()
+    });
   }
 
   broadcastNewTrip(trip: Trip) {
@@ -44,15 +104,9 @@ export class TripsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     console.log(`[WebSocket] Kurs #${tripId} został anulowany`);
   }
 
-  @SubscribeMessage('getPendingTrips')
-  async handleGetPendingTrips(client: Socket) {
-    try {
-      const trips = await this.tripsService.getPendingTrips();
-      client.emit('pendingTrips', trips);
-      console.log(`[WebSocket] Wysłano listę ${trips.length} pending kursów do klienta ${client.id}`);
-    } catch (error) {
-      console.error('[WebSocket] Błąd pobierania pending trips:', error);
-      client.emit('error', { message: 'Nie udało się pobrać listy kursów' });
-    }
-  }
+  // Dodaj tę metodę w TripsGateway
+broadcastTripStatusChanged(tripId: number, status: string) {
+  this.server.emit(`tripStatusChanged:${tripId}`, { tripId, status });
+  console.log(`[WebSocket] Status kursu #${tripId} zmieniony na: ${status}`);
+}
 }

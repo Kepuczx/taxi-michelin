@@ -55,6 +55,37 @@ const HomePageUser = () => {
   const [suggestionsPosition, setSuggestionsPosition] = useState({ top: 0, left: 0, width: 0 });
   const [activeInput, setActiveInput] = useState<'pickup' | 'dest' | null>(null);
   const [locatingPickup, setLocatingPickup] = useState(false);
+  const [myPhysicalLocation, setMyPhysicalLocation] = useState<google.maps.LatLng | null>(null);
+
+  
+
+  // IKONY ZNACZNIKÓW
+  const mapIcons = {
+    current: {
+      path: "M 0,0 m -7,0 a 7,7 0 1,0 14,0 a 7,7 0 1,0 -14,0",
+      fillColor: "#3498db",
+      fillOpacity: 1,
+      strokeWeight: 2,
+      strokeColor: "#ffffff",
+      scale: 1,
+    },
+    pickup: {
+      path: "M 0,0 m -7,0 a 7,7 0 1,0 14,0 a 7,7 0 1,0 -14,0",
+      fillColor: "#ffffff",
+      fillOpacity: 1,
+      strokeWeight: 4,
+      strokeColor: "#27ae60",
+      scale: 1,
+    },
+    destination: {
+      path: "M -6,-6 L 6,-6 L 6,6 L -6,6 Z",
+      fillColor: "#002255",
+      fillOpacity: 1,
+      strokeWeight: 2,
+      strokeColor: "#ffffff",
+      scale: 1,
+    }
+  };
 
   const initServices = () => {
     if (window.google && !geocoder.current) {
@@ -119,6 +150,10 @@ const HomePageUser = () => {
     checkActiveTrip();
   }, [navigate]);
 
+  useEffect(() => {
+  getCurrentLocation();
+}, []);
+
   // 🔥 POBIERZ AKTUALNĄ LOKALIZACJĘ I WPISZ DO POLA ODBIORU
   const getCurrentLocation = () => {
     setLocatingPickup(true);
@@ -129,6 +164,9 @@ const HomePageUser = () => {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           };
+
+          setMyPhysicalLocation(newCoords);
+
           setPickup(prev => ({ ...prev, coords: newCoords }));
           setMapCenter(newCoords);
           if (geocoder.current) {
@@ -439,56 +477,70 @@ const HomePageUser = () => {
         <aside className="user-sidebar">
           <div className="form-card">
             <h2 className="form-title">Zaplanuj trasę</h2>
-            
+  
+            {/* MIEJSCE ODBIORU */}
             <div className="input-group">
               <label>MIEJSCE ODBIORU</label>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <input
-                  ref={setPickupInputRef}
-                  type="text"
-                  value={pickupInput}
-                  onChange={(e) => setPickupInput(e.target.value)}
-                  onFocus={() => setShowPickupSuggestions(true)}
-                  onBlur={() => setTimeout(() => setShowPickupSuggestions(false), 200)}
-                  placeholder="Wpisz adres lub nazwę miejsca..."
-                  className="places-input"
-                  autoComplete="off"
-                  style={{ flex: 1 }}
-                />
-                <button
-                  type="button"
-                  onClick={getCurrentLocation}
-                  disabled={locatingPickup}
-                  className="location-btn"
-                  title="Użyj mojej lokalizacji"
-                  style={{
-                    background: '#f0f4f8',
-                    border: '1px solid #dde1e5',
-                    borderRadius: '8px',
-                    padding: '10px 12px',
-                    cursor: 'pointer',
-                    fontSize: '18px',
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  {locatingPickup ? '⏳' : '📍'}
-                </button>
+              <div className="input-with-marker">
+                <div className="marker-pickup"></div> {/* Ikona zielonego kółka */}
+                <div className="input-field-wrapper">
+                  <input
+                    ref={setPickupInputRef}
+                    type="text"
+                    value={pickupInput}
+                    onChange={(e) => setPickupInput(e.target.value)}
+                    onFocus={() => setShowPickupSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowPickupSuggestions(false), 200)}
+                    placeholder="Wpisz adres lub nazwę miejsca..."
+                    className="places-input"
+                    autoComplete="off"
+                  />
+                  <button
+                    type="button"
+                    onClick={getCurrentLocation}
+                    disabled={locatingPickup}
+                    className="location-btn"
+                    title="Użyj mojej lokalizacji"
+                    style={{
+                      background: '#f0f4f8',
+                      border: '1px solid #dde1e5',
+                      borderRadius: '8px',
+                      width: '44px', 
+                      height: '44px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: 0, 
+                      cursor: 'pointer',
+                      fontSize: '18px',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    {locatingPickup ? '⏳' : <div className="marker-current"></div>}
+                  </button>
+                </div>
               </div>
             </div>
 
+            {/* MIEJSCE DOCELOWE */}
             <div className="input-group">
               <label>MIEJSCE DOCELOWE</label>
-              <input
-                ref={setDestInputRef}
-                type="text"
-                value={destInput}
-                onChange={(e) => setDestInput(e.target.value)}
-                onFocus={() => setShowDestSuggestions(true)}
-                onBlur={() => setTimeout(() => setShowDestSuggestions(false), 200)}
-                placeholder="Wpisz adres lub nazwę miejsca..."
-                className="places-input"
-                autoComplete="off"
-              />
+              <div className="input-with-marker">
+                <div className="marker-destination"></div> {/* Ikona granatowego kwadratu */}
+                <div className="input-field-wrapper">
+                  <input
+                    ref={setDestInputRef}
+                    type="text"
+                    value={destInput}
+                    onChange={(e) => setDestInput(e.target.value)}
+                    onFocus={() => setShowDestSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowDestSuggestions(false), 200)}
+                    placeholder="Wpisz adres lub nazwę miejsca..."
+                    className="places-input"
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="input-group">
@@ -523,18 +575,30 @@ const HomePageUser = () => {
                 }}
               >
                 <Marker 
-                  position={pickup.coords} 
-                  label="A"
-                  icon={{ url: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png' }}
+                  position={myPhysicalLocation} 
+                  icon={mapIcons.current}
+                  zIndex={100}
+                  title="Twoja lokalizacja"
+                />
+                <Marker
+                  position={pickup.coords}
+                  icon={mapIcons.pickup}
+                  zIndex={50}
+                  title="Miejsce odbioru"
                 />
                 {destination.coords.lat !== 0 && (
                   <Marker 
                     position={destination.coords} 
-                    label="B"
-                    icon={{ url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png' }}
+                    icon={mapIcons.destination}
+                    zIndex={50}
+                    title="Miejsce docelowe"
                   />
                 )}
-                {directions && <DirectionsRenderer directions={directions} />}
+                {directions && <DirectionsRenderer directions={directions} options={{
+                  preserveViewport: true,
+                  suppressMarkers: true,
+                  polylineOptions: { strokeColor: "#002255", strokeWeight: 5, strokeOpacity: 0.6}
+                }} />}
               </GoogleMap>
             </LoadScript>
           ) : (

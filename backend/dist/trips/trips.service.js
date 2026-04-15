@@ -44,8 +44,7 @@ let TripsService = class TripsService {
     }
     async acceptTrip(tripId, driverId) {
         const trip = await this.tripRepository.findOne({
-            where: { id: tripId },
-            lock: { mode: 'pessimistic_write' }
+            where: { id: tripId }
         });
         if (!trip)
             throw new common_1.NotFoundException('Kurs nie istnieje');
@@ -73,7 +72,9 @@ let TripsService = class TripsService {
             throw new Error('Nie jesteś kierowcą tego kursu');
         trip.status = 'in_progress';
         trip.startedAt = new Date();
-        return this.tripRepository.save(trip);
+        const savedTrip = await this.tripRepository.save(trip);
+        this.tripsGateway.broadcastTripStatusChanged(tripId, 'in_progress');
+        return savedTrip;
     }
     async completeTrip(tripId, driverId) {
         const trip = await this.tripRepository.findOne({ where: { id: tripId } });
@@ -83,9 +84,11 @@ let TripsService = class TripsService {
             throw new Error('Nie jesteś kierowcą tego kursu');
         trip.status = 'completed';
         trip.completedAt = new Date();
-        return this.tripRepository.save(trip);
+        const savedTrip = await this.tripRepository.save(trip);
+        this.tripsGateway.broadcastTripStatusChanged(tripId, 'completed');
+        return savedTrip;
     }
-    async getDriverActiveTrips(driverId) {
+    async getDriverAssignedTrips(driverId) {
         return this.tripRepository.find({
             where: { driverId, status: 'assigned' },
             order: { requestedAt: 'ASC' },
@@ -137,6 +140,21 @@ let TripsService = class TripsService {
         const savedTrip = await this.tripRepository.save(trip);
         this.tripsGateway.broadcastTripCancelled(tripId);
         return savedTrip;
+    }
+    async getDriverActiveTrip(driverId) {
+        console.log(`🔍 getDriverActiveTrip - szukam dla driverId: ${driverId}`);
+        const trip = await this.tripRepository.findOne({
+            where: {
+                driverId: driverId,
+                status: (0, typeorm_2.In)(['assigned', 'in_progress']),
+            },
+            order: { assignedAt: 'DESC' },
+        });
+        console.log('📡 Znaleziony kurs:', trip);
+        return trip;
+    }
+    async getAllTrips() {
+        return this.tripRepository.find();
     }
 };
 exports.TripsService = TripsService;

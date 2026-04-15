@@ -167,275 +167,191 @@ body {
   overflow-y: auto;
 }
 
-/* --- STYLE DLA AKTYWNEGO KURSU (GŁÓWNA KONTENER) --- */
-.user-active-trip {
-  width: 100%;
-  max-width: 900px;
-  margin: 0 auto;
-  animation: fadeIn 0.4s ease-out;
+/* --- KONTENERY LEWY (PANEL) I PRAWY (MAPA) --- */
+.user-sidebar {
+  width: 380px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 100;
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.user-map-area {
+  flex: 1;
+  display: flex;
+  position: relative;
+  z-index: 1;
 }
 
-/* --- KARTA FORMULARZA (spójna z HomePageUser) --- */
-.form-card {
+/* --- NOWY PANEL BOCZNY (OŚ CZASU) --- */
+.active-trip-sidebar {
   background-color: #ffffff;
   border-radius: 12px;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
-  padding: 30px;
+  padding: 30px 25px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  position: relative;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  height: 100%;
+  box-sizing: border-box;
 }
 
-.form-card:hover {
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
-}
-
-.form-title {
-  margin: 0 0 10px 0;
+.sidebar-title {
   color: #002255;
-  font-size: 22px;
-  font-weight: 800;
-  text-align: center;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-}
-
-.form-title::before {
-  content: "🚖";
   font-size: 24px;
-}
-
-/* --- STATUS KURSU (ulepszony) --- */
-.trip-status-card {
-  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 10px;
+  font-weight: 800;
+  margin-top: 0;
+  margin-bottom: 25px;
   text-align: center;
-  border: 1px solid #eef2f6;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
-.status-indicator {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  flex-wrap: wrap;
+/* --- STATUS KURSU (PULSOWANIE) --- */
+.trip-status-badge {
+  background-color: #f0f4f8;
+  color: #002255;
+  border: 2px solid #002255;
+  padding: 12px 15px;
+  border-radius: 6px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 40px;
+  animation: pulse-border 2s infinite;
 }
 
-.status-dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  box-shadow: 0 0 0 2px rgba(255,255,255,0.8);
-}
-
-.status-dot.pending {
-  background-color: #ffc107;
-  animation: pulse 1.5s infinite;
-}
-
-.status-dot.assigned {
-  background-color: #17a2b8;
-  animation: pulse 1.5s infinite;
-}
-
-.status-dot.in_progress {
-  background-color: #28a745;
-  animation: pulse 1.5s infinite;
-}
-
-.status-dot.completed {
-  background-color: #6c757d;
-}
-
-.status-text {
-  font-size: 16px;
-  font-weight: 600;
+/* Wyłącz pulsowanie jeśli kurs zakończony */
+.trip-status-badge.completed {
+  animation: none;
+  background-color: #eef2f6;
+  border-color: #6c757d;
   color: #333;
 }
 
-/* Dodatkowy badge dla statusu */
-.status-badge {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-  margin-left: 10px;
+@keyframes pulse-border {
+  0% { box-shadow: 0 0 0 0 rgba(0, 34, 85, 0.2); }
+  70% { box-shadow: 0 0 0 6px rgba(0, 34, 85, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 34, 85, 0); }
 }
 
-.status-badge.pending {
-  background-color: #fff3cd;
-  color: #856404;
-}
-
-.status-badge.assigned {
-  background-color: #d1ecf1;
-  color: #0c5460;
-}
-
-.status-badge.in_progress {
-  background-color: #d4edda;
-  color: #155724;
-}
-
-.status-badge.completed {
-  background-color: #e2e3e5;
-  color: #383d41;
-}
-
-@keyframes pulse {
-  0% { 
-    opacity: 1; 
-    transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(0,0,0,0.2);
-  }
-  50% { 
-    opacity: 0.7; 
-    transform: scale(1.2);
-    box-shadow: 0 0 0 6px rgba(0,0,0,0.05);
-  }
-  100% { 
-    opacity: 1; 
-    transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(0,0,0,0);
-  }
-}
-
-/* --- SZCZEGÓŁY KURSU (ulepszone) --- */
-.trip-details {
-  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-  border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 20px;
-  border: 1px solid #eef2f6;
-}
-
-.trip-point {
+/* --- OŚ CZASU (TRASA) --- */
+.trip-timeline {
+  position: relative;
+  padding-left: 20px;
+  margin-bottom: auto;
   display: flex;
-  gap: 15px;
-  margin-bottom: 20px;
-  padding: 12px;
-  background-color: #ffffff;
-  border-radius: 10px;
-  transition: all 0.2s ease;
-  border: 1px solid #f0f4f8;
+  flex-direction: column;
+  gap: 45px; /* Odstęp między punktami */
 }
 
-.trip-point:hover {
-  background-color: #fafcfd;
-  border-color: #e0e8f0;
-  transform: translateX(4px);
+/* Linia łącząca punkty - POPRAWIONA WYSOKOŚĆ */
+.trip-timeline::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 10px;
+  /* Kreska kończy się dokładnie na kwadracie */
+  height: calc(100% - 48px); 
+  width: 2px;
+  background-color: #d5dce5;
+  z-index: 1;
 }
 
-.trip-point:last-child {
-  margin-bottom: 0;
+.timeline-item {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
 }
 
-.point-icon {
-  font-size: 24px;
-  min-width: 32px;
-  text-align: center;
+.timeline-content {
+  padding-left: 15px;
 }
 
-.trip-point strong {
+.timeline-label {
   display: block;
-  margin-bottom: 6px;
-  color: #002255;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 11px;
   text-transform: uppercase;
+  color: #666666;
+  font-weight: 700;
   letter-spacing: 0.5px;
+  margin-bottom: 2px;
 }
 
-.trip-point p {
+.timeline-address {
   margin: 0;
-  color: #555;
-  font-size: 15px;
+  font-size: 14px;
+  color: #222222;
+  font-weight: 500;
   line-height: 1.4;
 }
 
-/* --- KONTENER MAPY --- */
-.map-container {
-  margin-bottom: 20px;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border: 1px solid #eef2f6;
-  transition: transform 0.2s ease;
+/* --- ZNACZNIKI --- */
+.timeline-marker {
+  position: absolute;
+  left: -20px;
+  top: 4px; /* Wycentrowanie względem tekstu */
+  background-color: white;
+  z-index: 3;
 }
 
-.map-container:hover {
-  transform: scale(0.99);
+.marker-pickup {
+  width: 12px;
+  height: 12px;
+  border: 3px solid #27ae60;
+  border-radius: 50%;
 }
 
-/* --- PRZYCISK ANULUJ (czerwony, ale w stylu) --- */
-.order-btn {
-  margin-top: 10px;
+/* Kwadrat docelowy - POPRAWIONE POZYCJONOWANIE */
+.marker-destination {
+  width: 14px;
+  height: 14px;
   background-color: #002255;
-  color: #ffffff;
-  border: none;
-  border-radius: 8px;
-  padding: 16px;
-  font-weight: bold;
-  font-size: 15px;
+  border: 2px solid #002255;
+  border-radius: 3px; 
+  left: -21px; 
+  top: 5px; /* Idealne wycentrowanie względem etykiety */
+}
+/* --- PRZYCISK ANULOWANIA / NOWEGO KURSU --- */
+.btn-cancel-trip {
+  margin-top: 40px;
+  background-color: #ffffff;
+  color: #dc3545;
+  border: 2px solid #dc3545;
+  padding: 14px 20px;
+  border-radius: 6px;
+  font-weight: 800;
+  font-size: 14px;
   letter-spacing: 0.5px;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 34, 85, 0.2);
-  transition: all 0.3s ease;
-  position: relative;
+  transition: all 0.2s ease;
+  width: 100%;
 }
 
-.order-btn:hover {
-  background-color: #1a3c75;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 15px rgba(0, 34, 85, 0.3);
+.btn-cancel-trip:hover {
+  background-color: #dc3545;
+  color: #ffffff;
 }
 
-.order-btn:active {
-  transform: translateY(0);
+/* --- MAPA --- */
+.map-card {
+  flex: 1;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
 }
 
-/* Specjalny styl dla przycisku anulowania */
-.order-btn[style*="backgroundColor: #dc3545"],
-.order-btn.cancel-btn {
-  background-color: #dc3545 !important;
-  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.2);
-}
-
-.order-btn[style*="backgroundColor: #dc3545"]:hover,
-.order-btn.cancel-btn:hover {
-  background-color: #c82333 !important;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 15px rgba(220, 53, 69, 0.3);
-}
-
-/* --- ŁADOWANIE I STANY PRZEJŚCIOWE --- */
-.loading-container,
-.data-loading-container {
+/* --- ŁADOWANIE --- */
+.loading-container {
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   gap: 20px;
   min-height: 400px;
+  width: 100%;
 }
 
 .loading-spinner {
@@ -461,85 +377,23 @@ body {
 /* --- RESPONSYWNOŚĆ --- */
 @media (max-width: 768px) {
   .user-main-content {
+    flex-direction: column;
     padding: 15px;
   }
   
-  .user-active-trip {
-    max-width: 100%;
+  .user-sidebar {
+    width: 100%;
+    margin-bottom: 20px;
   }
   
-  .form-card {
+  .active-trip-sidebar {
+    height: auto;
     padding: 20px;
   }
-  
-  .form-title {
-    font-size: 20px;
-  }
-  
-  .trip-point {
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  .point-icon {
-    text-align: left;
-  }
-  
-  .status-indicator {
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  .user-header-actions {
-    gap: 10px;
-  }
-  
-  .welcome-text {
-    font-size: 13px;
-  }
-}
 
-@media (max-width: 480px) {
-  .form-card {
-    padding: 15px;
-  }
-  
-  .trip-details {
-    padding: 15px;
-  }
-  
-  .trip-point {
-    padding: 8px;
-  }
-  
-  .order-btn {
-    padding: 12px;
-    font-size: 14px;
-  }
-  
-  .status-text {
-    font-size: 14px;
-  }
-}
-
-/* --- ULEPSZENIA DOSTĘPNOŚCI --- */
-@media (prefers-reduced-motion: reduce) {
-  .status-dot.pending,
-  .status-dot.assigned,
-  .status-dot.in_progress {
-    animation: none;
-  }
-  
-  .form-card,
-  .trip-point,
-  .order-btn,
-  .map-container {
-    transition: none;
-  }
-  
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+  .user-map-area {
+    width: 100%;
+    min-height: 400px;
   }
 }
 
@@ -560,51 +414,4 @@ body {
 
 .user-main-content::-webkit-scrollbar-thumb:hover {
   background: #a1a1a1;
-}
-
-* --- DODATKOWE STYLE DLA AKTYWNEGO KURSU --- */
-
-/* Lewy panel - taka sama szerokość jak w HomePageUser */
-.user-sidebar {
-  width: 380px;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  z-index: 100;
-}
-
-/* Prawy panel - mapa */
-.user-map-area {
-  flex: 1;
-  display: flex;
-  position: relative;
-  z-index: 1;
-}
-
-.map-card {
-  flex: 1;
-  background-color: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-direction: column;
-}
-
-/* Responsywność */
-@media (max-width: 768px) {
-  .user-main-content {
-    flex-direction: column;
-  }
-  
-  .user-sidebar {
-    width: 100%;
-    margin-bottom: 20px;
-  }
-  
-  .user-map-area {
-    width: 100%;
-    min-height: 400px;
-  }
 }

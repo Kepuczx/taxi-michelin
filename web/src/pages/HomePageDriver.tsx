@@ -50,6 +50,7 @@ const HomePageDriver = () => {
   const [vehicles, setVehicles] = useState<VehicleWithDriver[]>([]);
   const [assignedVehicle, setAssignedVehicle] = useState<VehicleWithDriver | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initialCheck, setInitialCheck] = useState(true);
 
   const [availableTasks, setAvailableTasks] = useState<Trip[]>([]);
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
@@ -62,9 +63,56 @@ const HomePageDriver = () => {
   
   const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [trackingLocation, setTrackingLocation] = useState(false);
-  const [autoCenter, setAutoCenter] = useState(true); // 🔥 NOWY STATE - czy automatycznie centrować
+  const [autoCenter, setAutoCenter] = useState(true);
 
   const socketRef = useRef<Socket | null>(null);
+  const redirectDone = useRef(false);
+
+  // 🔥 SPRAWDZANIE AKTYWNEGO KURSU KIEROWCY PRZY WEJŚCIU
+  const checkDriverActiveTrip = async () => {
+    if (redirectDone.current) return;
+    
+    try {
+      const token = localStorage.getItem('authToken');
+      const driverId = localStorage.getItem('userId');
+      
+      console.log('🔍 checkDriverActiveTrip START');
+      console.log('🔍 token:', !!token);
+      console.log('🔍 driverId:', driverId);
+      
+      if (!token || !driverId) {
+        console.log('❌ Brak tokenu lub userId');
+        setInitialCheck(false);
+        return;
+      }
+      
+      console.log('🔍 Sprawdzam aktywny kurs dla kierowcy:', driverId);
+      
+      const response = await axios.get(`${API_URL}/trips/driver/${driverId}/active`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      console.log('📡 Odpowiedź z /driver/active:', response.data);
+      
+      if (response.data && response.data.id) {
+        console.log('✅ Znaleziono aktywny kurs ID:', response.data.id);
+        redirectDone.current = true;
+        
+        // Zapisz kurs w localStorage
+        localStorage.setItem('activeTrip', JSON.stringify(response.data));
+        
+        // Przekieruj
+        window.location.href = '/active-trip-driver';
+        return;
+      } else {
+        console.log('❌ Brak aktywnego kursu, kontynuuję ładowanie strony głównej');
+        setInitialCheck(false);
+      }
+    } catch (error: any) {
+      console.error('❌ Błąd pobierania aktywnego kursu:', error);
+      setInitialCheck(false);
+    }
+  };
 
   // Pobieranie lokalizacji kierowcy
   const getDriverLocation = () => {
@@ -84,7 +132,6 @@ const HomePageDriver = () => {
         setTrackingLocation(false);
         console.log('📍 Lokalizacja kierowcy:', newLocation);
         
-        // Auto-centrowanie tylko gdy włączone i nie ma zaznaczonej trasy
         if (autoCenter && mapRef && !selectedTrip) {
           mapRef.panTo(newLocation);
           mapRef.setZoom(14);
@@ -100,12 +147,12 @@ const HomePageDriver = () => {
 
   // Śledzenie lokalizacji co 10 sekund
   useEffect(() => {
-    if (!mapsLoaded) return;
+    if (!mapsLoaded || initialCheck) return;
     
     getDriverLocation();
     
     const interval = setInterval(() => {
-      if (mapsLoaded && navigator.geolocation) {
+      if (mapsLoaded && navigator.geolocation && !initialCheck) {
         navigator.geolocation.getCurrentPosition(
           (position) => {
             const newLocation = {
@@ -114,7 +161,6 @@ const HomePageDriver = () => {
             };
             setDriverLocation(newLocation);
             
-            // Auto-centrowanie tylko gdy włączone i nie ma zaznaczonej trasy
             if (autoCenter && mapRef && !selectedTrip) {
               mapRef.panTo(newLocation);
             }
@@ -126,10 +172,11 @@ const HomePageDriver = () => {
     }, 10000);
     
     return () => clearInterval(interval);
-  }, [mapsLoaded, autoCenter, selectedTrip]);
+  }, [mapsLoaded, autoCenter, selectedTrip, initialCheck]);
 
   // Pobieranie dostępnych zleceń
   const fetchPendingTrips = async () => {
+    if (initialCheck) return;
     try {
       const token = localStorage.getItem('authToken');
       const response = await axios.get(`${API_URL}/trips/pending`, {
@@ -163,11 +210,10 @@ const HomePageDriver = () => {
       return;
     }
     
-    // Jeśli klikamy na to samo zlecenie, ukryj trasę
     if (selectedTrip?.id === trip.id) {
       setSelectedTrip(null);
       setDirections(null);
-      setAutoCenter(true); // Przywróć auto-centrowanie
+      setAutoCenter(true);
       return;
     }
     
@@ -188,7 +234,7 @@ const HomePageDriver = () => {
     setSelectedTrip(trip);
     setCalculatingRoute(true);
     setDirections(null);
-    setAutoCenter(false); // 🔥 WYŁĄCZ AUTO-CENTROWANIE GDY OGLĄDASZ TRASĘ
+    setAutoCenter(false);
     
     const directionsService = new window.google.maps.DirectionsService();
     
@@ -211,13 +257,13 @@ const HomePageDriver = () => {
         } else {
           console.error(`❌ Błąd trasy: ${status}`);
           alert(`Nie udało się obliczyć trasy. Status: ${status}`);
-          setAutoCenter(true); // Przywróć auto-centrowanie przy błędzie
+          setAutoCenter(true);
         }
       }
     );
   };
 
-  // WebSocket i polling
+  // 🔥 INICJALIZACJA - sprawdzenie aktywnego kursu
   useEffect(() => {
     const role = localStorage.getItem('userRole');
     const id = localStorage.getItem('userId');
@@ -228,6 +274,13 @@ const HomePageDriver = () => {
     }
     if (id) setUserId(parseInt(id));
 
+    checkDriverActiveTrip();
+  }, [navigate]);
+
+  // WebSocket i polling - uruchom dopiero po initialCheck
+  useEffect(() => {
+    if (initialCheck) return;
+    
     socketRef.current = io(API_URL, { transports: ['websocket'] });
     socketRef.current.on('newTrip', () => {
       fetchPendingTrips();
@@ -245,13 +298,13 @@ const HomePageDriver = () => {
     const interval = setInterval(fetchPendingTrips, 5000);
     setPollingInterval(interval);
 
-    fetchVehiclesAndCheckAssignment(id ? parseInt(id) : null);
+    fetchVehiclesAndCheckAssignment(userId);
 
     return () => {
       socketRef.current?.disconnect();
       if (pollingInterval) clearInterval(pollingInterval);
     };
-  }, [navigate]);
+  }, [initialCheck, userId]);
 
   const fetchVehiclesAndCheckAssignment = async (currentUserId: number | null) => {
     setLoading(true);
@@ -323,7 +376,7 @@ const HomePageDriver = () => {
       
       if (response.data) {
         alert(`Zlecenie #${tripId} zostało przypisane do Ciebie!`);
-        navigate('/active-trip-driver', { state: { trip: response.data } });
+        window.location.href = '/active-trip-driver';
       }
     } catch (error: any) {
       console.error('❌ Błąd przyjmowania:', error);
@@ -341,7 +394,8 @@ const HomePageDriver = () => {
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
-  if (loading) {
+  // Ekran ładowania początkowego
+  if (initialCheck || loading) {
     return (
       <div className="driver-page-wrapper">
         <header className="driver-header">
@@ -351,7 +405,8 @@ const HomePageDriver = () => {
           </div>
         </header>
         <div className="driver-main-content" style={{ justifyContent: 'center', alignItems: 'center' }}>
-          <p>Ładowanie danych floty...</p>
+          <div className="loading-spinner"></div>
+          <p className="loading-text">{initialCheck ? 'Sprawdzanie aktywnego kursu...' : 'Ładowanie danych floty...'}</p>
         </div>
       </div>
     );
@@ -498,10 +553,8 @@ const HomePageDriver = () => {
                             }
                           }}
                         >
-                          {/* 🔥 MARKERY TYLKO DLA ZAZNACZONEJ TRASY */}
                           {selectedTrip && (
                             <>
-                              {/* Punkt początkowy - START */}
                               {!isNaN(toNumber(selectedTrip.pickupLat)) && !isNaN(toNumber(selectedTrip.pickupLng)) && (
                                 <Marker
                                   position={{ 
@@ -512,8 +565,7 @@ const HomePageDriver = () => {
                                     text: '🚩 START',
                                     color: '#2E7D32',
                                     fontSize: '14px',
-                                    fontWeight: 'bold',
-                                    className: 'marker-label-start'
+                                    fontWeight: 'bold'
                                   }}
                                   icon={{
                                     url: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png',
@@ -522,7 +574,6 @@ const HomePageDriver = () => {
                                 />
                               )}
                               
-                              {/* Punkt końcowy - END */}
                               {!isNaN(toNumber(selectedTrip.dropoffLat)) && !isNaN(toNumber(selectedTrip.dropoffLng)) && (
                                 <Marker
                                   position={{ 
@@ -533,8 +584,7 @@ const HomePageDriver = () => {
                                     text: '🏁 END',
                                     color: '#C62828',
                                     fontSize: '14px',
-                                    fontWeight: 'bold',
-                                    className: 'marker-label-end'
+                                    fontWeight: 'bold'
                                   }}
                                   icon={{
                                     url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
@@ -545,7 +595,6 @@ const HomePageDriver = () => {
                             </>
                           )}
                           
-                          {/* 🔥 MARKER KIEROWCY - TAKSÓWKA */}
                           {driverLocation && (
                             <Marker
                               position={driverLocation}
@@ -556,16 +605,10 @@ const HomePageDriver = () => {
                                 anchor: new window.google.maps.Point(20, 20),
                               }}
                               title="Twoja lokalizacja"
-                              label={{ 
-                                text: '🚕', 
-                                color: 'black',
-                                fontSize: '14px',
-                                fontWeight: 'bold'
-                              }}
+                              label={{ text: '🚕', color: 'black', fontSize: '14px', fontWeight: 'bold' }}
                             />
                           )}
                           
-                          {/* Trasa dla zaznaczonego zlecenia */}
                           {directions && (
                             <DirectionsRenderer
                               directions={directions}
@@ -581,7 +624,6 @@ const HomePageDriver = () => {
                           )}
                         </GoogleMap>
                         
-                        {/* Loader podczas obliczania trasy */}
                         {calculatingRoute && (
                           <div style={{
                             position: 'absolute',
@@ -598,7 +640,6 @@ const HomePageDriver = () => {
                           </div>
                         )}
 
-                        {/* Informacja o zaznaczonej trasie */}
                         {selectedTrip && !calculatingRoute && directions && (
                           <div style={{
                             position: 'absolute',
@@ -616,7 +657,6 @@ const HomePageDriver = () => {
                           </div>
                         )}
 
-                        {/* Komunikat gdy brak zaznaczonej trasy */}
                         {!selectedTrip && availableTasks.length > 0 && (
                           <div style={{
                             position: 'absolute',
@@ -634,7 +674,6 @@ const HomePageDriver = () => {
                           </div>
                         )}
 
-                        {/* Loader lokalizacji */}
                         {trackingLocation && !driverLocation && (
                           <div style={{
                             position: 'absolute',
@@ -651,7 +690,6 @@ const HomePageDriver = () => {
                           </div>
                         )}
 
-                        {/* Przycisk do powrotu do auto-centrowania */}
                         {!autoCenter && selectedTrip && (
                           <div style={{
                             position: 'absolute',

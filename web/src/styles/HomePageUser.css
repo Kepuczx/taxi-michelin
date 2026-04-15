@@ -570,3 +570,61 @@ body {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+.location-btn .marker-current {
+  width: 12px;
+  height: 12px;
+  border: 3px solid #3498db;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+  background-color: white; /* Środek biały, jak na osi czasu */
+  display: inline-block;
+}
+
+/* Opcjonalny efekt hover dla przycisku */
+.location-btn:hover {
+  background-color: #e4e9f0 !important;
+  border-color: #002255 !important;
+}
+
+.location-btn:hover .marker-current {
+  transform: scale(1.1);
+}
+
+/* Kontener dla inputa i ikony po lewej */
+.input-with-marker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+
+/* Wrapper dla samego inputa i przycisku lokalizacji */
+.input-field-wrapper {
+  flex: 1;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Styl dla ikony Odbioru (Zielony pierścień) */
+.input-with-marker .marker-pickup {
+  width: 12px;
+  height: 12px;
+  border: 3px solid #27ae60;
+  border-radius: 50%;
+  flex-shrink: 0; /* Żeby kółko się nie zgniatało */
+}
+
+/* Styl dla ikony Celu (Granatowy kwadrat) */
+.input-with-marker .marker-destination {
+  width: 14px;
+  height: 14px;
+  background-color: #002255;
+  border: 2px solid #002255;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* Opcjonalnie: możesz dodać pionową przerywaną linię między ikonami, 
+   żeby wyglądało to jak trasa - jeśli chcesz, daj znać! */

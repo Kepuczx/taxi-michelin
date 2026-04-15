@@ -20,6 +20,7 @@ const trips_service_1 = require("./trips.service");
 let TripsGateway = class TripsGateway {
     tripsService;
     server;
+    tripRooms = new Map();
     constructor(tripsService) {
         this.tripsService = tripsService;
     }
@@ -28,6 +29,46 @@ let TripsGateway = class TripsGateway {
     }
     handleDisconnect(client) {
         console.log(`[WebSocket] Odłączono klienta: ${client.id}`);
+        for (const [tripId, clients] of this.tripRooms.entries()) {
+            if (clients.has(client.id)) {
+                clients.delete(client.id);
+                if (clients.size === 0) {
+                    this.tripRooms.delete(tripId);
+                }
+                break;
+            }
+        }
+    }
+    handleJoinTripRoom(client, tripId) {
+        const roomName = `trip:${tripId}`;
+        client.join(roomName);
+        if (!this.tripRooms.has(tripId)) {
+            this.tripRooms.set(tripId, new Set());
+        }
+        this.tripRooms.get(tripId).add(client.id);
+        console.log(`[WebSocket] Klient ${client.id} dołączył do roomu ${roomName}`);
+        client.emit('joinedTripRoom', { tripId, success: true });
+    }
+    handleLeaveTripRoom(client, tripId) {
+        const roomName = `trip:${tripId}`;
+        client.leave(roomName);
+        const clients = this.tripRooms.get(tripId);
+        if (clients) {
+            clients.delete(client.id);
+            if (clients.size === 0) {
+                this.tripRooms.delete(tripId);
+            }
+        }
+        console.log(`[WebSocket] Klient ${client.id} opuścił room ${roomName}`);
+    }
+    handleDriverLocation(client, data) {
+        const roomName = `trip:${data.tripId}`;
+        console.log(`[WebSocket] Lokalizacja kierowcy dla kursu ${data.tripId}:`, data.location);
+        client.to(roomName).emit('driverLocation', {
+            tripId: data.tripId,
+            location: data.location,
+            timestamp: new Date().toISOString()
+        });
     }
     broadcastNewTrip(trip) {
         this.server.emit('newTrip', trip);
@@ -41,16 +82,9 @@ let TripsGateway = class TripsGateway {
         this.server.emit('tripCancelled', tripId);
         console.log(`[WebSocket] Kurs #${tripId} został anulowany`);
     }
-    async handleGetPendingTrips(client) {
-        try {
-            const trips = await this.tripsService.getPendingTrips();
-            client.emit('pendingTrips', trips);
-            console.log(`[WebSocket] Wysłano listę ${trips.length} pending kursów do klienta ${client.id}`);
-        }
-        catch (error) {
-            console.error('[WebSocket] Błąd pobierania pending trips:', error);
-            client.emit('error', { message: 'Nie udało się pobrać listy kursów' });
-        }
+    broadcastTripStatusChanged(tripId, status) {
+        this.server.emit(`tripStatusChanged:${tripId}`, { tripId, status });
+        console.log(`[WebSocket] Status kursu #${tripId} zmieniony na: ${status}`);
     }
 };
 exports.TripsGateway = TripsGateway;
@@ -59,11 +93,23 @@ __decorate([
     __metadata("design:type", socket_io_1.Server)
 ], TripsGateway.prototype, "server", void 0);
 __decorate([
-    (0, websockets_1.SubscribeMessage)('getPendingTrips'),
+    (0, websockets_1.SubscribeMessage)('joinTripRoom'),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [socket_io_1.Socket]),
-    __metadata("design:returntype", Promise)
-], TripsGateway.prototype, "handleGetPendingTrips", null);
+    __metadata("design:paramtypes", [socket_io_1.Socket, Number]),
+    __metadata("design:returntype", void 0)
+], TripsGateway.prototype, "handleJoinTripRoom", null);
+__decorate([
+    (0, websockets_1.SubscribeMessage)('leaveTripRoom'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [socket_io_1.Socket, Number]),
+    __metadata("design:returntype", void 0)
+], TripsGateway.prototype, "handleLeaveTripRoom", null);
+__decorate([
+    (0, websockets_1.SubscribeMessage)('driverLocation'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [socket_io_1.Socket, Object]),
+    __metadata("design:returntype", void 0)
+], TripsGateway.prototype, "handleDriverLocation", null);
 exports.TripsGateway = TripsGateway = __decorate([
     (0, websockets_1.WebSocketGateway)({ cors: '*' }),
     (0, common_1.Injectable)(),

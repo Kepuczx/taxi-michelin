@@ -29,8 +29,11 @@ let TripsController = class TripsController {
     async acceptTrip(id, driverId) {
         return this.tripsService.acceptTrip(+id, driverId);
     }
-    async getDriverActiveTrips(driverId) {
-        return this.tripsService.getDriverActiveTrips(+driverId);
+    async getDriverAssignedTrips(driverId) {
+        return this.tripsService.getDriverAssignedTrips(+driverId);
+    }
+    async getDriverActiveTrip(driverId) {
+        return this.tripsService.getDriverActiveTrip(+driverId);
     }
     async startTrip(id, driverId) {
         return this.tripsService.startTrip(+id, driverId);
@@ -46,6 +49,9 @@ let TripsController = class TripsController {
     }
     async cancelTrip(id, reason, userId) {
         return this.tripsService.cancelTrip(+id, userId, reason);
+    }
+    async getAllTrips() {
+        return this.tripsService.getAllTrips();
     }
 };
 exports.TripsController = TripsController;
@@ -72,12 +78,19 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], TripsController.prototype, "acceptTrip", null);
 __decorate([
+    (0, common_1.Get)('driver/:driverId/assigned'),
+    __param(0, (0, common_1.Param)('driverId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], TripsController.prototype, "getDriverAssignedTrips", null);
+__decorate([
     (0, common_1.Get)('driver/:driverId/active'),
     __param(0, (0, common_1.Param)('driverId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
-], TripsController.prototype, "getDriverActiveTrips", null);
+], TripsController.prototype, "getDriverActiveTrip", null);
 __decorate([
     (0, common_1.Patch)(':id/start'),
     __param(0, (0, common_1.Param)('id')),
@@ -116,6 +129,12 @@ __decorate([
     __metadata("design:paramtypes", [String, String, Number]),
     __metadata("design:returntype", Promise)
 ], TripsController.prototype, "cancelTrip", null);
+__decorate([
+    (0, common_1.Get)('all'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], TripsController.prototype, "getAllTrips", null);
 exports.TripsController = TripsController = __decorate([
     (0, common_1.Controller)('trips'),
     __metadata("design:paramtypes", [trips_service_1.TripsService])

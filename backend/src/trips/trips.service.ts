@@ -34,8 +34,7 @@ export class TripsService {
 
   async acceptTrip(tripId: number, driverId: number): Promise<Trip> {
     const trip = await this.tripRepository.findOne({
-      where: { id: tripId },
-      lock: { mode: 'pessimistic_write' }
+      where: { id: tripId }
     });
     
     if (!trip) throw new NotFoundException('Kurs nie istnieje');
@@ -62,26 +61,36 @@ export class TripsService {
   }
 
   async startTrip(tripId: number, driverId: number): Promise<Trip> {
-    const trip = await this.tripRepository.findOne({ where: { id: tripId } });
-    if (!trip) throw new NotFoundException('Kurs nie istnieje');
-    if (trip.driverId !== driverId) throw new Error('Nie jesteś kierowcą tego kursu');
-    
-    trip.status = 'in_progress';
-    trip.startedAt = new Date();
-    return this.tripRepository.save(trip);
-  }
+  const trip = await this.tripRepository.findOne({ where: { id: tripId } });
+  if (!trip) throw new NotFoundException('Kurs nie istnieje');
+  if (trip.driverId !== driverId) throw new Error('Nie jesteś kierowcą tego kursu');
+  
+  trip.status = 'in_progress';
+  trip.startedAt = new Date();
+  const savedTrip = await this.tripRepository.save(trip);
+  
+  // 🔥 DODAJ TO - powiadom klienta o zmianie statusu
+  this.tripsGateway.broadcastTripStatusChanged(tripId, 'in_progress');
+  
+  return savedTrip;
+}
 
-  async completeTrip(tripId: number, driverId: number): Promise<Trip> {
-    const trip = await this.tripRepository.findOne({ where: { id: tripId } });
-    if (!trip) throw new NotFoundException('Kurs nie istnieje');
-    if (trip.driverId !== driverId) throw new Error('Nie jesteś kierowcą tego kursu');
-    
-    trip.status = 'completed';
-    trip.completedAt = new Date();
-    return this.tripRepository.save(trip);
-  }
+async completeTrip(tripId: number, driverId: number): Promise<Trip> {
+  const trip = await this.tripRepository.findOne({ where: { id: tripId } });
+  if (!trip) throw new NotFoundException('Kurs nie istnieje');
+  if (trip.driverId !== driverId) throw new Error('Nie jesteś kierowcą tego kursu');
+  
+  trip.status = 'completed';
+  trip.completedAt = new Date();
+  const savedTrip = await this.tripRepository.save(trip);
+  
+  // 🔥 DODAJ TO - powiadom klienta o zmianie statusu
+  this.tripsGateway.broadcastTripStatusChanged(tripId, 'completed');
+  
+  return savedTrip;
+}
 
-  async getDriverActiveTrips(driverId: number): Promise<Trip[]> {
+  async getDriverAssignedTrips(driverId: number): Promise<Trip[]> {
     return this.tripRepository.find({
       where: { driverId, status: 'assigned' },
       order: { requestedAt: 'ASC' },
@@ -142,5 +151,26 @@ export class TripsService {
     this.tripsGateway.broadcastTripCancelled(tripId);
     
     return savedTrip;
+  }
+
+  // 🔥 Pobierz aktywny kurs kierowcy (assigned lub in_progress) - TYLKO JEDNA WERSJA!
+  async getDriverActiveTrip(driverId: number): Promise<Trip | null> {
+  console.log(`🔍 getDriverActiveTrip - szukam dla driverId: ${driverId}`);
+  
+  const trip = await this.tripRepository.findOne({
+    where: {
+      driverId: driverId,
+      status: In(['assigned', 'in_progress']),
+    },
+    order: { assignedAt: 'DESC' },
+  });
+  
+  console.log('📡 Znaleziony kurs:', trip);
+  return trip;
+}
+
+  // 🔥 TEST: Pobierz wszystkie kursy
+  async getAllTrips(): Promise<Trip[]> {
+    return this.tripRepository.find();
   }
 }
