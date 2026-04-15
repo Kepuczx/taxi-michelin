@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, Pressable, Image, Alert, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, Pressable, Image, Alert, ActivityIndicator, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
+import { GooglePlacesAutocomplete, GooglePlacesAutocompleteRef } from 'react-native-google-places-autocomplete';
 import MapView, { PROVIDER_DEFAULT, Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import axios from 'axios';
@@ -11,13 +11,15 @@ import MenuPracownik from '../components/MenuPracownik';
 import MapViewDirections from 'react-native-maps-directions';
 import { GOOGLE_MAPS_API_KEY, API_URL } from './config';
 
-
 export default function ZamowieniePracownik({ navigation }: any) {
   const [menuVisible, setMenuVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const mapRef = useRef<MapView>(null);
+  
+  // Referencje do pół tekstowych, by móc wstawiać w nie tekst programowo
+  const pickupRef = useRef<GooglePlacesAutocompleteRef>(null);
+  const destinationRef = useRef<GooglePlacesAutocompleteRef>(null);
 
-  // Region mapy
   const [region, setRegion] = useState<Region>({
     latitude: 53.7784,
     longitude: 20.4801,
@@ -25,10 +27,9 @@ export default function ZamowieniePracownik({ navigation }: any) {
     longitudeDelta: 0.01,
   });
 
-  // Stany dla lokalizacji trasy
   const [pickup, setPickup] = useState({
-    address: 'Pobieranie lokalizacji...',
-    coords: { latitude: 53.7784, longitude: 20.4801 }
+    address: '',
+    coords: { latitude: 0, longitude: 0 }
   });
 
   const [destination, setDestination] = useState({
@@ -36,21 +37,34 @@ export default function ZamowieniePracownik({ navigation }: any) {
     coords: { latitude: 0, longitude: 0 }
   });
 
-  // 1. Inicjalizacja lokalizacji GPS
+  // 1. Inicjalizacja lokalizacji (Ustawia pole Skąd na bieżącą pozycję)
   useEffect(() => {
     (async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return;
+      if (status !== 'granted') {
+        Alert.alert('Odmowa', 'Aplikacja potrzebuje GPS do działania.');
+        return;
+      }
 
       let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const newCoords = { latitude: location.coords.latitude, longitude: location.coords.longitude };
+      const newCoords = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      };
 
-      // 🔥 DODAJ TO: Pobieramy adres Twojej aktualnej pozycji
-      const [address] = await Location.reverseGeocodeAsync(newCoords);
-      const myAddr = address ? `${address.street || 'Moja lokalizacja'} ${address.name || ''}` : "Moja lokalizacja";
+      try {
+        const [addressObj] = await Location.reverseGeocodeAsync(newCoords);
+        const myAddr = addressObj 
+          ? `${addressObj.street || ''} ${addressObj.name || ''}, ${addressObj.city || ''}`.trim().replace(/^,/, '')
+          : "Moja lokalizacja";
+        
+        setPickup({ address: myAddr, coords: newCoords });
+        pickupRef.current?.setAddressText(myAddr); // Aktualizuje tekst w polu
+      } catch (err) {
+        setPickup({ address: "Moja lokalizacja", coords: newCoords });
+        pickupRef.current?.setAddressText("Moja lokalizacja");
+      }
 
-      setPickup({ address: myAddr, coords: newCoords }); // Ustawiamy punkt startowy
-      
       setRegion({
         ...newCoords,
         latitudeDelta: 0.005,
@@ -59,17 +73,40 @@ export default function ZamowieniePracownik({ navigation }: any) {
     })();
   }, []);
 
-  // 2. Obsługa wysyłania zamówienia do backendu
+  // Obsługa kliknięcia w mapę (Ustawia pole Dokąd)
+  const onMapPress = async (e: any) => {
+
+    Keyboard.dismiss();
+    pickupRef.current?.blur();
+    destinationRef.current?.blur();
+
+    const coords = e.nativeEvent.coordinate;
+    
+    try {
+      const [addressObj] = await Location.reverseGeocodeAsync(coords);
+      const fullAddress = addressObj 
+        ? `${addressObj.street || ''} ${addressObj.name || ''}, ${addressObj.city || ''}`.trim().replace(/^,/, '')
+        : "Wybrany punkt na mapie";
+      
+      setDestination({ address: fullAddress, coords });
+      destinationRef.current?.setAddressText(fullAddress); // Aktualizuje tekst w polu
+    } catch (err) {
+      setDestination({ address: "Wybrany punkt", coords });
+      destinationRef.current?.setAddressText("Wybrany punkt");
+    }
+  };
+
   const handleOrderTrip = async () => {
-    if (!destination.address) {
-      Alert.alert("Błąd", "Wybierz miejsce docelowe (Dokąd?)");
+    // Zabezpieczenie przed brakiem danych
+    if (!pickup.coords.latitude || !destination.coords.latitude) {
+      Alert.alert("Błąd", "Wybierz poprawne miejsce początkowe i docelowe.");
       return;
     }
 
     setLoading(true);
     try {
       const token = await AsyncStorage.getItem('userToken');
-      const clientId = await AsyncStorage.getItem('userId'); // Pobieramy zapisane ID
+      const clientId = await AsyncStorage.getItem('userId');
 
       const tripData = {
         clientId: clientId ? parseInt(clientId) : null,
@@ -79,7 +116,7 @@ export default function ZamowieniePracownik({ navigation }: any) {
         dropoffLat: destination.coords.latitude,
         dropoffLng: destination.coords.longitude,
         dropoffAddress: destination.address,
-        passengerCount: 1, // Można rozbudować o wybór
+        passengerCount: 1,
         notes: "Zamówienie z aplikacji mobilnej"
       };
 
@@ -98,29 +135,8 @@ export default function ZamowieniePracownik({ navigation }: any) {
       setLoading(false);
     }
   };
-  // Funkcja obsługująca kliknięcie w dowolny punkt na mapie
-  const onMapPress = async (e: any) => {
-    const coords = e.nativeEvent.coordinate;
-    
-    // Opcjonalnie: pobieramy nazwę ulicy dla klikniętego punktu (za darmo z Expo)
-    try {
-      const [address] = await Location.reverseGeocodeAsync(coords);
-      const fullAddress = address 
-        ? `${address.street || ''} ${address.name || ''}, ${address.city || ''}`.trim().replace(/^,/, '')
-        : "Wybrany punkt na mapie";
-      
-      setDestination({
-        address: fullAddress || "Wybrany punkt",
-        coords: coords
-      });
-    } catch (err) {
-      setDestination({ address: "Punkt na mapie", coords });
-    }
-  };
 
   return (
-    
-
     <View style={styles.container}>
       <View style={styles.header}>
         <Image source={require('../assets/MichelinLogo.png')} style={styles.logoImage} resizeMode="contain" />
@@ -136,103 +152,118 @@ export default function ZamowieniePracownik({ navigation }: any) {
           provider={PROVIDER_DEFAULT}
           region={region}
           showsUserLocation={true}
-          // 🔥 TA LINIA DODAJE MOŻLIWOŚĆ KLIKANIA:
-          onPress={onMapPress}
->          
-          {/* Znaczniki (Markery) */}
-          <Marker coordinate={pickup.coords} title="Skąd" pinColor="blue" />
-          <Marker coordinate={pickup.coords} title="Twoja lokalizacja" pinColor="blue" />
-  {destination.address !== '' && (
-    <Marker coordinate={destination.coords} title="Cel" pinColor="red" />
-  )}
+          onPress={onMapPress} // Kliknięcie aktualizuje punkt DOKĄD
+        >          
+          {/* Marker SKĄD pojawia się, gdy mamy współrzędne */}
+          {pickup.coords.latitude !== 0 && (
+            <Marker coordinate={pickup.coords} title="Skąd" pinColor="blue" />
+          )}
           
-          {destination.address !== '' && (
+          {/* Marker DOKĄD pojawia się, gdy mamy współrzędne */}
+          {destination.coords.latitude !== 0 && (
             <>
               <Marker coordinate={destination.coords} title="Dokąd" pinColor="red" />
 
               {/* RYSOWANIE TRASY */}
-              <MapViewDirections
-                origin={pickup.coords}
-                destination={destination.coords}
-                apikey={GOOGLE_MAPS_API_KEY}
-                strokeWidth={4}
-                strokeColor="#0a1d56"
-                optimizeWaypoints={true}
-                onReady={(result) => {
-                  // Automatyczne dopasowanie widoku mapy do całej trasy
-                  mapRef.current?.fitToCoordinates(result.coordinates, {
-                    edgePadding: { right: 50, bottom: 300, left: 50, top: 100 },
-                  });
-                  
-                  // Opcjonalnie: zapisz dystans i czas, aby wysłać je do bazy
-                  console.log(`Dystans: ${result.distance} km`);
-                  console.log(`Czas: ${result.duration} min`);
-                }}
-              />
+              {pickup.coords.latitude !== 0 && (
+                <MapViewDirections
+                  origin={pickup.coords}
+                  destination={destination.coords}
+                  apikey={GOOGLE_MAPS_API_KEY}
+                  strokeWidth={4}
+                  strokeColor="#0a1d56"
+                  optimizeWaypoints={true}
+                  onReady={(result) => {
+                    mapRef.current?.fitToCoordinates(result.coordinates, {
+                      edgePadding: { right: 50, bottom: 300, left: 50, top: 200 },
+                    });
+                  }}
+                />
+              )}
             </>
           )}
         </MapView>
       </View>
 
       {/* PANEL WYSZUKIWANIA */}
-      {/* Dodano zIndex do kontenera, aby był ponad mapą */}
-      <View style={[styles.searchPanel, { zIndex: 999 }]}> 
-        <View style={[styles.inputWrapper, { zIndex: 2 }]}>
+      <Pressable 
+        style={[styles.searchPanel, { zIndex: 999 }]} 
+        onPress={() => {
+          Keyboard.dismiss();
+          pickupRef.current?.blur();
+          destinationRef.current?.blur();
+        }}
+      >
+        
+        {/* POLE SKĄD */}
+        <View style={[styles.inputWrapper, { zIndex: 10, width: '90%' }]}>
           <Ionicons name="location" size={20} color="#0a1d56" style={styles.inputIcon} />
           <GooglePlacesAutocomplete
-  placeholder='Skąd?'
-  fetchDetails={true}
-  keyboardShouldPersistTaps="handled"
-  // 🔥 DODAJ TO, ABY ZOBACZYĆ BŁĄD W KONSOLI:
-  onFail={(error) => console.error("BŁĄD GOOGLE PLACES:", error)}
-  onPress={(data, details = null) => {
-    // Twoja logika...
-  }}
-  query={{ 
-    key: GOOGLE_MAPS_API_KEY, 
-    language: 'pl',
-    types: 'address' // ogranicza do konkretnych adresów
-  }}
-  styles={autocompleteStyles}
-/>
+            ref={pickupRef}
+            placeholder='Skąd?'
+            fetchDetails={true}
+            keyboardShouldPersistTaps="handled"
+            onPress={(data, details = null) => {
+              if (details) {
+                const coords = { latitude: details.geometry.location.lat, longitude: details.geometry.location.lng };
+                setPickup({ address: data.description, coords });
+                setRegion({ ...coords, latitudeDelta: 0.005, longitudeDelta: 0.005 });
+              }
+            }}
+            // 🔥 AKTUALIZACJA QUERY DLA POLA "SKĄD":
+            query={{ 
+              key: GOOGLE_MAPS_API_KEY, 
+              language: 'pl',
+              components: 'country:pl',
+              location: `${pickup.coords.latitude},${pickup.coords.longitude}`, 
+              radius: '5000', 
+            }}
+            styles={autocompleteStyles}
+            textInputProps={{
+              placeholderTextColor: '#999',
+            }}
+          />
         </View>
 
-        <View style={[styles.inputWrapper, { zIndex: 1 }]}>
+        {/* POLE DOKĄD */}
+        <View style={[styles.inputWrapper, { zIndex: 5, width: '90%' }]}>
           <Ionicons name="flag" size={20} color="#dc3545" style={styles.inputIcon} />
           <GooglePlacesAutocomplete
-  placeholder='Skąd?'
-  fetchDetails={true}
-  keyboardShouldPersistTaps="handled"
-  // 🔥 DODAJ TO, ABY ZOBACZYĆ BŁĄD W KONSOLI:
-  onFail={(error) => console.error("BŁĄD GOOGLE PLACES:", error)}
-  onPress={(data, details = null) => {
-    // Twoja logika...
-  }}
-  query={{ 
-    key: GOOGLE_MAPS_API_KEY, 
-    language: 'pl',
-    types: 'address' // ogranicza do konkretnych adresów
-  }}
-  styles={autocompleteStyles}
-/>
+            ref={destinationRef}
+            placeholder='Dokąd?'
+            fetchDetails={true}
+            keyboardShouldPersistTaps="handled"
+            onPress={(data, details = null) => {
+              if (details) {
+                const coords = { latitude: details.geometry.location.lat, longitude: details.geometry.location.lng };
+                setDestination({ address: data.description, coords });
+              }
+            }}
+            // 🔥 KLUCZOWA ZMIANA TUTAJ:
+            query={{ 
+              key: GOOGLE_MAPS_API_KEY, 
+              language: 'pl',
+              components: 'country:pl', // Zostajemy w Polsce
+              location: `${pickup.coords.latitude},${pickup.coords.longitude}`, // Twoje aktualne GPS
+              radius: '5000', // Szukaj najpierw w promieniu 5km od Ciebie
+            }}
+            styles={autocompleteStyles}
+          />
         </View>
 
         <Pressable 
-          style={[styles.orderButton, loading && { opacity: 0.7 }]} 
+          style={[styles.orderButton, (!destination.coords.latitude || loading) && { opacity: 0.7 }]} 
           onPress={handleOrderTrip}
-          disabled={loading}
+          disabled={loading || !destination.coords.latitude}
         >
           {loading ? <ActivityIndicator color="white" /> : <Text style={styles.orderButtonText}>ZAMÓW KURS</Text>}
         </Pressable>
-      </View>
+      </Pressable>
 
       <MenuPracownik visible={menuVisible} onClose={() => setMenuVisible(false)} navigation={navigation} />
     </View>
   );
 }
-
-
-
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
@@ -258,18 +289,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.95)',
     borderRadius: 15,
     padding: 15,
-    // 🔥 Zwiększamy elevation do 15+, aby na pewno było nad mapą
-    elevation: 20, 
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 20,
     zIndex: 1000,
-    // 🔥 USUNĄĆ jeśli masz: overflow: 'hidden'
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 10,
-    // 🔥 Każdy wrapper musi mieć malejący zIndex, 
-    // aby "Skąd" nie zasłaniało listy "Dokąd"
-    zIndex: 10, 
   },
   inputIcon: { marginRight: 10 },
   orderButton: {
@@ -282,34 +311,31 @@ const styles = StyleSheet.create({
   orderButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
 });
 
-// POPRAWIONE STYLE AUTOCOMPLETE
 const autocompleteStyles = {
   container: {
-    // 🔥 Zmiana na 0 pozwala liście swobodnie "wypaść" poza kontener
     flex: 0, 
     width: '100%',
     zIndex: 1000,
   },
   textInput: {
     height: 45,
-    color: '#5d5d5d',
+    color: '#333',
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 5,
-    backgroundColor: '#ffffff', // Upewnij się, że tło jest białe
+    backgroundColor: '#ffffff',
   },
   listView: {
-    // 🔥 Pozycjonowanie absolutne względem pola tekstowego
     position: 'absolute' as const,
     top: 45, 
     left: 0,
     right: 0,
     backgroundColor: 'white',
     borderRadius: 5,
-    elevation: 10, // Dla Androida
-    zIndex: 5000,  // Bardzo wysoki priorytet
-    maxHeight: 200, // Zabezpieczenie wysokości
+    elevation: 10, 
+    zIndex: 5000,
+    maxHeight: 200, 
   },
   row: {
     backgroundColor: '#FFFFFF',
