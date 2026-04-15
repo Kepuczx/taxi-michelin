@@ -210,18 +210,17 @@ export default function ZamowieniePracownik({ navigation }: any) {
                 setRegion({ ...coords, latitudeDelta: 0.005, longitudeDelta: 0.005 });
               }
             }}
-            // 🔥 AKTUALIZACJA QUERY DLA POLA "SKĄD":
             query={{ 
               key: GOOGLE_MAPS_API_KEY, 
               language: 'pl',
-              components: 'country:pl',
-              location: `${pickup.coords.latitude},${pickup.coords.longitude}`, 
-              radius: '5000', 
+              types: 'address',            // Ogranicza wyniki tylko do konkretnych adresów
+              components: 'country:pl',    // Szuka tylko w Polsce
+              location: '53.7784,20.4801', // Środek Olsztyna (punkt odniesienia)
+              radius: '20000',             // Promień 20km wokół Olsztyna
+              strictbounds: true,          // 🔥 KLUCZ: Google pokaże TYLKO wyniki z tego obszaru
             }}
             styles={autocompleteStyles}
-            textInputProps={{
-              placeholderTextColor: '#999',
-            }}
+            textInputProps={{ placeholderTextColor: '#999' }}
           />
         </View>
 
@@ -239,15 +238,17 @@ export default function ZamowieniePracownik({ navigation }: any) {
                 setDestination({ address: data.description, coords });
               }
             }}
-            // 🔥 KLUCZOWA ZMIANA TUTAJ:
             query={{ 
               key: GOOGLE_MAPS_API_KEY, 
               language: 'pl',
-              components: 'country:pl', // Zostajemy w Polsce
-              location: `${pickup.coords.latitude},${pickup.coords.longitude}`, // Twoje aktualne GPS
-              radius: '5000', // Szukaj najpierw w promieniu 5km od Ciebie
+              types: 'address',            // Ogranicza wyniki tylko do konkretnych adresów
+              components: 'country:pl',    // Szuka tylko w Polsce
+              location: '53.7784,20.4801', // Środek Olsztyna (punkt odniesienia)
+              radius: '20000',             // Promień 20km wokół Olsztyna
+              strictbounds: true,          // 🔥 KLUCZ: Google pokaże TYLKO wyniki z tego obszaru
             }}
             styles={autocompleteStyles}
+            textInputProps={{ placeholderTextColor: '#999' }}
           />
         </View>
 
