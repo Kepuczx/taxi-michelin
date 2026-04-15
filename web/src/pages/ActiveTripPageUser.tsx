@@ -129,7 +129,7 @@ const ActiveTripPageUser = () => {
     };
   }, [dataLoaded, tripId, socket, navigate]);
 
-  // OBLICZANIE TRASY KIEROWCY -> ODBIÓR
+  // 🔥 OBLICZANIE TRASY KIEROWCY -> ODBIÓR (tylko gdy assigned)
   useEffect(() => {
     if (!mapsLoaded || !dataLoaded || !driverLocation || tripStatus !== 'assigned') return;
     if (!window.google || !window.google.maps) return;
@@ -159,24 +159,23 @@ const ActiveTripPageUser = () => {
     );
   }, [mapsLoaded, dataLoaded, driverLocation, pickup.coords, tripStatus]);
 
-  // OBLICZANIE TRASY KLIENTA (odbior -> cel)
+  // 🔥 OBLICZANIE TRASY KIEROWCY -> CEL (gdy kurs w trakcie - jedzie z aktualnej lokalizacji do celu)
   useEffect(() => {
-    if (!mapsLoaded || !dataLoaded || tripStatus !== 'in_progress') return;
-    if (pickup.coords.lat === 0 || destination.coords.lat === 0) return;
+    if (!mapsLoaded || !dataLoaded || !driverLocation || tripStatus !== 'in_progress') return;
     if (!window.google || !window.google.maps) return;
     
-    console.log('🗺️ Obliczam trasę klienta...');
+    console.log('🗺️ Obliczam trasę kierowcy do celu (z aktualnej lokalizacji)...');
     
     const directionsService = new window.google.maps.DirectionsService();
     directionsService.route(
       {
-        origin: pickup.coords,
+        origin: driverLocation,
         destination: destination.coords,
         travelMode: window.google.maps.TravelMode.DRIVING,
       },
       (result, status) => {
         if (status === 'OK' && result) {
-          console.log('✅ Trasa klienta obliczona');
+          console.log('✅ Trasa kierowcy do celu obliczona');
           setDirections(result);
           setTimeout(() => {
             if (mapRef.current && result.routes[0].bounds) {
@@ -184,11 +183,11 @@ const ActiveTripPageUser = () => {
             }
           }, 100);
         } else {
-          console.error('❌ Błąd trasy klienta:', status);
+          console.error('❌ Błąd trasy kierowcy do celu:', status);
         }
       }
     );
-  }, [mapsLoaded, dataLoaded, pickup.coords, destination.coords, tripStatus]);
+  }, [mapsLoaded, dataLoaded, driverLocation, destination.coords, tripStatus]);
 
   // RESET ŁADOWANIA MAPY
   const resetMapLoading = () => {
@@ -380,7 +379,9 @@ const ActiveTripPageUser = () => {
   return (
     <div className="user-page-wrapper">
       <header className="user-header">
-        <div className="user-logo"><span className="user-logo-text">MICHELIN</span></div>
+        <div className="user-logo">
+          <span className="user-logo-text">MICHELIN</span>
+        </div>
         <div className="user-header-actions">
           <span className="welcome-text">Witaj, {firstName}!</span>
           <button className="user-menu-btn" onClick={toggleMenu}>☰</button>
@@ -459,13 +460,25 @@ const ActiveTripPageUser = () => {
                   {/* Marker odbioru */}
                   <Marker position={pickup.coords} icon={mapIcons.pickup} title="Miejsce odbioru" />
                   
-                  {/* Marker celu (tylko gdy kurs w trakcie) */}
-                  {tripStatus === 'in_progress' && (
-                    <Marker position={destination.coords} icon={mapIcons.destination} title="Miejsce docelowe" />
-                  )}
+                  {/* Marker celu (zawsze widoczny) */}
+                  <Marker position={destination.coords} icon={mapIcons.destination} title="Miejsce docelowe" />
                   
                   {/* MARKER KIEROWCY - TAKSÓWKA (tylko gdy assigned) */}
                   {tripStatus === 'assigned' && driverLocation && (
+                    <Marker 
+                      position={driverLocation} 
+                      icon={{
+                        url: 'https://cdn-icons-png.flaticon.com/512/744/744465.png',
+                        scaledSize: new window.google.maps.Size(40, 40),
+                        origin: new window.google.maps.Point(0, 0),
+                        anchor: new window.google.maps.Point(20, 20),
+                      }}
+                      title="Lokalizacja kierowcy"
+                    />
+                  )}
+                  
+                  {/* MARKER KIEROWCY - TAKSÓWKA (również gdy kurs w trakcie - pokazuje gdzie jest) */}
+                  {tripStatus === 'in_progress' && driverLocation && (
                     <Marker 
                       position={driverLocation} 
                       icon={{
@@ -490,14 +503,14 @@ const ActiveTripPageUser = () => {
                     />
                   )}
                   
-                  {/* Trasa klienta (odbior -> cel) - tylko gdy in_progress */}
+                  {/* Trasa kierowcy do celu (tylko gdy in_progress - z aktualnej lokalizacji) */}
                   {tripStatus === 'in_progress' && directions && (
                     <DirectionsRenderer 
                       directions={directions} 
                       options={{
                         preserveViewport: true,
                         suppressMarkers: true,
-                        polylineOptions: { strokeColor: "#002255", strokeWeight: 5, strokeOpacity: 0.6 }
+                        polylineOptions: { strokeColor: "#002255", strokeWeight: 5, strokeOpacity: 0.8 }
                       }} 
                     />
                   )}

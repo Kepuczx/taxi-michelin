@@ -1,8 +1,16 @@
-/* ActiveTripPageDriver.css - Styl dla strony aktywnego kursu kierowcy */
+/* ActiveTripPageDriver.css - Spójny z ActiveTripPageUser.css */
 
 /* --- BAZOWE USTAWIENIA --- */
 * {
   box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: #f4f7f6;
+  overflow-x: hidden;
 }
 
 .driver-page-wrapper {
@@ -18,7 +26,6 @@
   height: 60px;
   display: flex;
   justify-content: space-between;
-  border-radius: 0;
   align-items: center;
   padding: 0 20px;
   z-index: 500;
@@ -129,7 +136,8 @@
   transition: all 0.2s;
 }
 
-.driver-menu-item:hover {
+.driver-menu-item:hover,
+.driver-menu-item.active {
   background-color: #f0f4f8;
   color: #002255;
   font-weight: bold;
@@ -154,59 +162,65 @@
   flex: 1;
   padding: 20px;
   gap: 20px;
+  position: relative;
+  z-index: 1;
   overflow-y: auto;
-  background-color: #f4f7f6;
+}
+
+/* --- LEWY PANEL (SZCZEGÓŁY KURSU) --- */
+.driver-sidebar {
+  width: 380px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 100;
 }
 
 /* --- KARTA AKTYWNEGO KURSU --- */
-.active-trip-card {
-  width: 100%;
-  max-width: 600px;
-  margin: 0 auto;
-}
-
 .form-card {
   background-color: #ffffff;
   border-radius: 12px;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
-  padding: 30px;
+  padding: 25px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  height: 100%;
+  overflow-y: auto;
 }
 
 .form-title {
-  margin: 0 0 10px 0;
+  margin: 0 0 15px 0;
   color: #002255;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 800;
   text-align: center;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 /* --- STATUS KURSU --- */
 .trip-status-card {
   background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-  border-radius: 12px;
-  padding: 20px;
+  border-radius: 10px;
+  padding: 12px;
   text-align: center;
   border: 1px solid #eef2f6;
+  margin-bottom: 20px;
 }
 
 .status-indicator {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .status-dot {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
 }
 
@@ -221,7 +235,7 @@
 }
 
 .status-text {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   color: #333;
 }
@@ -232,21 +246,21 @@
   100% { opacity: 1; transform: scale(1); }
 }
 
-/* --- SZCZEGÓŁY KURSU --- */
+/* --- SZCZEGÓŁY KURSU (OŚ CZASU) --- */
 .trip-details {
-  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-  border-radius: 12px;
-  padding: 24px;
-  border: 1px solid #eef2f6;
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 15px;
 }
 
 .trip-point {
   display: flex;
-  gap: 15px;
-  margin-bottom: 20px;
-  padding: 12px;
+  gap: 12px;
+  margin-bottom: 15px;
+  padding: 8px;
   background-color: #ffffff;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid #f0f4f8;
 }
 
@@ -255,16 +269,16 @@
 }
 
 .point-icon {
-  font-size: 24px;
-  min-width: 32px;
+  font-size: 20px;
+  min-width: 28px;
   text-align: center;
 }
 
 .trip-point strong {
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   color: #002255;
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -273,70 +287,13 @@
 .trip-point p {
   margin: 0;
   color: #555;
-  font-size: 15px;
+  font-size: 13px;
   line-height: 1.4;
+  word-break: break-word;
 }
-
-/* --- KONTENER MAPY --- */
-.map-container {
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border: 1px solid #eef2f6;
-}
-
-/* --- PRZYCISKI --- */
-.order-btn {
-  background-color: #002255;
-  color: #ffffff;
-  border: none;
-  border-radius: 8px;
-  padding: 16px;
-  font-weight: bold;
-  font-size: 15px;
-  letter-spacing: 0.5px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.order-btn:hover {
-  background-color: #1a3c75;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 15px rgba(0, 34, 85, 0.3);
-}
-
-.order-btn:active {
-  transform: translateY(0);
-}
-
-/* --- RESPONSYWNOŚĆ --- */
-@media (max-width: 768px) {
-  .driver-main-content {
-    padding: 15px;
-  }
-  
-  .form-card {
-    padding: 20px;
-  }
-  
-  .form-title {
-    font-size: 20px;
-  }
-  
-  .trip-point {
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  .point-icon {
-    text-align: left;
-  }
-}
-
-/* Dodatkowe style dla aktywnego kursu kierowcy */
 
 .coords-text {
-  font-size: 11px;
+  font-size: 10px;
   color: #888;
   margin-top: 4px;
   display: block;
@@ -345,10 +302,10 @@
 .live-text {
   font-size: 10px;
   color: #e74c3c;
-  animation: pulse 1.5s infinite;
+  animation: pulseText 1.5s infinite;
 }
 
-@keyframes pulse {
+@keyframes pulseText {
   0% { opacity: 1; }
   50% { opacity: 0.5; }
   100% { opacity: 1; }
@@ -359,10 +316,11 @@
   border-left: 3px solid #002255;
 }
 
+/* --- STATYSTYKI --- */
 .trip-stats {
   display: flex;
   gap: 15px;
-  padding: 12px;
+  padding: 10px;
   background-color: #f8f9fa;
   border-radius: 8px;
   margin-bottom: 20px;
@@ -374,16 +332,37 @@
 }
 
 .stat-label {
-  font-size: 11px;
+  font-size: 10px;
   color: #666;
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
 .stat-value {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: bold;
   color: #002255;
+}
+
+/* --- PRZYCISKI --- */
+.order-btn {
+  background-color: #002255;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 12px;
+  font-weight: bold;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 10px;
+}
+
+.order-btn:hover {
+  background-color: #1a3c75;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 34, 85, 0.2);
 }
 
 .start-btn {
@@ -402,16 +381,49 @@
   background-color: #c0392b !important;
 }
 
+/* --- PRAWY PANEL (MAPA) --- */
+.driver-map-area {
+  flex: 1;
+  display: flex;
+  position: relative;
+  z-index: 1;
+}
+
+.map-card {
+  flex: 1;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 2px dashed #dde1e5;
+  background-image: radial-gradient(#e0e5ec 1px, transparent 1px);
+  background-size: 20px 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.map-placeholder-text {
+  font-weight: 800;
+  font-size: 20px;
+  color: #a0aab5;
+  letter-spacing: 1px;
+}
+
+/* --- INFO O TRASIE --- */
 .route-info {
   position: absolute;
   bottom: 20px;
   left: 20px;
   background: white;
-  padding: 10px 15px;
+  padding: 8px 12px;
   border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
   z-index: 10;
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: bold;
+  color: #002255;
 }
 
 .route-info-item {
@@ -420,6 +432,7 @@
 
 .route-info-item span {
   color: #666;
+  font-weight: normal;
 }
 
 .location-loader {
@@ -432,4 +445,94 @@
   border-radius: 8px;
   font-size: 11px;
   z-index: 10;
+}
+
+/* --- ŁADOWANIE --- */
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #002255;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+  margin-top: 10px;
+  color: #666;
+  font-size: 14px;
+}
+
+/* --- RESPONSYWNOŚĆ --- */
+@media (max-width: 768px) {
+  .driver-main-content {
+    flex-direction: column;
+    padding: 15px;
+  }
+  
+  .driver-sidebar {
+    width: 100%;
+    margin-bottom: 20px;
+  }
+  
+  .form-card {
+    height: auto;
+    max-height: 60vh;
+  }
+  
+  .driver-map-area {
+    width: 100%;
+    min-height: 400px;
+  }
+  
+  .trip-point {
+    flex-direction: column;
+    gap: 6px;
+  }
+  
+  .point-icon {
+    text-align: left;
+  }
+}
+
+/* --- SKROLING --- */
+.form-card::-webkit-scrollbar {
+  width: 6px;
+}
+
+.form-card::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.form-card::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 10px;
+}
+
+.form-card::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+.driver-main-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.driver-main-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.driver-main-content::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 10px;
+}
+
+.driver-main-content::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
 }

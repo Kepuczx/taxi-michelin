@@ -40,9 +40,8 @@ const HomePageUser = () => {
   const [mapZoom, setMapZoom] = useState(14);
   const [isCheckingTrip, setIsCheckingTrip] = useState(true);
   
-  // 🔥 DODANE STATE DLA ŁADOWANIA MAPY
   const [mapsLoaded, setMapsLoaded] = useState(false);
-  const [pageReady, setPageReady] = useState(false);
+  const [initialLocationDone, setInitialLocationDone] = useState(false);
 
   const mapRef = useRef<google.maps.Map | null>(null);
   const geocoder = useRef<google.maps.Geocoder | null>(null);
@@ -61,7 +60,6 @@ const HomePageUser = () => {
   const [locatingPickup, setLocatingPickup] = useState(false);
   const [myPhysicalLocation, setMyPhysicalLocation] = useState<google.maps.LatLngLiteral | null>(null);
 
-  // IKONY ZNACZNIKÓW
   const mapIcons = {
     current: {
       path: "M 0,0 m -7,0 a 7,7 0 1,0 14,0 a 7,7 0 1,0 -14,0",
@@ -109,7 +107,6 @@ const HomePageUser = () => {
     }
   };
 
-  // Aktualizuj pozycję przy zmianie inputa lub scrollowaniu
   useEffect(() => {
     if (showPickupSuggestions || showDestSuggestions) {
       updatePosition();
@@ -122,15 +119,34 @@ const HomePageUser = () => {
     }
   }, [showPickupSuggestions, showDestSuggestions, activeInput]);
 
-  // 🔥 SPRAWDZANIE AKTYWNEGO KURSU I PRZEKIEROWANIE
+  // 🔥 RESET WSZYSTKICH STANÓW PRZY MONTOWANIU KOMPONENTU
+  useEffect(() => {
+    console.log('🏠 HomePageUser zamontowany - resetuję stany');
+    setMapsLoaded(false);
+    setInitialLocationDone(false);
+    setMapCenter(defaultCenter);
+    setMapZoom(14);
+    setDirections(null);
+    setDestination({ address: '', coords: { lat: 0, lng: 0 } });
+    setDestInput('');
+    setIsCheckingTrip(true);
+    
+    return () => {
+      console.log('🏠 HomePageUser odmontowany');
+    };
+  }, []);
+
+  // 🔥 SPRAWDZANIE AKTYWNEGO KURSU
   useEffect(() => {
     const checkActiveTrip = async () => {
       const token = localStorage.getItem('authToken');
       const clientId = localStorage.getItem('userId');
       
+      console.log('🔍 Sprawdzam aktywny kurs...');
+      
       if (!token || !clientId) {
+        console.log('❌ Brak tokenu lub clientId');
         setIsCheckingTrip(false);
-        setPageReady(true);
         return;
       }
       
@@ -140,28 +156,30 @@ const HomePageUser = () => {
         });
         
         if (response.data && response.data.id) {
+          console.log('✅ Znaleziono aktywny kurs, przekierowanie do /active-trip');
           navigate('/active-trip');
           return;
         }
       } catch (error) {
         console.log('Brak aktywnego kursu');
       } finally {
+        console.log('✅ Zakończono sprawdzanie, ustawiam isCheckingTrip = false');
         setIsCheckingTrip(false);
-        setPageReady(true);
       }
     };
     
     checkActiveTrip();
   }, [navigate]);
 
-  // 🔥 POBIERZ AKTUALNĄ LOKALIZACJĘ - TYLKO GDY STRONA JEST GOTOWA
+  // 🔥 POBIERZ LOKALIZACJĘ GDY MAPA JEST GOTOWA
   useEffect(() => {
-    if (pageReady && mapsLoaded) {
+    if (mapsLoaded && !initialLocationDone && !isCheckingTrip) {
+      console.log('📍 Mapa gotowa, pobieram lokalizację');
+      setInitialLocationDone(true);
       getCurrentLocation();
     }
-  }, [pageReady, mapsLoaded]);
+  }, [mapsLoaded, initialLocationDone, isCheckingTrip]);
 
-  // 🔥 POBIERZ AKTUALNĄ LOKALIZACJĘ
   const getCurrentLocation = () => {
     setLocatingPickup(true);
     if (navigator.geolocation) {
@@ -203,10 +221,10 @@ const HomePageUser = () => {
     }
   };
 
-  // Wyszukiwanie podpowiedzi dla pickup
+  // Wyszukiwanie podpowiedzi
   useEffect(() => {
-    if (!mapsLoaded) return;
-    if (pickupInput.length > 2 && autocompleteService.current) {
+    if (!mapsLoaded || !autocompleteService.current || isCheckingTrip) return;
+    if (pickupInput.length > 2) {
       autocompleteService.current.getPlacePredictions(
         {
           input: pickupInput,
@@ -240,11 +258,11 @@ const HomePageUser = () => {
     } else {
       setPickupSuggestions([]);
     }
-  }, [pickupInput, mapsLoaded]);
+  }, [pickupInput, mapsLoaded, isCheckingTrip]);
 
   useEffect(() => {
-    if (!mapsLoaded) return;
-    if (destInput.length > 2 && autocompleteService.current) {
+    if (!mapsLoaded || !autocompleteService.current || isCheckingTrip) return;
+    if (destInput.length > 2) {
       autocompleteService.current.getPlacePredictions(
         {
           input: destInput,
@@ -278,7 +296,7 @@ const HomePageUser = () => {
     } else {
       setDestSuggestions([]);
     }
-  }, [destInput, mapsLoaded]);
+  }, [destInput, mapsLoaded, isCheckingTrip]);
 
   const handlePickupSelect = (prediction: any) => {
     setPickupInput(prediction.description);
@@ -328,7 +346,7 @@ const HomePageUser = () => {
 
   // Obliczanie trasy
   useEffect(() => {
-    if (!mapsLoaded) return;
+    if (!mapsLoaded || isCheckingTrip) return;
     if (pickup.coords && destination.coords.lat !== 0) {
       const directionsService = new google.maps.DirectionsService();
       directionsService.route(
@@ -340,16 +358,18 @@ const HomePageUser = () => {
         (result, status) => {
           if (status === 'OK' && result) {
             setDirections(result);
-            if (mapRef.current && result.routes[0].bounds) {
-              mapRef.current.fitBounds(result.routes[0].bounds);
-            }
+            setTimeout(() => {
+              if (mapRef.current && result.routes[0].bounds) {
+                mapRef.current.fitBounds(result.routes[0].bounds);
+              }
+            }, 100);
           }
         }
       );
     } else {
       setDirections(null);
     }
-  }, [pickup.coords, destination.coords, mapsLoaded]);
+  }, [pickup.coords, destination.coords, mapsLoaded, isCheckingTrip]);
 
   const handleMapClick = (e: google.maps.MapMouseEvent) => {
     if (e.latLng) {
@@ -421,6 +441,7 @@ const HomePageUser = () => {
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
+  // 🔥 EKRAN ŁADOWANIA - POKAZUJ TYLKO GDY SPRAWDZAMY KURS
   if (isCheckingTrip) {
     return (
       <div className="user-page-wrapper">
@@ -432,7 +453,8 @@ const HomePageUser = () => {
           </div>
         </header>
         <div className="user-main-content" style={{ justifyContent: 'center', alignItems: 'center', padding: 50 }}>
-          <p>Sprawdzanie aktywnych kursów...</p>
+          <div className="loading-spinner" style={{ width: '40px', height: '40px', border: '4px solid #f3f3f3', borderTop: '4px solid #002255', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+          <p style={{ marginTop: 10 }}>Sprawdzanie aktywnych kursów...</p>
         </div>
       </div>
     );
@@ -569,7 +591,7 @@ const HomePageUser = () => {
               libraries={libraries}
               onError={() => setMapError(true)}
               onLoad={() => {
-                console.log('✅ Mapy Google załadowane');
+                console.log('✅ LoadScript onLoad - mapy gotowe');
                 setMapsLoaded(true);
                 initServices();
               }}
@@ -642,6 +664,13 @@ const HomePageUser = () => {
           )}
         </main>
       </div>
+
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
 
       {/* PORTAL - podpowiedzi dla pickup */}
       {showPickupSuggestions && pickupSuggestions.length > 0 && pickupInputRef && createPortal(
