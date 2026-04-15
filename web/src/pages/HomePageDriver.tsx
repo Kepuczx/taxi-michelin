@@ -1,23 +1,45 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { GoogleMap, LoadScript, Marker, DirectionsRenderer } from '@react-google-maps/api';
+import { io, Socket } from 'socket.io-client';
+import axios from 'axios';
 import { vehicleService } from '../services/vehicleService';
 import type { Vehicle } from '../types/vehicle.types';
+import { API_URL, GOOGLE_MAPS_API_KEY } from '../config';
 import '../styles/HomePageDriver.css';
 
+const libraries: ("places")[] = ["places"];
+const mapContainerStyle = { width: '100%', height: '100%' };
+
 interface VehicleWithDriver extends Vehicle {
-  currentDriver?: {
-    id: number;
-    firstName: string;
-    lastName: string;
-  };
+  currentDriver?: { id: number; firstName: string; lastName: string; };
 }
+
+interface Trip {
+  id: number;
+  clientId: number;
+  pickupLat: number;
+  pickupLng: number;
+  pickupAddress: string;
+  dropoffLat: number;
+  dropoffLng: number;
+  dropoffAddress: string;
+  passengerCount: number;
+  distanceKm?: number;
+  status: string;
+}
+
+// Funkcja pomocnicza do konwersji na liczbę
+const toNumber = (value: any): number => {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') return parseFloat(value.replace(/'/g, ''));
+  return 0;
+};
 
 const HomePageDriver = () => {
   const navigate = useNavigate();
   const [userId, setUserId] = useState<number | null>(null);
-
-  // Pobieranie i formatowanie imienia
-  const [firstName, setFirstName] = useState<string>(() => {
+  const [firstName, setFirstName] = useState(() => {
     const fullName = localStorage.getItem('userName');
     return fullName ? fullName.split(' ')[0] : 'Kierowca';
   });
@@ -25,22 +47,210 @@ const HomePageDriver = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('tasks');
 
-  // Stan dla pojazdów i przypisanego pojazdu
   const [vehicles, setVehicles] = useState<VehicleWithDriver[]>([]);
   const [assignedVehicle, setAssignedVehicle] = useState<VehicleWithDriver | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [availableTasks, setAvailableTasks] = useState<Trip[]>([]);
+  const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
+  const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
+  const [mapsLoaded, setMapsLoaded] = useState(false);
+  const [mapError, setMapError] = useState(false);
+  const [mapRef, setMapRef] = useState<google.maps.Map | null>(null);
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [calculatingRoute, setCalculatingRoute] = useState(false);
+  
+  const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [trackingLocation, setTrackingLocation] = useState(false);
+  const [autoCenter, setAutoCenter] = useState(true); // 🔥 NOWY STATE - czy automatycznie centrować
+
+  const socketRef = useRef<Socket | null>(null);
+
+  // Pobieranie lokalizacji kierowcy
+  const getDriverLocation = () => {
+    if (!navigator.geolocation) {
+      console.error('Geolokalizacja nie jest wspierana');
+      return;
+    }
+    
+    setTrackingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const newLocation = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+        setDriverLocation(newLocation);
+        setTrackingLocation(false);
+        console.log('📍 Lokalizacja kierowcy:', newLocation);
+        
+        // Auto-centrowanie tylko gdy włączone i nie ma zaznaczonej trasy
+        if (autoCenter && mapRef && !selectedTrip) {
+          mapRef.panTo(newLocation);
+          mapRef.setZoom(14);
+        }
+      },
+      (error) => {
+        console.error('Błąd pobierania lokalizacji:', error);
+        setTrackingLocation(false);
+      },
+      { enableHighAccuracy: true }
+    );
+  };
+
+  // Śledzenie lokalizacji co 10 sekund
   useEffect(() => {
-    const id = localStorage.getItem('userId');
+    if (!mapsLoaded) return;
+    
+    getDriverLocation();
+    
+    const interval = setInterval(() => {
+      if (mapsLoaded && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const newLocation = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+            };
+            setDriverLocation(newLocation);
+            
+            // Auto-centrowanie tylko gdy włączone i nie ma zaznaczonej trasy
+            if (autoCenter && mapRef && !selectedTrip) {
+              mapRef.panTo(newLocation);
+            }
+          },
+          (error) => console.error('Błąd śledzenia:', error),
+          { enableHighAccuracy: true }
+        );
+      }
+    }, 10000);
+    
+    return () => clearInterval(interval);
+  }, [mapsLoaded, autoCenter, selectedTrip]);
+
+  // Pobieranie dostępnych zleceń
+  const fetchPendingTrips = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await axios.get(`${API_URL}/trips/pending`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      console.log('📋 Pobrano zlecenia:', response.data.length);
+      
+      const tripsWithNumbers = response.data.map((trip: any) => ({
+        ...trip,
+        pickupLat: toNumber(trip.pickupLat),
+        pickupLng: toNumber(trip.pickupLng),
+        dropoffLat: toNumber(trip.dropoffLat),
+        dropoffLng: toNumber(trip.dropoffLng),
+      }));
+      
+      setAvailableTasks(tripsWithNumbers);
+    } catch (error) {
+      console.error('Błąd pobierania zleceń:', error);
+    }
+  };
+
+  // Pokazanie trasy dla wybranego zlecenia
+  const showRoute = (trip: Trip) => {
+    if (!mapsLoaded) {
+      alert('Mapa się jeszcze ładuje, spróbuj za chwilę');
+      return;
+    }
+    
+    if (!window.google || !window.google.maps) {
+      alert('Google Maps nie jest jeszcze dostępne');
+      return;
+    }
+    
+    // Jeśli klikamy na to samo zlecenie, ukryj trasę
+    if (selectedTrip?.id === trip.id) {
+      setSelectedTrip(null);
+      setDirections(null);
+      setAutoCenter(true); // Przywróć auto-centrowanie
+      return;
+    }
+    
+    const originLat = toNumber(trip.pickupLat);
+    const originLng = toNumber(trip.pickupLng);
+    const destLat = toNumber(trip.dropoffLat);
+    const destLng = toNumber(trip.dropoffLng);
+    
+    const origin = { lat: originLat, lng: originLng };
+    const destination = { lat: destLat, lng: destLng };
+    
+    if (isNaN(originLat) || isNaN(originLng) || isNaN(destLat) || isNaN(destLng)) {
+      console.error('❌ Nieprawidłowe współrzędne:', { originLat, originLng, destLat, destLng });
+      alert('Nieprawidłowe współrzędne dla tej trasy');
+      return;
+    }
+    
+    setSelectedTrip(trip);
+    setCalculatingRoute(true);
+    setDirections(null);
+    setAutoCenter(false); // 🔥 WYŁĄCZ AUTO-CENTROWANIE GDY OGLĄDASZ TRASĘ
+    
+    const directionsService = new window.google.maps.DirectionsService();
+    
+    directionsService.route(
+      {
+        origin: origin,
+        destination: destination,
+        travelMode: window.google.maps.TravelMode.DRIVING,
+      },
+      (result, status) => {
+        setCalculatingRoute(false);
+        
+        if (status === 'OK' && result) {
+          setDirections(result);
+          setTimeout(() => {
+            if (mapRef && result.routes[0]?.bounds) {
+              mapRef.fitBounds(result.routes[0].bounds);
+            }
+          }, 100);
+        } else {
+          console.error(`❌ Błąd trasy: ${status}`);
+          alert(`Nie udało się obliczyć trasy. Status: ${status}`);
+          setAutoCenter(true); // Przywróć auto-centrowanie przy błędzie
+        }
+      }
+    );
+  };
+
+  // WebSocket i polling
+  useEffect(() => {
     const role = localStorage.getItem('userRole');
+    const id = localStorage.getItem('userId');
 
     if (role !== 'driver') {
       navigate('/');
       return;
     }
-
     if (id) setUserId(parseInt(id));
+
+    socketRef.current = io(API_URL, { transports: ['websocket'] });
+    socketRef.current.on('newTrip', () => {
+      fetchPendingTrips();
+    });
+    socketRef.current.on('tripAccepted', (tripId: number) => {
+      setAvailableTasks(prev => prev.filter(t => t.id !== tripId));
+      if (selectedTrip?.id === tripId) {
+        setSelectedTrip(null);
+        setDirections(null);
+        setAutoCenter(true);
+      }
+    });
+
+    fetchPendingTrips();
+    const interval = setInterval(fetchPendingTrips, 5000);
+    setPollingInterval(interval);
+
     fetchVehiclesAndCheckAssignment(id ? parseInt(id) : null);
+
+    return () => {
+      socketRef.current?.disconnect();
+      if (pollingInterval) clearInterval(pollingInterval);
+    };
   }, [navigate]);
 
   const fetchVehiclesAndCheckAssignment = async (currentUserId: number | null) => {
@@ -48,10 +258,8 @@ const HomePageDriver = () => {
     try {
       const data = await vehicleService.getAll();
       setVehicles(data);
-
-      const targetUserId = currentUserId || userId;
-      if (targetUserId) {
-        const myVehicle = data.find(v => v.currentDriverId === targetUserId);
+      if (currentUserId) {
+        const myVehicle = data.find(v => v.currentDriverId === currentUserId);
         setAssignedVehicle(myVehicle || null);
       }
     } catch (error) {
@@ -68,8 +276,7 @@ const HomePageDriver = () => {
       setAssignedVehicle(updatedVehicle);
       await fetchVehiclesAndCheckAssignment(userId);
     } catch (error) {
-      console.error('❌ Błąd przypisywania pojazdu:', error);
-      alert('Nie udało się przypisać pojazdu. Spróbuj ponownie.');
+      alert('Nie udało się przypisać pojazdu.');
     }
   };
 
@@ -81,26 +288,58 @@ const HomePageDriver = () => {
         setAssignedVehicle(null);
         await fetchVehiclesAndCheckAssignment(userId);
       } catch (error) {
-        console.error('Błąd zwalniania pojazdu:', error);
         alert('Nie udało się zwolnić pojazdu.');
       }
     }
   };
 
+  const handleAcceptTask = async (tripId: number) => {
+    if (!userId) {
+      alert('Nie jesteś zalogowany jako kierowca');
+      return;
+    }
+    
+    if (!assignedVehicle) {
+      alert('Najpierw wybierz pojazd, z którego będziesz korzystać');
+      return;
+    }
+    
+    try {
+      const token = localStorage.getItem('authToken');
+      console.log(`📡 Przyjmowanie zlecenia ${tripId} przez kierowcę ${userId}`);
+      
+      const response = await axios.patch(
+        `${API_URL}/trips/${tripId}/accept`,
+        { driverId: userId },
+        { 
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          } 
+        }
+      );
+      
+      console.log('✅ Odpowiedź:', response.data);
+      
+      if (response.data) {
+        alert(`Zlecenie #${tripId} zostało przypisane do Ciebie!`);
+        navigate('/active-trip-driver', { state: { trip: response.data } });
+      }
+    } catch (error: any) {
+      console.error('❌ Błąd przyjmowania:', error);
+      const errorMsg = error.response?.data?.message || error.message || 'Nieznany błąd';
+      alert(`Nie udało się przyjąć kursu: ${errorMsg}`);
+    }
+  };
+
   const handleLogout = () => {
     if (window.confirm('Czy na pewno chcesz się wylogować?')) {
-      localStorage.clear(); // Oczyszcza cały localStorage dla bezpieczeństwa
+      localStorage.clear();
       navigate('/');
     }
   };
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
-
-  const handleAcceptTask = (id: number) => {
-    alert(`Przyjęto zlecenie #${id}! Rozpoczynanie nawigacji...`);
-  };
-
-  // --- RENDERING KOMPONENTÓW ---
 
   if (loading) {
     return (
@@ -120,11 +359,8 @@ const HomePageDriver = () => {
 
   const availableVehicles = vehicles.filter(v => v.status === 'dostępny' && !v.isBreakdown);
 
-  // GŁÓWNY ZWRACANY WIDOK - Header i Menu są renderowane zawsze, zmienia się tylko zawartość.
   return (
     <div className="driver-page-wrapper">
-      
-      {/* 1. STAŁY NAGŁÓWEK */}
       <header className="driver-header">
         <div className="driver-logo">
           <span className="driver-logo-text">MICHELIN</span>
@@ -135,12 +371,10 @@ const HomePageDriver = () => {
         </div>
       </header>
 
-      {/* 2. WSPÓLNE MENU BOCZNE */}
       <div className={`driver-side-menu ${isMenuOpen ? 'open' : ''}`}>
         <button className="close-menu-btn" onClick={toggleMenu}>✕ Zamknij</button>
         <div className="driver-menu-header">Profil Kierowcy</div>
         
-        {/* Widoczne tylko gdy kierowca ma pojazd */}
         {assignedVehicle && (
           <div className="driver-current-vehicle">
             <div className="vehicle-label">Twój pojazd:</div>
@@ -165,18 +399,15 @@ const HomePageDriver = () => {
         </div>
       </div>
 
-      {/* 3. DYNAMICZNA ZAWARTOŚĆ (Zmienia się w zależności od assignedVehicle) */}
       <div className="driver-main-content">
         
-        {/* Wariant A: BRAK POJAZDU (Wybór Auta) */}
         {!assignedVehicle ? (
           <div className="driver-selection-container" style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
             <div className="driver-selection-card" style={{ maxWidth: '600px', width: '100%' }}>
               <h2>🚗 Wybór pojazdu</h2>
               <p>Nie masz przypisanego pojazdu. Wybierz dostępny:</p>
-              
               {availableVehicles.length === 0 ? (
-                <p className="no-vehicles">Brak dostępnych pojazdów. Skontaktuj się z administratorem.</p>
+                <p className="no-vehicles">Brak dostępnych pojazdów.</p>
               ) : (
                 <div className="driver-vehicles-list">
                   {availableVehicles.map(vehicle => (
@@ -186,10 +417,7 @@ const HomePageDriver = () => {
                         <span>Rejestracja: {vehicle.registration}</span>
                         <span>Miejsca: {vehicle.passengerCapacity}</span>
                       </div>
-                      <button 
-                        className="driver-select-btn"
-                        onClick={() => handleSelectVehicle(vehicle.id)}
-                      >
+                      <button className="driver-select-btn" onClick={() => handleSelectVehicle(vehicle.id)}>
                         Wybierz
                       </button>
                     </div>
@@ -199,53 +427,259 @@ const HomePageDriver = () => {
             </div>
           </div>
         ) : (
-          /* Wariant B: MA POJAZD (Główny Dashboard) */
           <>
             {activeTab === 'tasks' && (
               <>
                 <aside className="driver-sidebar">
                   <div className="task-panel-card">
-                    <h2 className="panel-title">Dostępne zlecenia</h2>
+                    <h2 className="panel-title">Dostępne zlecenia ({availableTasks.length})</h2>
                     <div className="tasks-container">
-                      
-                      <div className="task-card">
-                        <div className="task-header">
-                          <span className="task-time">Teraz</span>
-                          <span className="task-distance">2.5 km stąd</span>
-                        </div>
-                        <div className="task-route">
-                          <div className="route-point"><strong>Od:</strong> Brama Główna</div>
-                          <div className="route-point"><strong>Do:</strong> Magazyn 4</div>
-                        </div>
-                        <div className="task-actions">
-                          <button className="btn-reject">Odrzuć</button>
-                          <button className="btn-accept" onClick={() => handleAcceptTask(1)}>Przyjmij</button>
-                        </div>
-                      </div>
-
-                      <div className="task-card">
-                        <div className="task-header">
-                          <span className="task-time">Za 15 min</span>
-                          <span className="task-distance">4.0 km stąd</span>
-                        </div>
-                        <div className="task-route">
-                          <div className="route-point"><strong>Od:</strong> Biurowiec A</div>
-                          <div className="route-point"><strong>Do:</strong> Dworzec PKP</div>
-                        </div>
-                        <div className="task-actions">
-                          <button className="btn-reject">Odrzuć</button>
-                          <button className="btn-accept" onClick={() => handleAcceptTask(2)}>Przyjmij</button>
-                        </div>
-                      </div>
-
+                      {availableTasks.length === 0 ? (
+                        <p style={{ textAlign: 'center', padding: 20 }}>Oczekujesz na zlecenia... ☕</p>
+                      ) : (
+                        availableTasks.map((task) => (
+                          <div key={task.id} className={`task-card ${selectedTrip?.id === task.id ? 'active-task' : ''}`}>
+                            <div className="task-header">
+                              <span className="task-time">Nowe</span>
+                              <span className="task-passengers">👥 {task.passengerCount} os.</span>
+                            </div>
+                            <div className="task-route">
+                              <div className="route-point"><strong>📍 Od:</strong> {task.pickupAddress}</div>
+                              <div className="route-point"><strong>🏁 Do:</strong> {task.dropoffAddress}</div>
+                            </div>
+                            <div className="task-actions">
+                              <button 
+                                className="btn-show-route" 
+                                onClick={() => showRoute(task)}
+                                disabled={calculatingRoute}
+                              >
+                                {selectedTrip?.id === task.id ? '🗺️ Ukryj trasę' : '🗺️ Pokaż trasę'}
+                              </button>
+                              <button className="btn-accept" onClick={() => handleAcceptTask(task.id)}>
+                                Przyjmij
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 </aside>
 
                 <main className="driver-map-area">
-                  <div className="map-card">
-                    <span className="map-placeholder-text">Podgląd Mapy i Nawigacji</span>
-                  </div>
+                  {!GOOGLE_MAPS_API_KEY ? (
+                    <div className="map-card">
+                      <span className="map-placeholder-text">⚠️ Brak klucza API</span>
+                    </div>
+                  ) : mapError ? (
+                    <div className="map-card">
+                      <span className="map-placeholder-text">⚠️ Błąd ładowania mapy</span>
+                    </div>
+                  ) : (
+                    <LoadScript
+                      googleMapsApiKey={GOOGLE_MAPS_API_KEY}
+                      libraries={libraries}
+                      onError={() => setMapError(true)}
+                      onLoad={() => {
+                        console.log('✅ Mapy Google załadowane');
+                        setMapsLoaded(true);
+                      }}
+                    >
+                      <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+                        <GoogleMap
+                          mapContainerStyle={mapContainerStyle}
+                          center={driverLocation || { lat: 53.7784, lng: 20.4801 }}
+                          zoom={13}
+                          onLoad={(map) => {
+                            console.log('✅ Mapa gotowa');
+                            setMapRef(map);
+                            if (driverLocation && autoCenter && !selectedTrip) {
+                              map.panTo(driverLocation);
+                            }
+                          }}
+                        >
+                          {/* 🔥 MARKERY TYLKO DLA ZAZNACZONEJ TRASY */}
+                          {selectedTrip && (
+                            <>
+                              {/* Punkt początkowy - START */}
+                              {!isNaN(toNumber(selectedTrip.pickupLat)) && !isNaN(toNumber(selectedTrip.pickupLng)) && (
+                                <Marker
+                                  position={{ 
+                                    lat: toNumber(selectedTrip.pickupLat), 
+                                    lng: toNumber(selectedTrip.pickupLng) 
+                                  }}
+                                  label={{
+                                    text: '🚩 START',
+                                    color: '#2E7D32',
+                                    fontSize: '14px',
+                                    fontWeight: 'bold',
+                                    className: 'marker-label-start'
+                                  }}
+                                  icon={{
+                                    url: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png',
+                                    scaledSize: new window.google.maps.Size(32, 32),
+                                  }}
+                                />
+                              )}
+                              
+                              {/* Punkt końcowy - END */}
+                              {!isNaN(toNumber(selectedTrip.dropoffLat)) && !isNaN(toNumber(selectedTrip.dropoffLng)) && (
+                                <Marker
+                                  position={{ 
+                                    lat: toNumber(selectedTrip.dropoffLat), 
+                                    lng: toNumber(selectedTrip.dropoffLng) 
+                                  }}
+                                  label={{
+                                    text: '🏁 END',
+                                    color: '#C62828',
+                                    fontSize: '14px',
+                                    fontWeight: 'bold',
+                                    className: 'marker-label-end'
+                                  }}
+                                  icon={{
+                                    url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
+                                    scaledSize: new window.google.maps.Size(32, 32),
+                                  }}
+                                />
+                              )}
+                            </>
+                          )}
+                          
+                          {/* 🔥 MARKER KIEROWCY - TAKSÓWKA */}
+                          {driverLocation && (
+                            <Marker
+                              position={driverLocation}
+                              icon={{
+                                url: 'https://cdn-icons-png.flaticon.com/512/744/744465.png',
+                                scaledSize: new window.google.maps.Size(40, 40),
+                                origin: new window.google.maps.Point(0, 0),
+                                anchor: new window.google.maps.Point(20, 20),
+                              }}
+                              title="Twoja lokalizacja"
+                              label={{ 
+                                text: '🚕', 
+                                color: 'black',
+                                fontSize: '14px',
+                                fontWeight: 'bold'
+                              }}
+                            />
+                          )}
+                          
+                          {/* Trasa dla zaznaczonego zlecenia */}
+                          {directions && (
+                            <DirectionsRenderer
+                              directions={directions}
+                              options={{
+                                polylineOptions: {
+                                  strokeColor: '#002255',
+                                  strokeWeight: 6,
+                                  strokeOpacity: 0.9
+                                },
+                                suppressMarkers: true
+                              }}
+                            />
+                          )}
+                        </GoogleMap>
+                        
+                        {/* Loader podczas obliczania trasy */}
+                        {calculatingRoute && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            backgroundColor: 'rgba(0,0,0,0.7)',
+                            color: 'white',
+                            padding: '10px 20px',
+                            borderRadius: '8px',
+                            zIndex: 20
+                          }}>
+                            ⏳ Obliczanie trasy...
+                          </div>
+                        )}
+
+                        {/* Informacja o zaznaczonej trasie */}
+                        {selectedTrip && !calculatingRoute && directions && (
+                          <div style={{
+                            position: 'absolute',
+                            top: 10,
+                            left: 10,
+                            backgroundColor: 'white',
+                            padding: '8px 15px',
+                            borderRadius: '8px',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                            fontSize: '12px',
+                            zIndex: 10
+                          }}>
+                            <strong>📍 Trasa #{selectedTrip.id}</strong>
+                            <div>{selectedTrip.pickupAddress?.split(',')[0] || 'Start'} → {selectedTrip.dropoffAddress?.split(',')[0] || 'Koniec'}</div>
+                          </div>
+                        )}
+
+                        {/* Komunikat gdy brak zaznaczonej trasy */}
+                        {!selectedTrip && availableTasks.length > 0 && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            backgroundColor: 'rgba(0,0,0,0.6)',
+                            color: 'white',
+                            padding: '15px 25px',
+                            borderRadius: '8px',
+                            textAlign: 'center',
+                            zIndex: 10
+                          }}>
+                            🗺️ Kliknij "Pokaż trasę" na wybranym zleceniu
+                          </div>
+                        )}
+
+                        {/* Loader lokalizacji */}
+                        {trackingLocation && !driverLocation && (
+                          <div style={{
+                            position: 'absolute',
+                            bottom: 20,
+                            right: 20,
+                            backgroundColor: 'rgba(0,0,0,0.6)',
+                            color: 'white',
+                            padding: '5px 10px',
+                            borderRadius: '8px',
+                            fontSize: '11px',
+                            zIndex: 10
+                          }}>
+                            📍 Pobieranie lokalizacji...
+                          </div>
+                        )}
+
+                        {/* Przycisk do powrotu do auto-centrowania */}
+                        {!autoCenter && selectedTrip && (
+                          <div style={{
+                            position: 'absolute',
+                            bottom: 20,
+                            left: 20,
+                            backgroundColor: 'white',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                            zIndex: 10,
+                            cursor: 'pointer'
+                          }}
+                          onClick={() => {
+                            setAutoCenter(true);
+                            setSelectedTrip(null);
+                            setDirections(null);
+                            if (driverLocation && mapRef) {
+                              mapRef.panTo(driverLocation);
+                              mapRef.setZoom(14);
+                            }
+                          }}
+                          >
+                            🚕 Wróć do mojej lokalizacji
+                          </div>
+                        )}
+                      </div>
+                    </LoadScript>
+                  )}
                 </main>
               </>
             )}
@@ -260,7 +694,6 @@ const HomePageDriver = () => {
             )}
           </>
         )}
-
       </div>
     </div>
   );

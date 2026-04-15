@@ -1,9 +1,9 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { TripsService } from './trips.service';
 import { TripsController } from './trips.controller';
+import { TripsService } from './trips.service';
+import { TripsGateway } from './trips.gateway';
 import { Trip } from './trips.entity';
-import { TripsGateway } from './trips.gateway'; // 🔥 NOWE
 
 @Module({
   imports: [TypeOrmModule.forFeature([Trip])],

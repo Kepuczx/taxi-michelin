@@ -1,54 +1,417 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
+import { GoogleMap, LoadScript, Marker, DirectionsRenderer } from '@react-google-maps/api';
+import axios from 'axios';
+import { API_URL, GOOGLE_MAPS_API_KEY } from '../config';
 import '../styles/HomePageUser.css';
+
+const mapContainerStyle = {
+  width: '100%',
+  height: '100%',
+};
+
+const defaultCenter = {
+  lat: 53.7784,
+  lng: 20.4801,
+};
+
+const libraries: ("places")[] = ["places"];
 
 const HomePageUser = () => {
   const navigate = useNavigate();
-  const [loggedUser, setLoggedUser] = useState<string | null>('Pracownik');
-  const [pickupLocation, setPickupLocation] = useState('');
-  const [destination, setDestination] = useState('');
-
+  const [pickup, setPickup] = useState({
+    address: '',
+    coords: { lat: 53.7784, lng: 20.4801 }
+  });
+  const [destination, setDestination] = useState({
+    address: '',
+    coords: { lat: 0, lng: 0 }
+  });
+  const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [mapError, setMapError] = useState(false);
   const [firstName, setFirstName] = useState<string>(() => {
     const fullName = localStorage.getItem('userName');
-    // split(' ') dzieli tekst na tablicę po spacji (np. ["Jan", "Kowalski"])
-    // [0] bierze pierwszy element (czyli "Jan")
     return fullName ? fullName.split(' ')[0] : 'Pracownik';
   });
-
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('order');
+  const [mapCenter, setMapCenter] = useState(defaultCenter);
+  const [mapZoom, setMapZoom] = useState(14);
+  const [isCheckingTrip, setIsCheckingTrip] = useState(true);
+
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const geocoder = useRef<google.maps.Geocoder | null>(null);
+  const autocompleteService = useRef<google.maps.places.AutocompleteService | null>(null);
+
+  const [pickupSuggestions, setPickupSuggestions] = useState<any[]>([]);
+  const [destSuggestions, setDestSuggestions] = useState<any[]>([]);
+  const [pickupInput, setPickupInput] = useState('');
+  const [destInput, setDestInput] = useState('');
+  const [showPickupSuggestions, setShowPickupSuggestions] = useState(false);
+  const [showDestSuggestions, setShowDestSuggestions] = useState(false);
+  const [pickupInputRef, setPickupInputRef] = useState<HTMLInputElement | null>(null);
+  const [destInputRef, setDestInputRef] = useState<HTMLInputElement | null>(null);
+  const [suggestionsPosition, setSuggestionsPosition] = useState({ top: 0, left: 0, width: 0 });
+  const [activeInput, setActiveInput] = useState<'pickup' | 'dest' | null>(null);
+  const [locatingPickup, setLocatingPickup] = useState(false);
+
+  const initServices = () => {
+    if (window.google && !geocoder.current) {
+      geocoder.current = new window.google.maps.Geocoder();
+      autocompleteService.current = new window.google.maps.places.AutocompleteService();
+      console.log('✅ Serwisy Google zainicjalizowane');
+    }
+  };
+
+  const updatePosition = () => {
+    const inputElement = activeInput === 'pickup' ? pickupInputRef : destInputRef;
+    if (inputElement) {
+      const rect = inputElement.getBoundingClientRect();
+      setSuggestionsPosition({
+        top: rect.bottom + window.scrollY + 4,
+        left: rect.left + window.scrollX,
+        width: rect.width,
+      });
+    }
+  };
+
+  // Aktualizuj pozycję przy zmianie inputa lub scrollowaniu
+  useEffect(() => {
+    if (showPickupSuggestions || showDestSuggestions) {
+      updatePosition();
+      window.addEventListener('scroll', updatePosition);
+      window.addEventListener('resize', updatePosition);
+      return () => {
+        window.removeEventListener('scroll', updatePosition);
+        window.removeEventListener('resize', updatePosition);
+      };
+    }
+  }, [showPickupSuggestions, showDestSuggestions, activeInput]);
+
+  // 🔥 SPRAWDZANIE AKTYWNEGO KURSU I PRZEKIEROWANIE
+  useEffect(() => {
+    const checkActiveTrip = async () => {
+      const token = localStorage.getItem('authToken');
+      const clientId = localStorage.getItem('userId');
+      
+      if (!token || !clientId) {
+        setIsCheckingTrip(false);
+        return;
+      }
+      
+      try {
+        const response = await axios.get(`${API_URL}/trips/client/${clientId}/active`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (response.data && response.data.id) {
+          navigate('/active-trip');
+          return;
+        }
+      } catch (error) {
+        console.log('Brak aktywnego kursu');
+      } finally {
+        setIsCheckingTrip(false);
+      }
+    };
+    
+    checkActiveTrip();
+  }, [navigate]);
+
+  // 🔥 POBIERZ AKTUALNĄ LOKALIZACJĘ I WPISZ DO POLA ODBIORU
+  const getCurrentLocation = () => {
+    setLocatingPickup(true);
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const newCoords = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          setPickup(prev => ({ ...prev, coords: newCoords }));
+          setMapCenter(newCoords);
+          if (geocoder.current) {
+            geocoder.current.geocode({ location: newCoords }, (results, status) => {
+              setLocatingPickup(false);
+              if (status === 'OK' && results && results[0]) {
+                const address = results[0].formatted_address;
+                setPickup(prev => ({ ...prev, address }));
+                setPickupInput(address);
+              } else {
+                setPickupInput(`${newCoords.lat.toFixed(6)}, ${newCoords.lng.toFixed(6)}`);
+                alert('Nie udało się pobrać adresu, ale współrzędne zostały ustawione.');
+              }
+            });
+          } else {
+            setLocatingPickup(false);
+            setPickupInput(`${newCoords.lat.toFixed(6)}, ${newCoords.lng.toFixed(6)}`);
+          }
+        },
+        (error) => {
+          setLocatingPickup(false);
+          console.error('Błąd GPS:', error);
+          alert('Nie udało się pobrać lokalizacji. Sprawdź uprawnienia GPS.');
+        }
+      );
+    } else {
+      setLocatingPickup(false);
+      alert('Twoja przeglądarka nie obsługuje geolokalizacji.');
+    }
+  };
+
+  // Wyszukiwanie podpowiedzi dla pickup z priorytetem Olsztyna
+  useEffect(() => {
+    if (pickupInput.length > 2 && autocompleteService.current) {
+      autocompleteService.current.getPlacePredictions(
+        {
+          input: pickupInput,
+          componentRestrictions: { country: 'pl' },
+          locationBias: new google.maps.LatLng(53.7784, 20.4801),
+        },
+        (predictions, status) => {
+          if (status === 'OK' && predictions) {
+            const olsztynResults: any[] = [];
+            const otherResults: any[] = [];
+            
+            predictions.forEach((p) => {
+              const text = p.description.toLowerCase();
+              if (text.includes('olsztyn') || text.includes('olszt') || text.includes('olszty') || p.description.includes('Olsztyn')) {
+                olsztynResults.push(p);
+              } else {
+                otherResults.push(p);
+              }
+            });
+            
+            const sorted = [...olsztynResults, ...otherResults];
+            setPickupSuggestions(sorted);
+            setShowPickupSuggestions(true);
+            setActiveInput('pickup');
+            setTimeout(updatePosition, 10);
+          } else {
+            setPickupSuggestions([]);
+          }
+        }
+      );
+    } else {
+      setPickupSuggestions([]);
+    }
+  }, [pickupInput]);
 
   useEffect(() => {
-    const user = localStorage.getItem('loggedUser');
-    if (user) setLoggedUser(user);
-  }, []);
+    if (destInput.length > 2 && autocompleteService.current) {
+      autocompleteService.current.getPlacePredictions(
+        {
+          input: destInput,
+          componentRestrictions: { country: 'pl' },
+          locationBias: new google.maps.LatLng(53.7784, 20.4801),
+        },
+        (predictions, status) => {
+          if (status === 'OK' && predictions) {
+            const olsztynResults: any[] = [];
+            const otherResults: any[] = [];
+            
+            predictions.forEach((p) => {
+              const text = p.description.toLowerCase();
+              if (text.includes('olsztyn') || text.includes('olszt') || text.includes('olszty') || p.description.includes('Olsztyn')) {
+                olsztynResults.push(p);
+              } else {
+                otherResults.push(p);
+              }
+            });
+            
+            const sorted = [...olsztynResults, ...otherResults];
+            setDestSuggestions(sorted);
+            setShowDestSuggestions(true);
+            setActiveInput('dest');
+            setTimeout(updatePosition, 10);
+          } else {
+            setDestSuggestions([]);
+          }
+        }
+      );
+    } else {
+      setDestSuggestions([]);
+    }
+  }, [destInput]);
+
+  const handlePickupSelect = (prediction: any) => {
+    setPickupInput(prediction.description);
+    setShowPickupSuggestions(false);
+    
+    if (geocoder.current) {
+      geocoder.current.geocode({ placeId: prediction.place_id }, (results, status) => {
+        if (status === 'OK' && results && results[0]) {
+          const location = results[0].geometry.location;
+          const lat = location.lat();
+          const lng = location.lng();
+          const address = results[0].formatted_address;
+          
+          setPickup({ address, coords: { lat, lng } });
+          setMapCenter({ lat, lng });
+          setMapZoom(15);
+          if (mapRef.current) {
+            mapRef.current.panTo({ lat, lng });
+            mapRef.current.setZoom(15);
+          }
+        }
+      });
+    }
+  };
+
+  const handleDestSelect = (prediction: any) => {
+    setDestInput(prediction.description);
+    setShowDestSuggestions(false);
+    
+    if (geocoder.current) {
+      geocoder.current.geocode({ placeId: prediction.place_id }, (results, status) => {
+        if (status === 'OK' && results && results[0]) {
+          const location = results[0].geometry.location;
+          const lat = location.lat();
+          const lng = location.lng();
+          const address = results[0].formatted_address;
+          
+          setDestination({ address, coords: { lat, lng } });
+          if (mapRef.current) {
+            mapRef.current.panTo({ lat, lng });
+            mapRef.current.setZoom(15);
+          }
+        }
+      });
+    }
+  };
+
+  // Obliczanie trasy
+  useEffect(() => {
+    if (pickup.coords && destination.coords.lat !== 0) {
+      const directionsService = new google.maps.DirectionsService();
+      directionsService.route(
+        {
+          origin: pickup.coords,
+          destination: destination.coords,
+          travelMode: google.maps.TravelMode.DRIVING,
+        },
+        (result, status) => {
+          if (status === 'OK' && result) {
+            setDirections(result);
+            if (mapRef.current && result.routes[0].bounds) {
+              mapRef.current.fitBounds(result.routes[0].bounds);
+            }
+          }
+        }
+      );
+    } else {
+      setDirections(null);
+    }
+  }, [pickup.coords, destination.coords]);
+
+  const handleMapClick = (e: google.maps.MapMouseEvent) => {
+    if (e.latLng) {
+      const lat = e.latLng.lat();
+      const lng = e.latLng.lng();
+      
+      if (geocoder.current) {
+        geocoder.current.geocode({ location: { lat, lng } }, (results, status) => {
+          if (status === 'OK' && results && results[0]) {
+            const address = results[0].formatted_address;
+            setDestination({ address, coords: { lat, lng } });
+            setDestInput(address);
+          } else {
+            setDestination({
+              address: `${lat.toFixed(6)}, ${lng.toFixed(6)}`,
+              coords: { lat, lng }
+            });
+            setDestInput(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+          }
+        });
+      }
+    }
+  };
+
+  const handleOrderTrip = async () => {
+    if (!destination.address) {
+      alert('Proszę wybrać miejsce docelowe (wpisz lub kliknij na mapie)');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const clientId = localStorage.getItem('userId');
+
+      const tripData = {
+        clientId: clientId ? parseInt(clientId) : null,
+        pickupLat: pickup.coords.lat,
+        pickupLng: pickup.coords.lng,
+        pickupAddress: pickup.address,
+        dropoffLat: destination.coords.lat,
+        dropoffLng: destination.coords.lng,
+        dropoffAddress: destination.address,
+        passengerCount: 1,
+        notes: 'Zamówienie z panelu web'
+      };
+
+      const response = await axios.post(`${API_URL}/trips/request`, tripData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.status === 201) {
+        navigate('/active-trip');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Nie udało się zamówić kursu.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     if (window.confirm('Czy na pewno chcesz się wylogować?')) {
-      localStorage.removeItem('loggedUser');
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('userRole');
-      localStorage.removeItem('userEmail');
-      localStorage.removeItem('userName');
-      localStorage.removeItem('userId');
-      setLoggedUser(null);
+      localStorage.clear();
       navigate('/');
     }
   };
+
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
-  const handleOrderTaxi = () => {
-    if (pickupLocation && destination) {
-      alert(`Zamówiono TAXI z ${pickupLocation} do ${destination}!`);
-    } else {
-      alert('Proszę wypełnić oba pola: miejsce rozpoczęcia trasy i miejsce docelowe.');
-    }
-  };
+  if (isCheckingTrip) {
+    return (
+      <div className="user-page-wrapper">
+        <header className="user-header">
+          <div className="user-logo"><span className="user-logo-text">MICHELIN</span></div>
+          <div className="user-header-actions">
+            <span className="welcome-text">Witaj, {firstName}!</span>
+            <button className="user-menu-btn" onClick={toggleMenu}>☰</button>
+          </div>
+        </header>
+        <div className="user-main-content" style={{ justifyContent: 'center', alignItems: 'center', padding: 50 }}>
+          <p>Sprawdzanie aktywnych kursów...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!GOOGLE_MAPS_API_KEY) {
+    return (
+      <div className="user-page-wrapper">
+        <header className="user-header">
+          <div className="user-logo"><span className="user-logo-text">MICHELIN</span></div>
+          <div className="user-header-actions">
+            <span className="welcome-text">Witaj, {firstName}!</span>
+            <button className="user-menu-btn" onClick={toggleMenu}>☰</button>
+          </div>
+        </header>
+        <div className="user-main-content" style={{ justifyContent: 'center', alignItems: 'center', padding: 50 }}>
+          <h2 style={{ color: 'red' }}>⚠️ Błąd konfiguracji</h2>
+          <p>Brak klucza Google Maps API. Dodaj plik .env z VITE_GOOGLE_MAPS_API_KEY</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="user-page-wrapper">
-      
-      {/* NAGŁÓWEK */}
       <header className="user-header">
         <div className="user-logo">
           <span className="user-logo-text">MICHELIN</span>
@@ -59,77 +422,181 @@ const HomePageUser = () => {
         </div>
       </header>
 
-      {/* WYSUWANE MENU Z PRAWEJ */}
       <div className={`user-side-menu ${isMenuOpen ? 'open' : ''}`}>
         <button className="close-menu-btn" onClick={toggleMenu}>✕ Zamknij</button>
-        
         <div className="user-menu-header">Twój Profil</div>
         <button className="user-menu-item">Rezerwacja auta</button>
-        <button className={`user-menu-item ${activeTab === 'order' ? 'active' : ''}`} onClick={() => { setActiveTab('order'); setIsMenuOpen(false); }}>Zamów TAXI</button>
+        <button className="user-menu-item">Zamów TAXI</button>
         <button className="user-menu-item">Status przejazdu</button>
         <button className="user-menu-item">Zgłoś usterkę</button>
-        
         <div className="user-menu-bottom">
-          <button className={`user-menu-item ${activeTab === 'history' ? 'active' : ''}`} onClick={() => { setActiveTab('history'); setIsMenuOpen(false); }}>Historia przejazdów</button>
+          <button className="user-menu-item">Historia przejazdów</button>
           <button className="user-menu-item logout-text" onClick={handleLogout}>Wyloguj się</button>
         </div>
       </div>
 
-      {/* GŁÓWNY OBSZAR ROBOCZY */}
       <div className="user-main-content">
-        
-        {activeTab === 'order' && (
-          <>
-            {/* LEWY PANEL (Nowoczesny formularz) */}
-            <aside className="user-sidebar">
-              <div className="form-card">
-                <h2 className="form-title">Zaplanuj trasę</h2>
-                
-                <div className="input-group">
-                  <label>MIEJSCE ODBIORU</label>
-                  <input 
-                    type="text" 
-                    placeholder="Np. Brama Główna"
-                    value={pickupLocation}
-                    onChange={(e) => setPickupLocation(e.target.value)}
-                  />
-                </div>
-
-                <div className="input-group">
-                  <label>MIEJSCE DOCELOWE</label>
-                  <input 
-                    type="text" 
-                    placeholder="Np. Magazyn nr 4"
-                    value={destination}
-                    onChange={(e) => setDestination(e.target.value)}
-                  />
-                </div>
-
-                <button className="order-btn" onClick={handleOrderTaxi}>
-                  ZAMÓW PRZEJAZD
+        <aside className="user-sidebar">
+          <div className="form-card">
+            <h2 className="form-title">Zaplanuj trasę</h2>
+            
+            <div className="input-group">
+              <label>MIEJSCE ODBIORU</label>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input
+                  ref={setPickupInputRef}
+                  type="text"
+                  value={pickupInput}
+                  onChange={(e) => setPickupInput(e.target.value)}
+                  onFocus={() => setShowPickupSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowPickupSuggestions(false), 200)}
+                  placeholder="Wpisz adres lub nazwę miejsca..."
+                  className="places-input"
+                  autoComplete="off"
+                  style={{ flex: 1 }}
+                />
+                <button
+                  type="button"
+                  onClick={getCurrentLocation}
+                  disabled={locatingPickup}
+                  className="location-btn"
+                  title="Użyj mojej lokalizacji"
+                  style={{
+                    background: '#f0f4f8',
+                    border: '1px solid #dde1e5',
+                    borderRadius: '8px',
+                    padding: '10px 12px',
+                    cursor: 'pointer',
+                    fontSize: '18px',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {locatingPickup ? '⏳' : '📍'}
                 </button>
               </div>
-            </aside>
-
-            {/* PRAWY PANEL (Nowoczesna mapa) */}
-            <main className="user-map-area">
-              <div className="map-card">
-                <span className="map-placeholder-text">Podgląd Mapy</span>
-              </div>
-            </main>
-          </>
-        )}
-
-        {activeTab === 'history' && (
-          <main className="user-history-area">
-            <div className="form-card">
-              <h2>Historia przejazdów</h2>
-              <p>Tutaj znajdzie się lista Twoich kursów.</p>
             </div>
-          </main>
-        )}
 
+            <div className="input-group">
+              <label>MIEJSCE DOCELOWE</label>
+              <input
+                ref={setDestInputRef}
+                type="text"
+                value={destInput}
+                onChange={(e) => setDestInput(e.target.value)}
+                onFocus={() => setShowDestSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowDestSuggestions(false), 200)}
+                placeholder="Wpisz adres lub nazwę miejsca..."
+                className="places-input"
+                autoComplete="off"
+              />
+            </div>
+
+            <div className="input-group">
+              <label style={{ color: '#0a1d56' }}>🎯 LUB ZAZNACZ NA MAPIE</label>
+              <p style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>
+                Kliknij w dowolne miejsce na mapie, aby ustawić cel podróży
+              </p>
+            </div>
+
+            <button className="order-btn" onClick={handleOrderTrip} disabled={loading}>
+              {loading ? 'ZAMAWIANIE...' : 'ZAMÓW PRZEJAZD'}
+            </button>
+          </div>
+        </aside>
+
+        <main className="user-map-area">
+          {!mapError ? (
+            <LoadScript 
+              googleMapsApiKey={GOOGLE_MAPS_API_KEY}
+              libraries={libraries}
+              onError={() => setMapError(true)}
+              onLoad={initServices}
+            >
+              <GoogleMap
+                mapContainerStyle={mapContainerStyle}
+                center={mapCenter}
+                zoom={mapZoom}
+                onClick={handleMapClick}
+                onLoad={(map) => { 
+                  mapRef.current = map;
+                  initServices();
+                }}
+              >
+                <Marker 
+                  position={pickup.coords} 
+                  label="A"
+                  icon={{ url: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png' }}
+                />
+                {destination.coords.lat !== 0 && (
+                  <Marker 
+                    position={destination.coords} 
+                    label="B"
+                    icon={{ url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png' }}
+                  />
+                )}
+                {directions && <DirectionsRenderer directions={directions} />}
+              </GoogleMap>
+            </LoadScript>
+          ) : (
+            <div className="map-card" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
+              <span className="map-placeholder-text">⚠️ Błąd ładowania mapy</span>
+              <p style={{ marginTop: 10 }}>Sprawdź klucz API Google Maps</p>
+            </div>
+          )}
+        </main>
       </div>
+
+      {/* PORTAL - podpowiedzi dla pickup */}
+      {showPickupSuggestions && pickupSuggestions.length > 0 && pickupInputRef && createPortal(
+        <ul 
+          className="places-list-portal"
+          style={{
+            position: 'absolute',
+            top: suggestionsPosition.top,
+            left: suggestionsPosition.left,
+            width: suggestionsPosition.width,
+            zIndex: 999999,
+          }}
+        >
+          {pickupSuggestions.map((suggestion) => (
+            <li
+              key={suggestion.place_id}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => handlePickupSelect(suggestion)}
+              className="places-item-portal"
+            >
+              📍 {suggestion.description}
+            </li>
+          ))}
+        </ul>,
+        document.body
+      )}
+
+      {/* PORTAL - podpowiedzi dla destination */}
+      {showDestSuggestions && destSuggestions.length > 0 && destInputRef && createPortal(
+        <ul 
+          className="places-list-portal"
+          style={{
+            position: 'absolute',
+            top: suggestionsPosition.top,
+            left: suggestionsPosition.left,
+            width: suggestionsPosition.width,
+            zIndex: 999999,
+          }}
+        >
+          {destSuggestions.map((suggestion) => (
+            <li
+              key={suggestion.place_id}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => handleDestSelect(suggestion)}
+              className="places-item-portal"
+            >
+              📍 {suggestion.description}
+            </li>
+          ))}
+        </ul>,
+        document.body
+      )}
     </div>
   );
 };

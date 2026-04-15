@@ -43,9 +43,15 @@ let TripsService = class TripsService {
         return savedTrip;
     }
     async acceptTrip(tripId, driverId) {
-        const trip = await this.tripRepository.findOne({ where: { id: tripId } });
+        const trip = await this.tripRepository.findOne({
+            where: { id: tripId },
+            lock: { mode: 'pessimistic_write' }
+        });
         if (!trip)
             throw new common_1.NotFoundException('Kurs nie istnieje');
+        if (trip.status !== 'pending') {
+            throw new Error('Kurs został już przyjęty przez innego kierowcę');
+        }
         trip.driverId = driverId;
         trip.status = 'assigned';
         trip.assignedAt = new Date();
@@ -100,11 +106,44 @@ let TripsService = class TripsService {
             throw new common_1.NotFoundException('Kurs nie istnieje');
         return trip;
     }
+    async getClientActiveTrip(clientId) {
+        return this.tripRepository.findOne({
+            where: {
+                clientId,
+                status: (0, typeorm_2.In)(['pending', 'assigned', 'in_progress']),
+            },
+            order: { requestedAt: 'DESC' },
+        });
+    }
+    async cancelTrip(tripId, userId, reason) {
+        const trip = await this.tripRepository.findOne({
+            where: { id: tripId },
+            relations: ['client']
+        });
+        if (!trip)
+            throw new common_1.NotFoundException('Kurs nie istnieje');
+        if (trip.clientId !== userId) {
+            throw new Error('Nie masz uprawnień do anulowania tego kursu');
+        }
+        if (trip.status === 'completed') {
+            throw new Error('Nie można anulować zakończonego kursu');
+        }
+        if (trip.status === 'in_progress') {
+            throw new Error('Nie można anulować kursu w trakcie');
+        }
+        trip.status = 'cancelled';
+        trip.cancelledAt = new Date();
+        trip.cancellationReason = reason || 'Anulowane przez klienta';
+        const savedTrip = await this.tripRepository.save(trip);
+        this.tripsGateway.broadcastTripCancelled(tripId);
+        return savedTrip;
+    }
 };
 exports.TripsService = TripsService;
 exports.TripsService = TripsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(trips_entity_1.Trip)),
+    __param(1, (0, common_1.Inject)((0, common_1.forwardRef)(() => trips_gateway_1.TripsGateway))),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         trips_gateway_1.TripsGateway])
 ], TripsService);

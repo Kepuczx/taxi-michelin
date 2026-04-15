@@ -49,4 +49,20 @@ async acceptTrip(@Param('id') id: string, @Body('driverId') driverId: number) {
   async getPendingTrips() {
     return this.tripsService.getPendingTrips();
   }
+
+  // 🔥 DODAJ TEN ENDPOINT - AKTYWNY KURS KLIENTA
+  @Get('client/:clientId/active')
+  async getClientActiveTrip(@Param('clientId') clientId: string) {
+    return this.tripsService.getClientActiveTrip(+clientId);
+  }
+  // ❌ KLIENT: Anulowanie kursu
+// PATCH http://localhost:3000/trips/5/cancel
+@Patch(':id/cancel')
+async cancelTrip(
+  @Param('id') id: string, 
+  @Body('reason') reason: string,
+  @Body('userId') userId: number  // Na razie z body, potem z tokena
+) {
+  return this.tripsService.cancelTrip(+id, userId, reason);
+}
 }

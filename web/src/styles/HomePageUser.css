@@ -1,10 +1,14 @@
 /* --- BAZOWE USTAWIENIA --- */
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
   padding: 0;
-  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; /* Bardziej nowoczesna czcionka */
-  background-color: #f4f7f6; /* Delikatne, jasnoszare tło strony */
-  overflow-x: hidden; 
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: #f4f7f6;
+  overflow-x: hidden;
 }
 
 .user-page-wrapper {
@@ -19,19 +23,18 @@ body {
   background-color: #002255;
   height: 60px;
   display: flex;
-  border-radius: 0;
   justify-content: space-between;
   align-items: center;
   padding: 0 20px;
   z-index: 500;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.2); /* Lekki cień pod nagłówkiem */
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
 }
 
 .user-logo {
   background-color: white;
   height: 40px;
   padding: 0 15px;
-  border-radius: 4px; /* Lekko zaokrąglone logo */
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -69,27 +72,27 @@ body {
 }
 
 .user-menu-btn:hover {
-  transform: scale(1.1); /* Przycisk lekko rośnie po najechaniu */
+  transform: scale(1.1);
 }
 
 /* --- WYSUWANE MENU Z PRAWEJ --- */
 .user-side-menu {
   position: absolute;
-  top: 60px; 
-  right: -300px; 
+  top: 60px;
+  right: -300px;
   width: 260px;
-  height: calc(100vh - 60px); 
-  background-color: #ffffff; 
+  height: calc(100vh - 60px);
+  background-color: #ffffff;
   border-left: 1px solid #e0e0e0;
-  box-shadow: -4px 0 15px rgba(0,0,0,0.05); /* Cień rzucany na stronę */
+  box-shadow: -4px 0 15px rgba(0,0,0,0.05);
   display: flex;
   flex-direction: column;
-  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Płynniejsza animacja */
-  z-index: 1000; 
+  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1000;
 }
 
 .user-side-menu.open {
-  right: 0; 
+  right: 0;
 }
 
 .close-menu-btn {
@@ -109,7 +112,7 @@ body {
 }
 
 .user-menu-header {
-  background-color: #f8f9fa; 
+  background-color: #f8f9fa;
   padding: 20px 15px;
   text-align: center;
   font-weight: bold;
@@ -131,15 +134,16 @@ body {
   transition: all 0.2s;
 }
 
-.user-menu-item:hover, .user-menu-item.active {
+.user-menu-item:hover,
+.user-menu-item.active {
   background-color: #f0f4f8;
   color: #002255;
   font-weight: bold;
-  padding-left: 25px; /* Lekko wsuwa tekst przy hoverze */
+  padding-left: 25px;
 }
 
 .user-menu-bottom {
-  margin-top: auto; 
+  margin-top: auto;
   display: flex;
   flex-direction: column;
 }
@@ -153,28 +157,34 @@ body {
 /* --- GŁÓWNA ZAWARTOŚĆ --- */
 .user-main-content {
   display: flex;
-  flex: 1; 
-  padding: 20px; /* Więcej miejsca po bokach ekranu */
-  gap: 20px; 
+  flex: 1;
+  padding: 20px;
+  gap: 20px;
+  position: relative;
+  z-index: 1;
 }
 
 /* --- LEWY PANEL (Formularz) --- */
 .user-sidebar {
-  width: 350px; /* Minimalnie szerszy panel */
+  width: 380px;
   display: flex;
   flex-direction: column;
+  position: relative;
+  z-index: 100;
 }
 
 /* Nowoczesna Karta Formularza */
 .form-card {
   background-color: #ffffff;
   border-radius: 12px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08); /* Duży, miękki cień zamiast czarnej ramki */
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
   padding: 30px;
   display: flex;
   flex-direction: column;
   height: 100%;
   gap: 20px;
+  position: relative;
+  z-index: 100;
 }
 
 .form-title {
@@ -185,9 +195,13 @@ body {
   text-align: center;
 }
 
+/* INPUT GROUP - PODSTAWA DLA PODPOWIEDZI */
 .input-group {
   display: flex;
   flex-direction: column;
+  position: relative;
+  margin-bottom: 20px;
+  z-index: 200;
 }
 
 .input-group label {
@@ -198,23 +212,118 @@ body {
   letter-spacing: 0.5px;
 }
 
-/* Nowoczesne Pola Wprowadzania Tekstu */
+/* Pola Wprowadzania Tekstu */
 .input-group input {
   background-color: #f8f9fa;
   border: 1px solid #dde1e5;
-  border-radius: 8px; /* Zaokrąglone rogi */
+  border-radius: 8px;
   padding: 14px 16px;
   font-size: 15px;
   color: #222;
   outline: none;
   transition: all 0.3s ease;
+  width: 100%;
 }
 
-/* Efekt po kliknięciu w pole */
 .input-group input:focus {
   background-color: #ffffff;
   border-color: #002255;
-  box-shadow: 0 0 0 3px rgba(0, 34, 85, 0.15); /* Niebieska poświata */
+  box-shadow: 0 0 0 3px rgba(0, 34, 85, 0.15);
+}
+
+/* ========== LISTA PODPOWIEDZI - NIE NAKŁADA SIĘ ========== */
+.places-list {
+  position: absolute;
+  top: auto;
+  bottom: auto;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border-radius: 12px;
+  max-height: 260px;
+  overflow-y: auto;
+  z-index: 99999 !important;
+  list-style: none;
+  padding: 8px 0;
+  margin: 0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  border: 1px solid #e0e4e8;
+}
+
+/* UWAGA: to ustawia listę POD inputem, nie nad nim */
+.input-group:first-of-type .places-list {
+  top: calc(100% + 4px);
+  bottom: auto;
+}
+
+.input-group:last-of-type .places-list {
+  top: calc(100% + 4px);
+  bottom: auto;
+}
+
+/* Pojedynczy element podpowiedzi */
+.places-item {
+  padding: 12px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #333;
+  background-color: #ffffff;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+}
+
+/* Dodanie ikony lokalizacji przed tekstem */
+.places-item::before {
+  content: "📍";
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+/* Hover efekt */
+.places-item:hover {
+  background-color: #f0f4f8;
+  color: #002255;
+  padding-left: 20px;
+}
+
+/* Aktywny element (kliknięcie) */
+.places-item:active {
+  background-color: #e0e8f0;
+}
+
+/* Pierwszy element - delikatne zaokrąglenie u góry */
+.places-item:first-child {
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+}
+
+/* Ostatni element - delikatne zaokrąglenie u dołu */
+.places-item:last-child {
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  border-bottom: none;
+}
+
+/* Scrollbar - ładny wygląd */
+.places-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.places-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.places-list::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 10px;
+}
+
+.places-list::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
 }
 
 /* Nowoczesny Przycisk */
@@ -231,35 +340,38 @@ body {
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(0, 34, 85, 0.2);
   transition: all 0.3s ease;
+  position: relative;
+  z-index: 10;
 }
 
 .order-btn:hover {
-  background-color: #1a3c75; /* Jaśniejszy granat przy najechaniu */
-  transform: translateY(-2px); /* Przycisk lekko unosi się do góry */
+  background-color: #1a3c75;
+  transform: translateY(-2px);
   box-shadow: 0 6px 15px rgba(0, 34, 85, 0.3);
 }
 
 .order-btn:active {
-  transform: translateY(0); /* Wraca przy kliknięciu */
+  transform: translateY(0);
 }
 
 /* --- PRAWY PANEL (Mapa) --- */
 .user-map-area {
-  flex: 1; 
+  flex: 1;
   display: flex;
+  position: relative;
+  z-index: 1;
 }
 
-/* Nowoczesna karta na mapę */
 .map-card {
   flex: 1;
   background-color: #ffffff;
   border-radius: 12px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08); /* Ten sam miękki cień */
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
   display: flex;
   justify-content: center;
   align-items: center;
-  border: 2px dashed #dde1e5; /* Zamiast grubej czarnej ramy, lekko szara przerywana */
-  background-image: radial-gradient(#e0e5ec 1px, transparent 1px); /* Subtelna siateczka z tyłu, wygląda mega profi */
+  border: 2px dashed #dde1e5;
+  background-image: radial-gradient(#e0e5ec 1px, transparent 1px);
   background-size: 20px 20px;
 }
 
@@ -272,4 +384,189 @@ body {
 
 .user-history-area {
   flex: 1;
+}
+
+/* Dodatkowe style dla tekstu pod inputem */
+.input-group p {
+  margin-top: 5px;
+  margin-bottom: 0;
+}
+
+.places-list-portal {
+  position: absolute;
+  background: #ffffff;
+  border-radius: 12px;
+  max-height: 260px;
+  overflow-y: auto;
+  z-index: 999999 !important;
+  list-style: none;
+  padding: 8px 0;
+  margin: 0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  border: 1px solid #e0e4e8;
+}
+
+.places-item-portal {
+  padding: 12px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #333;
+  background-color: #ffffff;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.places-item-portal:hover {
+  background-color: #f0f4f8;
+  color: #002255;
+}
+
+.places-item-portal:active {
+  background-color: #e0e8f0;
+}
+
+.places-list-portal::-webkit-scrollbar {
+  width: 6px;
+}
+
+.places-list-portal::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.places-list-portal::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 10px;
+}
+
+.places-list-portal::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+
+/* --- STYLE DLA AKTYWNEGO KURSU --- */
+.user-active-trip {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.trip-status-card {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  animation: pulse 1.5s infinite;
+}
+
+.status-dot.pending {
+  background-color: #ffc107;
+}
+
+.status-dot.assigned {
+  background-color: #17a2b8;
+}
+
+.status-dot.in_progress {
+  background-color: #28a745;
+}
+
+.status-dot.completed {
+  background-color: #6c757d;
+  animation: none;
+}
+
+.status-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.2); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.trip-details {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.trip-point {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.trip-point:last-child {
+  margin-bottom: 0;
+}
+
+.point-icon {
+  font-size: 20px;
+}
+
+.trip-point strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #002255;
+}
+
+.trip-point p {
+  margin: 0;
+  color: #555;
+}
+
+.map-container {
+  margin-bottom: 20px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Przycisk lokalizacji */
+.location-btn {
+  background: #f8f9fa;
+  border: 1px solid #dde1e5;
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 18px;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.location-btn:hover {
+  background-color: #e9ecef;
+  transform: scale(1.02);
+}
+
+.location-btn:active {
+  transform: scale(0.98);
+}
+
+.location-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }

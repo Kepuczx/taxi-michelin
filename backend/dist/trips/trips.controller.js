@@ -41,6 +41,12 @@ let TripsController = class TripsController {
     async getPendingTrips() {
         return this.tripsService.getPendingTrips();
     }
+    async getClientActiveTrip(clientId) {
+        return this.tripsService.getClientActiveTrip(+clientId);
+    }
+    async cancelTrip(id, reason, userId) {
+        return this.tripsService.cancelTrip(+id, userId, reason);
+    }
 };
 exports.TripsController = TripsController;
 __decorate([
@@ -94,6 +100,22 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], TripsController.prototype, "getPendingTrips", null);
+__decorate([
+    (0, common_1.Get)('client/:clientId/active'),
+    __param(0, (0, common_1.Param)('clientId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], TripsController.prototype, "getClientActiveTrip", null);
+__decorate([
+    (0, common_1.Patch)(':id/cancel'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)('reason')),
+    __param(2, (0, common_1.Body)('userId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Number]),
+    __metadata("design:returntype", Promise)
+], TripsController.prototype, "cancelTrip", null);
 exports.TripsController = TripsController = __decorate([
     (0, common_1.Controller)('trips'),
     __metadata("design:paramtypes", [trips_service_1.TripsService])

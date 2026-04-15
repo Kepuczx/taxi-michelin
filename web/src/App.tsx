@@ -8,6 +8,9 @@ import Login  from './pages/LoginPage';
 import HomePageAdmin from './pages/HomePageAdmin';
 import HomePageUser from './pages/HomePageUser';
 import HomePageDriver from './pages/HomePageDriver';
+import ActiveTripPageUser from './pages/ActiveTripPageUser';
+import ActiveTripPageDriver from './pages/ActiveTripPageDriver';
+
 
 
 function App() {
@@ -24,6 +27,8 @@ function App() {
         <Route path="/homeAdmin" element={<HomePageAdmin />} />
         <Route path="/homeUser" element={<HomePageUser />} />
         <Route path="/homeDriver" element={<HomePageDriver />} />
+        <Route path="/active-trip" element={<ActiveTripPageUser />} />
+        <Route path="/active-trip-driver" element={<ActiveTripPageDriver />} />
        
 
         {/* Panel administratora */}

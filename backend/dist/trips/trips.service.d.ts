@@ -13,4 +13,6 @@ export declare class TripsService {
     getDriverActiveTrips(driverId: number): Promise<Trip[]>;
     getClientHistory(clientId: number): Promise<Trip[]>;
     getTripDetails(tripId: number): Promise<Trip>;
+    getClientActiveTrip(clientId: number): Promise<Trip | null>;
+    cancelTrip(tripId: number, userId: number, reason?: string): Promise<Trip>;
 }

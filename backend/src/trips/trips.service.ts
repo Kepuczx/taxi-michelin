@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Trip } from './trips.entity';
 import { TripsGateway } from './trips.gateway';
 
@@ -9,8 +9,8 @@ export class TripsService {
   constructor(
     @InjectRepository(Trip)
     private tripRepository: Repository<Trip>,
-    // 🔥 Wstrzykujemy Gateway do serwisu
-    private readonly tripsGateway: TripsGateway, 
+    @Inject(forwardRef(() => TripsGateway))
+    private readonly tripsGateway: TripsGateway,
   ) {}
 
   async requestTrip(clientId: number, data: any): Promise<Trip> {
@@ -27,41 +27,40 @@ export class TripsService {
       status: 'pending',
     });
     
-    // Zapisujemy do bazy
     const savedTrip = await this.tripRepository.save(trip);
-    
-    // 🔥 WYSYŁAMY POWIADOMIENIE NA ŻYWO!
     this.tripsGateway.broadcastNewTrip(savedTrip);
-
     return savedTrip;
   }
 
-  // Kierowca przyjmuje kurs
   async acceptTrip(tripId: number, driverId: number): Promise<Trip> {
-    const trip = await this.tripRepository.findOne({ where: { id: tripId } });
+    const trip = await this.tripRepository.findOne({
+      where: { id: tripId },
+      lock: { mode: 'pessimistic_write' }
+    });
+    
     if (!trip) throw new NotFoundException('Kurs nie istnieje');
+    
+    if (trip.status !== 'pending') {
+      throw new Error('Kurs został już przyjęty przez innego kierowcę');
+    }
     
     trip.driverId = driverId;
     trip.status = 'assigned';
     trip.assignedAt = new Date();
     
     const savedTrip = await this.tripRepository.save(trip);
-
-    // 🔥 WYSYŁAMY POWIADOMIENIE, ŻE KURS JEST JUŻ ZAJĘTY
     this.tripsGateway.broadcastTripAccepted(tripId);
-
+    
     return savedTrip;
   }
 
-  // 🔥 DODAJEMY BRAKUJĄCĄ METODĘ DLA ENDPOINTU /pending
   async getPendingTrips(): Promise<Trip[]> {
     return this.tripRepository.find({
       where: { status: 'pending' },
-      order: { requestedAt: 'DESC' }, // Najnowsze na górze
+      order: { requestedAt: 'DESC' },
     });
   }
 
-  // Rozpoczęcie kursu
   async startTrip(tripId: number, driverId: number): Promise<Trip> {
     const trip = await this.tripRepository.findOne({ where: { id: tripId } });
     if (!trip) throw new NotFoundException('Kurs nie istnieje');
@@ -72,7 +71,6 @@ export class TripsService {
     return this.tripRepository.save(trip);
   }
 
-  // Zakończenie kursu
   async completeTrip(tripId: number, driverId: number): Promise<Trip> {
     const trip = await this.tripRepository.findOne({ where: { id: tripId } });
     if (!trip) throw new NotFoundException('Kurs nie istnieje');
@@ -83,7 +81,6 @@ export class TripsService {
     return this.tripRepository.save(trip);
   }
 
-  // Pobierz aktywne kursy dla kierowcy
   async getDriverActiveTrips(driverId: number): Promise<Trip[]> {
     return this.tripRepository.find({
       where: { driverId, status: 'assigned' },
@@ -91,7 +88,6 @@ export class TripsService {
     });
   }
 
-  // Pobierz historię kursów klienta
   async getClientHistory(clientId: number): Promise<Trip[]> {
     return this.tripRepository.find({
       where: { clientId },
@@ -99,7 +95,6 @@ export class TripsService {
     });
   }
 
-  // Pobierz szczegóły kursu
   async getTripDetails(tripId: number): Promise<Trip> {
     const trip = await this.tripRepository.findOne({
       where: { id: tripId },
@@ -107,5 +102,45 @@ export class TripsService {
     });
     if (!trip) throw new NotFoundException('Kurs nie istnieje');
     return trip;
+  }
+
+  async getClientActiveTrip(clientId: number): Promise<Trip | null> {
+    return this.tripRepository.findOne({
+      where: {
+        clientId,
+        status: In(['pending', 'assigned', 'in_progress']),
+      },
+      order: { requestedAt: 'DESC' },
+    });
+  }
+
+  async cancelTrip(tripId: number, userId: number, reason?: string): Promise<Trip> {
+    const trip = await this.tripRepository.findOne({ 
+      where: { id: tripId },
+      relations: ['client']
+    });
+    
+    if (!trip) throw new NotFoundException('Kurs nie istnieje');
+    
+    if (trip.clientId !== userId) {
+      throw new Error('Nie masz uprawnień do anulowania tego kursu');
+    }
+    
+    if (trip.status === 'completed') {
+      throw new Error('Nie można anulować zakończonego kursu');
+    }
+    
+    if (trip.status === 'in_progress') {
+      throw new Error('Nie można anulować kursu w trakcie');
+    }
+    
+    trip.status = 'cancelled';
+    trip.cancelledAt = new Date();
+    trip.cancellationReason = reason || 'Anulowane przez klienta';
+    
+    const savedTrip = await this.tripRepository.save(trip);
+    this.tripsGateway.broadcastTripCancelled(tripId);
+    
+    return savedTrip;
   }
 }

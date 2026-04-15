@@ -443,3 +443,31 @@ body {
   color: #e74c3c;
   padding: 20px;
 }
+
+.btn-show-route {
+  flex: 1;
+  background-color: #f0f4f8;
+  color: #002255;
+  border: 1px solid #002255;
+  border-radius: 6px;
+  padding: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-show-route:hover {
+  background-color: #002255;
+  color: #ffffff;
+}
+
+.btn-show-route:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.task-card.active-task {
+  border: 2px solid #002255;
+  background-color: #f0f4f8;
+}
+
