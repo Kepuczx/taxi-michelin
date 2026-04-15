@@ -98,10 +98,7 @@ const HomePageDriver = () => {
         console.log('✅ Znaleziono aktywny kurs ID:', response.data.id);
         redirectDone.current = true;
         
-        // Zapisz kurs w localStorage
         localStorage.setItem('activeTrip', JSON.stringify(response.data));
-        
-        // Przekieruj
         window.location.href = '/active-trip-driver';
         return;
       } else {
@@ -132,6 +129,7 @@ const HomePageDriver = () => {
         setTrackingLocation(false);
         console.log('📍 Lokalizacja kierowcy:', newLocation);
         
+        // 🔥 TYLKO AUTO-CENTROWANIE GDY JEST WŁĄCZONE I NIE MA ZAZNACZONEJ TRASY
         if (autoCenter && mapRef && !selectedTrip) {
           mapRef.panTo(newLocation);
           mapRef.setZoom(14);
@@ -145,7 +143,7 @@ const HomePageDriver = () => {
     );
   };
 
-  // Śledzenie lokalizacji co 10 sekund
+  // 🔥 ŚLEDZENIE LOKALIZACJI - NIE CENTRUJ GDY autoCenter JEST FALSE
   useEffect(() => {
     if (!mapsLoaded || initialCheck) return;
     
@@ -161,6 +159,7 @@ const HomePageDriver = () => {
             };
             setDriverLocation(newLocation);
             
+            // 🔥 TYLKO AUTO-CENTROWANIE GDY JEST WŁĄCZONE I NIE MA ZAZNACZONEJ TRASY
             if (autoCenter && mapRef && !selectedTrip) {
               mapRef.panTo(newLocation);
             }
@@ -210,10 +209,11 @@ const HomePageDriver = () => {
       return;
     }
     
+    // Jeśli klikamy na to samo zlecenie, ukryj trasę i włącz auto-center
     if (selectedTrip?.id === trip.id) {
       setSelectedTrip(null);
       setDirections(null);
-      setAutoCenter(true);
+      setAutoCenter(true); // 🔥 Przywróć auto-centrowanie
       return;
     }
     
@@ -234,7 +234,7 @@ const HomePageDriver = () => {
     setSelectedTrip(trip);
     setCalculatingRoute(true);
     setDirections(null);
-    setAutoCenter(false);
+    setAutoCenter(false); // 🔥 WYŁĄCZ AUTO-CENTROWANIE GDY OGLĄDASZ TRASĘ
     
     const directionsService = new window.google.maps.DirectionsService();
     
@@ -249,6 +249,7 @@ const HomePageDriver = () => {
         
         if (status === 'OK' && result) {
           setDirections(result);
+          // Dopasuj widok mapy do trasy (to jest OK, bo chcemy zobaczyć całą trasę)
           setTimeout(() => {
             if (mapRef && result.routes[0]?.bounds) {
               mapRef.fitBounds(result.routes[0].bounds);
@@ -257,7 +258,7 @@ const HomePageDriver = () => {
         } else {
           console.error(`❌ Błąd trasy: ${status}`);
           alert(`Nie udało się obliczyć trasy. Status: ${status}`);
-          setAutoCenter(true);
+          setAutoCenter(true); // Przywróć auto-centrowanie przy błędzie
         }
       }
     );

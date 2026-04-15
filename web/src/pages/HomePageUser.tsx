@@ -39,6 +39,10 @@ const HomePageUser = () => {
   const [mapCenter, setMapCenter] = useState(defaultCenter);
   const [mapZoom, setMapZoom] = useState(14);
   const [isCheckingTrip, setIsCheckingTrip] = useState(true);
+  
+  // 🔥 DODANE STATE DLA ŁADOWANIA MAPY
+  const [mapsLoaded, setMapsLoaded] = useState(false);
+  const [pageReady, setPageReady] = useState(false);
 
   const mapRef = useRef<google.maps.Map | null>(null);
   const geocoder = useRef<google.maps.Geocoder | null>(null);
@@ -55,9 +59,7 @@ const HomePageUser = () => {
   const [suggestionsPosition, setSuggestionsPosition] = useState({ top: 0, left: 0, width: 0 });
   const [activeInput, setActiveInput] = useState<'pickup' | 'dest' | null>(null);
   const [locatingPickup, setLocatingPickup] = useState(false);
-  const [myPhysicalLocation, setMyPhysicalLocation] = useState<google.maps.LatLng | null>(null);
-
-  
+  const [myPhysicalLocation, setMyPhysicalLocation] = useState<google.maps.LatLngLiteral | null>(null);
 
   // IKONY ZNACZNIKÓW
   const mapIcons = {
@@ -128,6 +130,7 @@ const HomePageUser = () => {
       
       if (!token || !clientId) {
         setIsCheckingTrip(false);
+        setPageReady(true);
         return;
       }
       
@@ -144,17 +147,21 @@ const HomePageUser = () => {
         console.log('Brak aktywnego kursu');
       } finally {
         setIsCheckingTrip(false);
+        setPageReady(true);
       }
     };
     
     checkActiveTrip();
   }, [navigate]);
 
+  // 🔥 POBIERZ AKTUALNĄ LOKALIZACJĘ - TYLKO GDY STRONA JEST GOTOWA
   useEffect(() => {
-  getCurrentLocation();
-}, []);
+    if (pageReady && mapsLoaded) {
+      getCurrentLocation();
+    }
+  }, [pageReady, mapsLoaded]);
 
-  // 🔥 POBIERZ AKTUALNĄ LOKALIZACJĘ I WPISZ DO POLA ODBIORU
+  // 🔥 POBIERZ AKTUALNĄ LOKALIZACJĘ
   const getCurrentLocation = () => {
     setLocatingPickup(true);
     if (navigator.geolocation) {
@@ -166,9 +173,9 @@ const HomePageUser = () => {
           };
 
           setMyPhysicalLocation(newCoords);
-
           setPickup(prev => ({ ...prev, coords: newCoords }));
           setMapCenter(newCoords);
+          
           if (geocoder.current) {
             geocoder.current.geocode({ location: newCoords }, (results, status) => {
               setLocatingPickup(false);
@@ -178,7 +185,6 @@ const HomePageUser = () => {
                 setPickupInput(address);
               } else {
                 setPickupInput(`${newCoords.lat.toFixed(6)}, ${newCoords.lng.toFixed(6)}`);
-                alert('Nie udało się pobrać adresu, ale współrzędne zostały ustawione.');
               }
             });
           } else {
@@ -189,17 +195,17 @@ const HomePageUser = () => {
         (error) => {
           setLocatingPickup(false);
           console.error('Błąd GPS:', error);
-          alert('Nie udało się pobrać lokalizacji. Sprawdź uprawnienia GPS.');
-        }
+        },
+        { enableHighAccuracy: true }
       );
     } else {
       setLocatingPickup(false);
-      alert('Twoja przeglądarka nie obsługuje geolokalizacji.');
     }
   };
 
-  // Wyszukiwanie podpowiedzi dla pickup z priorytetem Olsztyna
+  // Wyszukiwanie podpowiedzi dla pickup
   useEffect(() => {
+    if (!mapsLoaded) return;
     if (pickupInput.length > 2 && autocompleteService.current) {
       autocompleteService.current.getPlacePredictions(
         {
@@ -234,9 +240,10 @@ const HomePageUser = () => {
     } else {
       setPickupSuggestions([]);
     }
-  }, [pickupInput]);
+  }, [pickupInput, mapsLoaded]);
 
   useEffect(() => {
+    if (!mapsLoaded) return;
     if (destInput.length > 2 && autocompleteService.current) {
       autocompleteService.current.getPlacePredictions(
         {
@@ -271,7 +278,7 @@ const HomePageUser = () => {
     } else {
       setDestSuggestions([]);
     }
-  }, [destInput]);
+  }, [destInput, mapsLoaded]);
 
   const handlePickupSelect = (prediction: any) => {
     setPickupInput(prediction.description);
@@ -321,6 +328,7 @@ const HomePageUser = () => {
 
   // Obliczanie trasy
   useEffect(() => {
+    if (!mapsLoaded) return;
     if (pickup.coords && destination.coords.lat !== 0) {
       const directionsService = new google.maps.DirectionsService();
       directionsService.route(
@@ -341,7 +349,7 @@ const HomePageUser = () => {
     } else {
       setDirections(null);
     }
-  }, [pickup.coords, destination.coords]);
+  }, [pickup.coords, destination.coords, mapsLoaded]);
 
   const handleMapClick = (e: google.maps.MapMouseEvent) => {
     if (e.latLng) {
@@ -478,11 +486,10 @@ const HomePageUser = () => {
           <div className="form-card">
             <h2 className="form-title">Zaplanuj trasę</h2>
   
-            {/* MIEJSCE ODBIORU */}
             <div className="input-group">
               <label>MIEJSCE ODBIORU</label>
               <div className="input-with-marker">
-                <div className="marker-pickup"></div> {/* Ikona zielonego kółka */}
+                <div className="marker-pickup"></div>
                 <div className="input-field-wrapper">
                   <input
                     ref={setPickupInputRef}
@@ -522,11 +529,10 @@ const HomePageUser = () => {
               </div>
             </div>
 
-            {/* MIEJSCE DOCELOWE */}
             <div className="input-group">
               <label>MIEJSCE DOCELOWE</label>
               <div className="input-with-marker">
-                <div className="marker-destination"></div> {/* Ikona granatowego kwadratu */}
+                <div className="marker-destination"></div>
                 <div className="input-field-wrapper">
                   <input
                     ref={setDestInputRef}
@@ -562,44 +568,71 @@ const HomePageUser = () => {
               googleMapsApiKey={GOOGLE_MAPS_API_KEY}
               libraries={libraries}
               onError={() => setMapError(true)}
-              onLoad={initServices}
+              onLoad={() => {
+                console.log('✅ Mapy Google załadowane');
+                setMapsLoaded(true);
+                initServices();
+              }}
             >
-              <GoogleMap
-                mapContainerStyle={mapContainerStyle}
-                center={mapCenter}
-                zoom={mapZoom}
-                onClick={handleMapClick}
-                onLoad={(map) => { 
-                  mapRef.current = map;
-                  initServices();
-                }}
-              >
-                <Marker 
-                  position={myPhysicalLocation} 
-                  icon={mapIcons.current}
-                  zIndex={100}
-                  title="Twoja lokalizacja"
-                />
-                <Marker
-                  position={pickup.coords}
-                  icon={mapIcons.pickup}
-                  zIndex={50}
-                  title="Miejsce odbioru"
-                />
-                {destination.coords.lat !== 0 && (
-                  <Marker 
-                    position={destination.coords} 
-                    icon={mapIcons.destination}
-                    zIndex={50}
-                    title="Miejsce docelowe"
-                  />
+              <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+                {!mapsLoaded && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(255,255,255,0.9)',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 10,
+                    borderRadius: '12px'
+                  }}>
+                    <div style={{ textAlign: 'center' }}>
+                      <div className="loading-spinner" style={{ margin: '0 auto', width: '40px', height: '40px', border: '4px solid #f3f3f3', borderTop: '4px solid #002255', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                      <p style={{ marginTop: 10, color: '#666' }}>Ładowanie mapy...</p>
+                    </div>
+                  </div>
                 )}
-                {directions && <DirectionsRenderer directions={directions} options={{
-                  preserveViewport: true,
-                  suppressMarkers: true,
-                  polylineOptions: { strokeColor: "#002255", strokeWeight: 5, strokeOpacity: 0.6}
-                }} />}
-              </GoogleMap>
+                <GoogleMap
+                  mapContainerStyle={mapContainerStyle}
+                  center={mapCenter}
+                  zoom={mapZoom}
+                  onClick={handleMapClick}
+                  onLoad={(map) => { 
+                    mapRef.current = map;
+                  }}
+                >
+                  {myPhysicalLocation && (
+                    <Marker 
+                      position={myPhysicalLocation} 
+                      icon={mapIcons.current}
+                      zIndex={100}
+                      title="Twoja lokalizacja"
+                    />
+                  )}
+                  <Marker
+                    position={pickup.coords}
+                    icon={mapIcons.pickup}
+                    zIndex={50}
+                    title="Miejsce odbioru"
+                  />
+                  {destination.coords.lat !== 0 && (
+                    <Marker 
+                      position={destination.coords} 
+                      icon={mapIcons.destination}
+                      zIndex={50}
+                      title="Miejsce docelowe"
+                    />
+                  )}
+                  {directions && <DirectionsRenderer directions={directions} options={{
+                    preserveViewport: true,
+                    suppressMarkers: true,
+                    polylineOptions: { strokeColor: "#002255", strokeWeight: 5, strokeOpacity: 0.6}
+                  }} />}
+                </GoogleMap>
+              </div>
             </LoadScript>
           ) : (
             <div className="map-card" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
