@@ -8,6 +8,9 @@ import type { Vehicle, NewVehicle } from '../types/vehicle.types';
 import type { VehicleLog } from '../types/vehicleLog.types';
 import '../styles/HomePageAdmin.css';
 
+import { GoogleMap, LoadScript, Marker, InfoWindow } from '@react-google-maps/api';
+import { API_URL, GOOGLE_MAPS_API_KEY } from '../config';
+
 const HomePageAdmin = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard'); 
@@ -53,6 +56,11 @@ const HomePageAdmin = () => {
   const [selectedVehicleId, setSelectedVehicleId] = useState<number | null>(null);
   const [loadingLogs, setLoadingLogs] = useState(false);
   const [currentPageReports, setCurrentPageReports] = useState(1);
+
+  // ==================== STAN: MAPA ====================
+  const [drivers, setDrivers] = useState<User[]>([]);
+  const [selectedDriver, setSelectedDriver] = useState<any>(null);
+  const [mapCenter] = useState({ lat: 53.7784, lng: 20.4801 });
 
   // ==================== FUNKCJE POMOCNICZE ====================
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
@@ -225,11 +233,42 @@ const HomePageAdmin = () => {
   const totalPagesReports = Math.ceil(vehicleLogs.length / itemsPerPage);
   const currentReports = vehicleLogs.slice((currentPageReports - 1) * itemsPerPage, currentPageReports * itemsPerPage);
 
+// ==================== LOGIKA: MAPA ====================
+  const fetchDrivers = async () => {
+    try {
+      const allUsers = await userService.getAll();
+      const driverList = allUsers.filter(u => u.role === 'driver');
+      setDrivers(driverList);
+    } catch (error) { console.error('Błąd pobierania kierowców:', error); }
+  };
+
+  // Sortujemy kopię tablicy drivers, aby online byli na górze
+  const sortedDrivers = [...drivers].sort((a, b) => {
+    const aOnline = (a as any).isOnline ? 1 : 0;
+    const bOnline = (b as any).isOnline ? 1 : 0;
+    return bOnline - aOnline; 
+  });
+
+
   // ==================== EFFECTY ====================
   useEffect(() => {
-    if (activeTab === 'users') fetchUsers();
+    //Zmienna do przechowywania intervalu
+    let intervalId: NodeJS.Timeout;
+
+    if (activeTab === 'dashboard'){
+      fetchDrivers();
+      intervalId = setInterval(() => {
+        fetchDrivers();
+      }, 10000); // Odświeżaj co 10 sekund
+    }
+    else if (activeTab === 'users') fetchUsers();
     else if (activeTab === 'fleet') fetchVehicles();
     else if (activeTab === 'reports') fetchVehicles(); 
+
+    //Sprzątanie - czyszczenie intervalu przy zmianie zakładki
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
   }, [activeTab]);
 
   useEffect(() => {
@@ -271,8 +310,118 @@ const HomePageAdmin = () => {
         {/* DASHBOARD */}
         {activeTab === 'dashboard' && (
           <div className="map-dashboard-layout">
-            <div className={`admin-status-banner ${message.includes('Połączono') ? 'banner-ok' : 'banner-error'}`}>{message}</div>
-            <div className="admin-map-card"><span className="map-placeholder-text">Podgląd Mapy</span></div>
+            <div className={`admin-status-banner ${message.includes('Połączono') ? 'banner-ok' : 'banner-error'}`}>
+              {message}
+            </div>
+
+            <div className="dashboard-container" style={{ display: 'flex', height: 'calc(100vh - 150px)', width: '100%' }}>
+
+              {/* LEWY PANEL - POSORTOWANA LISTA KIEROWCÓW */}
+              <aside className="admin-drivers-sidebar" style={{ width: '300px', backgroundColor: '#f8f9fa', borderRight: '1px solid #ddd', padding: '15px', overflowY: 'auto' }}>
+                <h3 style={{ color: '#0a1d56', borderBottom: '2px solid #FFD700', paddingBottom: '10px', fontSize: '18px' }}>
+                  Operacyjni ({drivers.filter(d => (d as any).isOnline).length}/{drivers.length})
+                </h3>
+
+                <div className="drivers-list">
+                  {sortedDrivers.map(driver => (
+                    <div 
+                      key={driver.id} 
+                      style={{ 
+                        padding: '12px', 
+                        background: selectedDriver?.id === driver.id ? '#eef2ff' : 'white', // Podświetlenie wybranego
+                        borderRadius: '8px', 
+                        marginBottom: '10px', 
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)', 
+                        cursor: 'pointer',
+                        border: selectedDriver?.id === driver.id ? '1px solid #0a1d56' : '1px solid transparent'
+                      }} 
+                      onClick={() => setSelectedDriver(driver)} // 🔥 Kliknięcie na liście otwiera dymek na mapie
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 'bold', color: '#333' }}>{driver.firstName} {driver.lastName}</span>
+                        <span style={{ 
+                          width: '10px', 
+                          height: '10px', 
+                          borderRadius: '50%', 
+                          background: (driver as any).isOnline ? '#28a745' : '#ccc' 
+                        }}></span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px' }}>
+                        <span style={{ fontSize: '11px', color: (driver as any).isOnline ? '#28a745' : '#999', fontWeight: 'bold' }}>
+                          {(driver as any).isOnline ? 'DOSTĘPNY' : 'OFFLINE'}
+                        </span>
+                        <span style={{ fontSize: '11px', color: '#666' }}>{driver.phone || 'Brak tel.'}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </aside>
+                
+              {/* PRAWY PANEL - MAPA Z POPRAWIONYMI DYMKAMI */}
+              <main className="admin-map-area" style={{ flex: 1, position: 'relative' }}>
+                <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
+                  <GoogleMap
+                    mapContainerStyle={{ width: '100%', height: '100%' }}
+                    center={mapCenter}
+                    zoom={13}
+                    options={{ disableDefaultUI: false, zoomControl: true }}
+                  >
+                    {/* Renderowanie markerów dla wszystkich kierowców, którzy mają koordynaty */}
+                    {drivers.map(driver => {
+                      const lat = Number((driver as any).currentLat);
+                      const lng = Number((driver as any).currentLng);
+
+                      // Nie rysuj markera, jeśli nie ma żadnych danych GPS
+                      if (!lat || !lng) return null;
+                    
+                      return (
+                        <Marker
+                          key={driver.id}
+                          position={{ lat, lng }}
+                          icon={{
+                            // Ikona auta dla online, szara kropka dla offline
+                            url: (driver as any).isOnline 
+                              ? "https://cdn-icons-png.flaticon.com/512/744/744465.png" 
+                              : "https://maps.google.com/mapfiles/ms/icons/grey-dot.png",
+                            scaledSize: new window.google.maps.Size(30, 30)
+                          }}
+                          onClick={() => setSelectedDriver(driver)} // 🔥 Kliknięcie w auto otwiera dymek
+                        />
+                      );
+                    })}
+
+                    {/* 🔥 POPRAWIONY DYMEK (InfoWindow) */}
+                    {selectedDriver && (
+                      <InfoWindow
+                        position={{ 
+                          lat: Number((selectedDriver as any).currentLat), 
+                          lng: Number((selectedDriver as any).currentLng) 
+                        }}
+                        onCloseClick={() => setSelectedDriver(null)}
+                      >
+                        <div style={{ padding: '10px', minWidth: '180px', fontFamily: 'Arial' }}>
+                          <h4 style={{ margin: '0 0 5px 0', color: '#0a1d56', borderBottom: '1px solid #eee', paddingBottom: '5px' }}>
+                            {selectedDriver.firstName} {selectedDriver.lastName}
+                          </h4>
+                          <p style={{ margin: '8px 0', fontSize: '13px' }}>
+                            Status: <strong style={{ color: (selectedDriver as any).isOnline ? '#28a745' : '#dc3545' }}>
+                              {(selectedDriver as any).isOnline ? '🟢 Online' : '⚪ Offline'}
+                            </strong>
+                          </p>
+                          <p style={{ margin: '3px 0', fontSize: '12px', color: '#666' }}>
+                            📞 Tel: {selectedDriver.phone || 'Nie podano'}
+                          </p>
+                          <p style={{ margin: '3px 0', fontSize: '12px', color: '#666' }}>
+                            📧 Email: {selectedDriver.email}
+                          </p>
+                        </div>
+                      </InfoWindow>
+                    )}
+                  </GoogleMap>
+                </LoadScript>
+              </main>
+                  
+            </div>
           </div>
         )}
 

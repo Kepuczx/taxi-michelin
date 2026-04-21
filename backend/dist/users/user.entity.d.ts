@@ -8,6 +8,9 @@ export declare class User {
     lastName: string;
     phone: string;
     role: string;
+    currentLat: number;
+    currentLng: number;
+    isOnline: boolean;
     isActive: boolean;
     ldapDn: string;
     currentVehicle: Vehicle;

@@ -31,6 +31,22 @@ export class User {
   })
   role: string;
 
+  @Column({ type: 'decimal',
+    precision: 10,
+    scale: 7,
+    nullable: true })
+  currentLat: number;
+
+  @Column({ type: 'decimal',
+    precision: 10,
+    scale: 7,
+    nullable: true })
+  currentLng: number;
+
+  @Column({ default: false })
+  isOnline: boolean;
+
+
   @Column({ default: true })
   isActive: boolean;
 

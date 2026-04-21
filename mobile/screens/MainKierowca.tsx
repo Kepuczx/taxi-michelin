@@ -138,25 +138,37 @@ function MainKierowcaContent({ navigation }: any) {
       positionSubscription = await Location.watchPositionAsync(
         { 
           accuracy: Location.Accuracy.BestForNavigation,
-          distanceInterval: 5, 
-          timeInterval: 1000 
+          distanceInterval: 10, // Aktualizuj co 10 metrów (oszczędza baterię i transfer)
+          timeInterval: 5000    // Lub co 5 sekund
         },
-        (loc) => {
+        async (loc) => {
           setDriverLocation(loc);
           
-          // WYMUSZONE CENTROWANIE (Tylko gdy mapa jest gotowa i nie mamy kursu)
+          // WYMUSZONE CENTROWANIE
           if (isMapReady && mapCtrl.current && !activeTrip) {
             try {
               mapCtrl.current.moveCamera({
-                target: { // Zmienione z 'center' na 'target' dla kompatybilności z V0.14
-                  lat: loc.coords.latitude,
-                  lng: loc.coords.longitude
-                },
-                zoom: 17,
-                bearing: 0,
-                tilt: 0
+                target: { lat: loc.coords.latitude, lng: loc.coords.longitude },
+                zoom: 17, bearing: 0, tilt: 0
               });
             } catch (e) {}
+          }
+
+          // 🔥 NOWE: WYSYŁANIE GPS DO BACKENDU
+          try {
+            const currentToken = await AsyncStorage.getItem('userToken');
+            const currentUserId = await AsyncStorage.getItem('userId');
+            if (currentToken && currentUserId) {
+              await axios.patch(`${API_URL}/users/${currentUserId}`, {
+                currentLat: loc.coords.latitude,
+                currentLng: loc.coords.longitude,
+                isOnline: true // Ustawiamy kierowcę jako dostępnego
+              }, {
+                headers: { Authorization: `Bearer ${currentToken}` }
+              });
+            }
+          } catch (error) {
+            console.log('Nie udało się wysłać lokalizacji do bazy', error);
           }
         }
       );
