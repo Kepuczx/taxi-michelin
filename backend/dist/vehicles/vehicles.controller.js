@@ -50,11 +50,15 @@ let VehiclesController = class VehiclesController {
     }
     assignDriver(id, driverId, req) {
         const changedBy = req.headers['x-changed-by'] || 'system';
-        return this.vehiclesService.assignDriver(id, driverId, changedBy);
+        const ipAddress = req.ip || req.socket.remoteAddress;
+        const userAgent = req.headers['user-agent'];
+        return this.vehiclesService.assignDriver(id, driverId, changedBy, ipAddress, userAgent);
     }
     releaseDriver(id, req) {
         const changedBy = req.headers['x-changed-by'] || 'system';
-        return this.vehiclesService.releaseDriver(id, changedBy);
+        const ipAddress = req.ip || req.socket.remoteAddress;
+        const userAgent = req.headers['user-agent'];
+        return this.vehiclesService.releaseDriver(id, changedBy, ipAddress, userAgent);
     }
     reportBreakdown(id, body, req) {
         const changedBy = req.headers['x-changed-by'] || 'system';

@@ -13,12 +13,14 @@ const trips_controller_1 = require("./trips.controller");
 const trips_service_1 = require("./trips.service");
 const trips_gateway_1 = require("./trips.gateway");
 const trips_entity_1 = require("./trips.entity");
+const driver_log_entity_1 = require("../users/driver-log.entity");
+const user_entity_1 = require("../users/user.entity");
 let TripsModule = class TripsModule {
 };
 exports.TripsModule = TripsModule;
 exports.TripsModule = TripsModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([trips_entity_1.Trip])],
+        imports: [typeorm_1.TypeOrmModule.forFeature([trips_entity_1.Trip, driver_log_entity_1.DriverLog, user_entity_1.User])],
         controllers: [trips_controller_1.TripsController],
         providers: [trips_service_1.TripsService, trips_gateway_1.TripsGateway],
         exports: [trips_service_1.TripsService],

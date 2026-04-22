@@ -3,12 +3,18 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Trip } from './trips.entity';
 import { TripsGateway } from './trips.gateway';
+import { DriverLog } from '../users/driver-log.entity';
+import { User } from '../users/user.entity';
 
 @Injectable()
 export class TripsService {
   constructor(
     @InjectRepository(Trip)
     private tripRepository: Repository<Trip>,
+    @InjectRepository(DriverLog)
+    private driverLogRepository: Repository<DriverLog>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
     @Inject(forwardRef(() => TripsGateway))
     private readonly tripsGateway: TripsGateway,
   ) {}
@@ -60,35 +66,75 @@ export class TripsService {
     });
   }
 
-  async startTrip(tripId: number, driverId: number): Promise<Trip> {
-  const trip = await this.tripRepository.findOne({ where: { id: tripId } });
-  if (!trip) throw new NotFoundException('Kurs nie istnieje');
-  if (trip.driverId !== driverId) throw new Error('Nie jesteś kierowcą tego kursu');
-  
-  trip.status = 'in_progress';
-  trip.startedAt = new Date();
-  const savedTrip = await this.tripRepository.save(trip);
-  
-  // 🔥 DODAJ TO - powiadom klienta o zmianie statusu
-  this.tripsGateway.broadcastTripStatusChanged(tripId, 'in_progress');
-  
-  return savedTrip;
-}
+  async startTrip(tripId: number, driverId: number, ipAddress?: string, userAgent?: string): Promise<Trip> {
+    const trip = await this.tripRepository.findOne({ where: { id: tripId } });
+    if (!trip) throw new NotFoundException('Kurs nie istnieje');
+    if (trip.driverId !== driverId) throw new Error('Nie jesteś kierowcą tego kursu');
+    
+    // Pobierz email kierowcy
+    const driver = await this.userRepository.findOne({ where: { id: driverId } });
+    const driverEmail = driver?.email || `driver_${driverId}`;
+    
+    trip.status = 'in_progress';
+    trip.startedAt = new Date();
+    const savedTrip = await this.tripRepository.save(trip);
+    
+    // 🔥 DODAJ TO - powiadom klienta o zmianie statusu
+    this.tripsGateway.broadcastTripStatusChanged(tripId, 'in_progress');
+    
+    // 🔥 LOG DLA KIEROWCY - rozpoczęcie kursu
+    const log = this.driverLogRepository.create({
+      driverId: driverId,
+      eventType: 'rozpoczęcie_kursu',
+      eventTime: new Date(),
+      description: `Rozpoczęto kurs #${tripId} z adresu: ${trip.pickupAddress}`,
+      relatedEntityType: 'trip',
+      relatedEntityId: tripId,
+      locationLat: trip.pickupLat,
+      locationLng: trip.pickupLng,
+      changedBy: driverEmail,
+      ipAddress: ipAddress,
+      userAgent: userAgent
+    });
+    await this.driverLogRepository.save(log);
+    
+    return savedTrip;
+  }
 
-async completeTrip(tripId: number, driverId: number): Promise<Trip> {
-  const trip = await this.tripRepository.findOne({ where: { id: tripId } });
-  if (!trip) throw new NotFoundException('Kurs nie istnieje');
-  if (trip.driverId !== driverId) throw new Error('Nie jesteś kierowcą tego kursu');
-  
-  trip.status = 'completed';
-  trip.completedAt = new Date();
-  const savedTrip = await this.tripRepository.save(trip);
-  
-  // 🔥 DODAJ TO - powiadom klienta o zmianie statusu
-  this.tripsGateway.broadcastTripStatusChanged(tripId, 'completed');
-  
-  return savedTrip;
-}
+  async completeTrip(tripId: number, driverId: number, ipAddress?: string, userAgent?: string): Promise<Trip> {
+    const trip = await this.tripRepository.findOne({ where: { id: tripId } });
+    if (!trip) throw new NotFoundException('Kurs nie istnieje');
+    if (trip.driverId !== driverId) throw new Error('Nie jesteś kierowcą tego kursu');
+    
+    // Pobierz email kierowcy
+    const driver = await this.userRepository.findOne({ where: { id: driverId } });
+    const driverEmail = driver?.email || `driver_${driverId}`;
+    
+    trip.status = 'completed';
+    trip.completedAt = new Date();
+    const savedTrip = await this.tripRepository.save(trip);
+    
+    // 🔥 DODAJ TO - powiadom klienta o zmianie statusu
+    this.tripsGateway.broadcastTripStatusChanged(tripId, 'completed');
+    
+    // 🔥 LOG DLA KIEROWCY - zakończenie kursu
+    const log = this.driverLogRepository.create({
+      driverId: driverId,
+      eventType: 'zakonczenie_kursu',
+      eventTime: new Date(),
+      description: `Zakończono kurs #${tripId} na adresie: ${trip.dropoffAddress}`,
+      relatedEntityType: 'trip',
+      relatedEntityId: tripId,
+      locationLat: trip.dropoffLat,
+      locationLng: trip.dropoffLng,
+      changedBy: driverEmail,
+      ipAddress: ipAddress,
+      userAgent: userAgent
+    });
+    await this.driverLogRepository.save(log);
+    
+    return savedTrip;
+  }
 
   async getDriverAssignedTrips(driverId: number): Promise<Trip[]> {
     return this.tripRepository.find({
@@ -155,19 +201,19 @@ async completeTrip(tripId: number, driverId: number): Promise<Trip> {
 
   // 🔥 Pobierz aktywny kurs kierowcy (assigned lub in_progress) - TYLKO JEDNA WERSJA!
   async getDriverActiveTrip(driverId: number): Promise<Trip | null> {
-  console.log(`🔍 getDriverActiveTrip - szukam dla driverId: ${driverId}`);
-  
-  const trip = await this.tripRepository.findOne({
-    where: {
-      driverId: driverId,
-      status: In(['assigned', 'in_progress']),
-    },
-    order: { assignedAt: 'DESC' },
-  });
-  
-  console.log('📡 Znaleziony kurs:', trip);
-  return trip;
-}
+    console.log(`🔍 getDriverActiveTrip - szukam dla driverId: ${driverId}`);
+    
+    const trip = await this.tripRepository.findOne({
+      where: {
+        driverId: driverId,
+        status: In(['assigned', 'in_progress']),
+      },
+      order: { assignedAt: 'DESC' },
+    });
+    
+    console.log('📡 Znaleziony kurs:', trip);
+    return trip;
+  }
 
   // 🔥 TEST: Pobierz wszystkie kursy
   async getAllTrips(): Promise<Trip[]> {

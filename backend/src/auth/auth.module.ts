@@ -5,11 +5,12 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { User } from '../users/user.entity'; // <-- Twoja encja
+import { DriverLog } from '../users/driver-log.entity';
 
 @Module({
   imports: [
     // Dajemy temu modułowi dostęp do tabeli użytkowników w bazie
-    TypeOrmModule.forFeature([User]), 
+    TypeOrmModule.forFeature([User, DriverLog]), 
     
     // Konfigurujemy maszynę do drukowania biletów (tokenów JWT)
     JwtModule.registerAsync({

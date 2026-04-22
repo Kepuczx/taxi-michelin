@@ -1,5 +1,6 @@
-import { Controller, Post, Get, Body, Param, Patch } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Patch, Req } from '@nestjs/common';
 import { TripsService } from './trips.service';
+import type { Request } from 'express';
 
 @Controller('trips')
 export class TripsController {
@@ -33,13 +34,25 @@ export class TripsController {
   }
 
   @Patch(':id/start')
-  async startTrip(@Param('id') id: string, @Body('driverId') driverId: number) {
-    return this.tripsService.startTrip(+id, driverId);
+  async startTrip(
+    @Param('id') id: string, 
+    @Body('driverId') driverId: number,
+    @Req() req: Request
+  ) {
+    const ipAddress = req.ip || req.socket.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+    return this.tripsService.startTrip(+id, driverId, ipAddress, userAgent);
   }
 
   @Patch(':id/complete')
-  async completeTrip(@Param('id') id: string, @Body('driverId') driverId: number) {
-    return this.tripsService.completeTrip(+id, driverId);
+  async completeTrip(
+    @Param('id') id: string, 
+    @Body('driverId') driverId: number,
+    @Req() req: Request
+  ) {
+    const ipAddress = req.ip || req.socket.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+    return this.tripsService.completeTrip(+id, driverId, ipAddress, userAgent);
   }
 
   @Get('pending')

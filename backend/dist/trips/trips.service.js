@@ -18,11 +18,17 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const trips_entity_1 = require("./trips.entity");
 const trips_gateway_1 = require("./trips.gateway");
+const driver_log_entity_1 = require("../users/driver-log.entity");
+const user_entity_1 = require("../users/user.entity");
 let TripsService = class TripsService {
     tripRepository;
+    driverLogRepository;
+    userRepository;
     tripsGateway;
-    constructor(tripRepository, tripsGateway) {
+    constructor(tripRepository, driverLogRepository, userRepository, tripsGateway) {
         this.tripRepository = tripRepository;
+        this.driverLogRepository = driverLogRepository;
+        this.userRepository = userRepository;
         this.tripsGateway = tripsGateway;
     }
     async requestTrip(clientId, data) {
@@ -64,28 +70,60 @@ let TripsService = class TripsService {
             order: { requestedAt: 'DESC' },
         });
     }
-    async startTrip(tripId, driverId) {
+    async startTrip(tripId, driverId, ipAddress, userAgent) {
         const trip = await this.tripRepository.findOne({ where: { id: tripId } });
         if (!trip)
             throw new common_1.NotFoundException('Kurs nie istnieje');
         if (trip.driverId !== driverId)
             throw new Error('Nie jesteś kierowcą tego kursu');
+        const driver = await this.userRepository.findOne({ where: { id: driverId } });
+        const driverEmail = driver?.email || `driver_${driverId}`;
         trip.status = 'in_progress';
         trip.startedAt = new Date();
         const savedTrip = await this.tripRepository.save(trip);
         this.tripsGateway.broadcastTripStatusChanged(tripId, 'in_progress');
+        const log = this.driverLogRepository.create({
+            driverId: driverId,
+            eventType: 'rozpoczęcie_kursu',
+            eventTime: new Date(),
+            description: `Rozpoczęto kurs #${tripId} z adresu: ${trip.pickupAddress}`,
+            relatedEntityType: 'trip',
+            relatedEntityId: tripId,
+            locationLat: trip.pickupLat,
+            locationLng: trip.pickupLng,
+            changedBy: driverEmail,
+            ipAddress: ipAddress,
+            userAgent: userAgent
+        });
+        await this.driverLogRepository.save(log);
         return savedTrip;
     }
-    async completeTrip(tripId, driverId) {
+    async completeTrip(tripId, driverId, ipAddress, userAgent) {
         const trip = await this.tripRepository.findOne({ where: { id: tripId } });
         if (!trip)
             throw new common_1.NotFoundException('Kurs nie istnieje');
         if (trip.driverId !== driverId)
             throw new Error('Nie jesteś kierowcą tego kursu');
+        const driver = await this.userRepository.findOne({ where: { id: driverId } });
+        const driverEmail = driver?.email || `driver_${driverId}`;
         trip.status = 'completed';
         trip.completedAt = new Date();
         const savedTrip = await this.tripRepository.save(trip);
         this.tripsGateway.broadcastTripStatusChanged(tripId, 'completed');
+        const log = this.driverLogRepository.create({
+            driverId: driverId,
+            eventType: 'zakonczenie_kursu',
+            eventTime: new Date(),
+            description: `Zakończono kurs #${tripId} na adresie: ${trip.dropoffAddress}`,
+            relatedEntityType: 'trip',
+            relatedEntityId: tripId,
+            locationLat: trip.dropoffLat,
+            locationLng: trip.dropoffLng,
+            changedBy: driverEmail,
+            ipAddress: ipAddress,
+            userAgent: userAgent
+        });
+        await this.driverLogRepository.save(log);
         return savedTrip;
     }
     async getDriverAssignedTrips(driverId) {
@@ -161,8 +199,12 @@ exports.TripsService = TripsService;
 exports.TripsService = TripsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(trips_entity_1.Trip)),
-    __param(1, (0, common_1.Inject)((0, common_1.forwardRef)(() => trips_gateway_1.TripsGateway))),
+    __param(1, (0, typeorm_1.InjectRepository)(driver_log_entity_1.DriverLog)),
+    __param(2, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
+    __param(3, (0, common_1.Inject)((0, common_1.forwardRef)(() => trips_gateway_1.TripsGateway))),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
         trips_gateway_1.TripsGateway])
 ], TripsService);
 //# sourceMappingURL=trips.service.js.map

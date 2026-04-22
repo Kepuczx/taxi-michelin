@@ -35,11 +35,15 @@ let TripsController = class TripsController {
     async getDriverActiveTrip(driverId) {
         return this.tripsService.getDriverActiveTrip(+driverId);
     }
-    async startTrip(id, driverId) {
-        return this.tripsService.startTrip(+id, driverId);
+    async startTrip(id, driverId, req) {
+        const ipAddress = req.ip || req.socket.remoteAddress;
+        const userAgent = req.headers['user-agent'];
+        return this.tripsService.startTrip(+id, driverId, ipAddress, userAgent);
     }
-    async completeTrip(id, driverId) {
-        return this.tripsService.completeTrip(+id, driverId);
+    async completeTrip(id, driverId, req) {
+        const ipAddress = req.ip || req.socket.remoteAddress;
+        const userAgent = req.headers['user-agent'];
+        return this.tripsService.completeTrip(+id, driverId, ipAddress, userAgent);
     }
     async getPendingTrips() {
         return this.tripsService.getPendingTrips();
@@ -95,16 +99,18 @@ __decorate([
     (0, common_1.Patch)(':id/start'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)('driverId')),
+    __param(2, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Number]),
+    __metadata("design:paramtypes", [String, Number, Object]),
     __metadata("design:returntype", Promise)
 ], TripsController.prototype, "startTrip", null);
 __decorate([
     (0, common_1.Patch)(':id/complete'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)('driverId')),
+    __param(2, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Number]),
+    __metadata("design:paramtypes", [String, Number, Object]),
     __metadata("design:returntype", Promise)
 ], TripsController.prototype, "completeTrip", null);
 __decorate([

@@ -22,7 +22,6 @@ export class VehiclesController {
     @Body() vehicleData: Partial<Vehicle>,
     @Req() req: Request
   ): Promise<Vehicle> {
-    // 🔥 ODczytaj nagłówek X-Changed-By (z localStorage frontendu)
     const changedBy = req.headers['x-changed-by'] as string || 'system';
     return this.vehiclesService.create(vehicleData, changedBy);
   }
@@ -33,7 +32,6 @@ export class VehiclesController {
     @Body() vehicleData: Partial<Vehicle>,
     @Req() req: Request
   ): Promise<Vehicle> {
-    // 🔥 ODczytaj nagłówek X-Changed-By (z localStorage frontendu)
     const changedBy = req.headers['x-changed-by'] as string || 'system';
     return this.vehiclesService.update(id, vehicleData, changedBy);
   }
@@ -77,7 +75,9 @@ export class VehiclesController {
     @Req() req: Request
   ): Promise<Vehicle> {
     const changedBy = req.headers['x-changed-by'] as string || 'system';
-    return this.vehiclesService.assignDriver(id, driverId, changedBy);
+    const ipAddress = req.ip || req.socket.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+    return this.vehiclesService.assignDriver(id, driverId, changedBy, ipAddress, userAgent);
   }
 
   @Patch(':id/release-driver')
@@ -86,7 +86,9 @@ export class VehiclesController {
     @Req() req: Request
   ): Promise<Vehicle> {
     const changedBy = req.headers['x-changed-by'] as string || 'system';
-    return this.vehiclesService.releaseDriver(id, changedBy);
+    const ipAddress = req.ip || req.socket.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+    return this.vehiclesService.releaseDriver(id, changedBy, ipAddress, userAgent);
   }
 
   @Post(':id/report-breakdown')

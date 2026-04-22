@@ -1,4 +1,5 @@
 import { TripsService } from './trips.service';
+import type { Request } from 'express';
 export declare class TripsController {
     private readonly tripsService;
     constructor(tripsService: TripsService);
@@ -7,8 +8,8 @@ export declare class TripsController {
     acceptTrip(id: string, driverId: number): Promise<import("./trips.entity").Trip>;
     getDriverAssignedTrips(driverId: string): Promise<import("./trips.entity").Trip[]>;
     getDriverActiveTrip(driverId: string): Promise<import("./trips.entity").Trip | null>;
-    startTrip(id: string, driverId: number): Promise<import("./trips.entity").Trip>;
-    completeTrip(id: string, driverId: number): Promise<import("./trips.entity").Trip>;
+    startTrip(id: string, driverId: number, req: Request): Promise<import("./trips.entity").Trip>;
+    completeTrip(id: string, driverId: number, req: Request): Promise<import("./trips.entity").Trip>;
     getPendingTrips(): Promise<import("./trips.entity").Trip[]>;
     getClientActiveTrip(clientId: string): Promise<import("./trips.entity").Trip | null>;
     cancelTrip(id: string, reason: string, userId: number): Promise<import("./trips.entity").Trip>;

@@ -1,5 +1,6 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToOne } from 'typeorm';
-import { Vehicle } from '../vehicles/vehicle.entity';  // ← POPRAWIONA ŚCIEŻKA
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToOne, OneToMany } from 'typeorm';
+import { Vehicle } from '../vehicles/vehicle.entity';
+import { DriverLog } from './driver-log.entity';
 
 @Entity('users')
 export class User {
@@ -46,7 +47,6 @@ export class User {
   @Column({ default: false })
   isOnline: boolean;
 
-
   @Column({ default: true })
   isActive: boolean;
 
@@ -55,6 +55,9 @@ export class User {
 
   @OneToOne(() => Vehicle, vehicle => vehicle.currentDriver)
   currentVehicle: Vehicle;
+
+  @OneToMany(() => DriverLog, log => log.driver)
+  driverLogs: DriverLog[];
 
   @CreateDateColumn()
   createdAt: Date;

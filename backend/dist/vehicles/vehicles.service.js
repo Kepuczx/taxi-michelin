@@ -18,12 +18,18 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const vehicle_entity_1 = require("./vehicle.entity");
 const vehicle_log_entity_1 = require("./vehicle-log.entity");
+const driver_log_entity_1 = require("../users/driver-log.entity");
+const user_entity_1 = require("../users/user.entity");
 let VehiclesService = class VehiclesService {
     vehicleRepository;
     vehicleLogRepository;
-    constructor(vehicleRepository, vehicleLogRepository) {
+    driverLogRepository;
+    userRepository;
+    constructor(vehicleRepository, vehicleLogRepository, driverLogRepository, userRepository) {
         this.vehicleRepository = vehicleRepository;
         this.vehicleLogRepository = vehicleLogRepository;
+        this.driverLogRepository = driverLogRepository;
+        this.userRepository = userRepository;
     }
     async findAll() {
         return this.vehicleRepository.find({
@@ -142,7 +148,7 @@ let VehiclesService = class VehiclesService {
         await this.vehicleLogRepository.save(log);
         return this.findOne(vehicleId);
     }
-    async assignDriver(vehicleId, driverId, changedBy) {
+    async assignDriver(vehicleId, driverId, changedBy, ipAddress, userAgent) {
         const vehicle = await this.vehicleRepository.findOne({
             where: { id: vehicleId },
         });
@@ -152,21 +158,36 @@ let VehiclesService = class VehiclesService {
         if (vehicle.status !== 'dostępny') {
             throw new Error('Pojazd nie jest dostępny');
         }
+        const driver = await this.userRepository.findOne({ where: { id: driverId } });
+        const driverEmail = driver?.email || `driver_${driverId}`;
+        const changedByEmail = changedBy || driverEmail;
         vehicle.currentDriverId = driverId;
         vehicle.status = 'w użyciu';
         const updatedVehicle = await this.vehicleRepository.save(vehicle);
-        const log = this.vehicleLogRepository.create({
+        const vehicleLog = this.vehicleLogRepository.create({
             vehicleId: vehicle.id,
             driverId: driverId,
             eventType: 'rozpoczęcie_pracy',
             eventTime: new Date(),
             description: `Kierowca przypisany do pojazdu`,
-            changedBy: changedBy || 'system',
+            changedBy: changedByEmail,
         });
-        await this.vehicleLogRepository.save(log);
+        await this.vehicleLogRepository.save(vehicleLog);
+        const driverLog = this.driverLogRepository.create({
+            driverId: driverId,
+            eventType: 'przypisanie_pojazdu',
+            eventTime: new Date(),
+            description: `Przypisano pojazd: ${vehicle.registration} (${vehicle.brand} ${vehicle.model})`,
+            relatedEntityType: 'vehicle',
+            relatedEntityId: vehicleId,
+            changedBy: changedByEmail,
+            ipAddress: ipAddress,
+            userAgent: userAgent
+        });
+        await this.driverLogRepository.save(driverLog);
         return this.findOne(vehicleId);
     }
-    async releaseDriver(vehicleId, changedBy) {
+    async releaseDriver(vehicleId, changedBy, ipAddress, userAgent) {
         const vehicle = await this.vehicleRepository.findOne({
             where: { id: vehicleId },
         });
@@ -174,19 +195,37 @@ let VehiclesService = class VehiclesService {
             throw new common_1.NotFoundException('Pojazd nie istnieje');
         }
         const driverId = vehicle.currentDriverId;
+        let driverEmail = 'system';
+        if (driverId) {
+            const driver = await this.userRepository.findOne({ where: { id: driverId } });
+            driverEmail = driver?.email || `driver_${driverId}`;
+        }
+        const changedByEmail = changedBy || driverEmail;
         vehicle.currentDriverId = null;
         vehicle.status = 'dostępny';
         const updatedVehicle = await this.vehicleRepository.save(vehicle);
         if (driverId) {
-            const log = this.vehicleLogRepository.create({
+            const vehicleLog = this.vehicleLogRepository.create({
                 vehicleId: vehicle.id,
                 driverId: driverId,
                 eventType: 'zakończenie_pracy',
                 eventTime: new Date(),
                 description: `Kierowca zakończył pracę`,
-                changedBy: changedBy || 'system',
+                changedBy: changedByEmail,
             });
-            await this.vehicleLogRepository.save(log);
+            await this.vehicleLogRepository.save(vehicleLog);
+            const driverLog = this.driverLogRepository.create({
+                driverId: driverId,
+                eventType: 'odpiecie_pojazdu',
+                eventTime: new Date(),
+                description: `Odpięto pojazd: ${vehicle.registration} (${vehicle.brand} ${vehicle.model})`,
+                relatedEntityType: 'vehicle',
+                relatedEntityId: vehicleId,
+                changedBy: changedByEmail,
+                ipAddress: ipAddress,
+                userAgent: userAgent
+            });
+            await this.driverLogRepository.save(driverLog);
         }
         return this.findOne(vehicleId);
     }
@@ -196,7 +235,11 @@ exports.VehiclesService = VehiclesService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(vehicle_entity_1.Vehicle)),
     __param(1, (0, typeorm_1.InjectRepository)(vehicle_log_entity_1.VehicleLog)),
+    __param(2, (0, typeorm_1.InjectRepository)(driver_log_entity_1.DriverLog)),
+    __param(3, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository])
 ], VehiclesService);
 //# sourceMappingURL=vehicles.service.js.map

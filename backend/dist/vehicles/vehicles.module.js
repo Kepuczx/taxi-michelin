@@ -13,12 +13,14 @@ const vehicles_controller_1 = require("./vehicles.controller");
 const vehicles_service_1 = require("./vehicles.service");
 const vehicle_entity_1 = require("./vehicle.entity");
 const vehicle_log_entity_1 = require("./vehicle-log.entity");
+const driver_log_entity_1 = require("../users/driver-log.entity");
+const user_entity_1 = require("../users/user.entity");
 let VehiclesModule = class VehiclesModule {
 };
 exports.VehiclesModule = VehiclesModule;
 exports.VehiclesModule = VehiclesModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([vehicle_entity_1.Vehicle, vehicle_log_entity_1.VehicleLog])],
+        imports: [typeorm_1.TypeOrmModule.forFeature([vehicle_entity_1.Vehicle, vehicle_log_entity_1.VehicleLog, driver_log_entity_1.DriverLog, user_entity_1.User])],
         controllers: [vehicles_controller_1.VehiclesController],
         providers: [vehicles_service_1.VehiclesService],
         exports: [vehicles_service_1.VehiclesService],

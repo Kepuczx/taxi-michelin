@@ -18,18 +18,33 @@ const jwt_1 = require("@nestjs/jwt");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const user_entity_1 = require("../users/user.entity");
+const driver_log_entity_1 = require("../users/driver-log.entity");
 let AuthService = class AuthService {
     userRepository;
+    driverLogRepository;
     jwtService;
-    constructor(userRepository, jwtService) {
+    constructor(userRepository, driverLogRepository, jwtService) {
         this.userRepository = userRepository;
+        this.driverLogRepository = driverLogRepository;
         this.jwtService = jwtService;
     }
-    async login(loginDto) {
+    async login(loginDto, ipAddress, userAgent) {
         const user = await this.userRepository.findOne({
             where: { email: loginDto.email }
         });
         if (user && user.password && user.password === loginDto.password) {
+            if (user.role === 'driver') {
+                const log = this.driverLogRepository.create({
+                    driverId: user.id,
+                    eventType: 'logowanie',
+                    eventTime: new Date(),
+                    description: `Zalogowano do systemu`,
+                    changedBy: user.email,
+                    ipAddress: ipAddress,
+                    userAgent: userAgent
+                });
+                await this.driverLogRepository.save(log);
+            }
             const payload = {
                 sub: user.id,
                 email: user.email,
@@ -50,12 +65,30 @@ let AuthService = class AuthService {
         }
         throw new common_1.UnauthorizedException('Nieprawidłowy email lub hasło');
     }
+    async logout(userId, ipAddress, userAgent) {
+        const user = await this.userRepository.findOne({ where: { id: userId } });
+        if (user && user.role === 'driver') {
+            const log = this.driverLogRepository.create({
+                driverId: user.id,
+                eventType: 'wylogowanie',
+                eventTime: new Date(),
+                description: `Wylogowano z systemu`,
+                changedBy: user.email,
+                ipAddress: ipAddress,
+                userAgent: userAgent
+            });
+            await this.driverLogRepository.save(log);
+        }
+        return { message: 'Wylogowano pomyślnie' };
+    }
 };
 exports.AuthService = AuthService;
 exports.AuthService = AuthService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
+    __param(1, (0, typeorm_1.InjectRepository)(driver_log_entity_1.DriverLog)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         jwt_1.JwtService])
 ], AuthService);
 //# sourceMappingURL=auth.service.js.map

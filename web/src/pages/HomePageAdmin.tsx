@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { userService } from '../services/userService';
 import { vehicleService } from '../services/vehicleService';
 import { vehicleLogService } from '../services/vehicleLogService';
+import { driverLogService } from '../services/driverLogService';
+import type { DriverLog } from '../services/driverLogService';
 import type { User, NewUser } from '../types/user.types';
 import type { Vehicle, NewVehicle } from '../types/vehicle.types';
 import type { VehicleLog } from '../types/vehicleLog.types';
@@ -51,11 +53,18 @@ const HomePageAdmin = () => {
     registration: '', brand: '', model: '', passengerCapacity: 4, status: 'dostępny', isBreakdown: false, notes: ''
   });
 
-  // ==================== STAN: RAPORTY (LOGI) ====================
+  // ==================== STAN: RAPORTY AUT (LOGI) ====================
   const [vehicleLogs, setVehicleLogs] = useState<VehicleLog[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState<number | null>(null);
   const [loadingLogs, setLoadingLogs] = useState(false);
   const [currentPageReports, setCurrentPageReports] = useState(1);
+
+  // ==================== STAN: RAPORTY KIEROWCÓW ====================
+  const [selectedDriverId, setSelectedDriverId] = useState<number | null>(null);
+  const [driverLogs, setDriverLogs] = useState<DriverLog[]>([]);
+  const [loadingDriverLogs, setLoadingDriverLogs] = useState(false);
+  const [currentPageDriverReports, setCurrentPageDriverReports] = useState(1);
+  const [filterEventType, setFilterEventType] = useState<string>('');
 
   // ==================== STAN: MAPA ====================
   const [drivers, setDrivers] = useState<User[]>([]);
@@ -180,7 +189,7 @@ const HomePageAdmin = () => {
   }
 
   const startEditVehicle = (v: Vehicle) => {
-    setEditingVehicle({...v}); // Kopia obiektu
+    setEditingVehicle({...v});
     setShowEditVehicleForm(true);
     setShowVehicleForm(false);
   };
@@ -213,7 +222,7 @@ const HomePageAdmin = () => {
   const totalPagesVehicles = Math.ceil(filteredVehicles.length / itemsPerPage);
   const currentVehicles = filteredVehicles.slice((currentPageVehicles - 1) * itemsPerPage, currentPageVehicles * itemsPerPage);
 
-  // ==================== LOGIKA: RAPORTY (LOGI) ====================
+  // ==================== LOGIKA: RAPORTY AUT (LOGI) ====================
   const fetchLogsForVehicle = async (vehicleId: number) => {
     setLoadingLogs(true);
     try {
@@ -233,7 +242,43 @@ const HomePageAdmin = () => {
   const totalPagesReports = Math.ceil(vehicleLogs.length / itemsPerPage);
   const currentReports = vehicleLogs.slice((currentPageReports - 1) * itemsPerPage, currentPageReports * itemsPerPage);
 
-// ==================== LOGIKA: MAPA ====================
+  // ==================== LOGIKA: RAPORTY KIEROWCÓW ====================
+  const fetchDriverLogs = async (driverId: number) => {
+    setLoadingDriverLogs(true);
+    try {
+      const logs = await driverLogService.getDriverLogs(driverId);
+      setDriverLogs(logs);
+      console.log('Pobrano logi kierowcy:', logs);
+    } catch (error) {
+      console.error('Błąd pobierania logów kierowcy:', error);
+    } finally {
+      setLoadingDriverLogs(false);
+    }
+  };
+
+  const handleDriverSelect = (driverId: number) => {
+    setSelectedDriverId(driverId);
+    setCurrentPageDriverReports(1);
+    setFilterEventType('');
+    if (driverId) {
+      fetchDriverLogs(driverId);
+    } else {
+      setDriverLogs([]);
+    }
+  };
+
+  // Filtrowanie logów po typie zdarzenia
+  const filteredDriverLogs = filterEventType 
+    ? driverLogs.filter(log => log.eventType === filterEventType)
+    : driverLogs;
+
+  const totalPagesDriverReports = Math.ceil(filteredDriverLogs.length / itemsPerPage);
+  const currentDriverReports = filteredDriverLogs.slice(
+    (currentPageDriverReports - 1) * itemsPerPage, 
+    currentPageDriverReports * itemsPerPage
+  );
+
+  // ==================== LOGIKA: MAPA ====================
   const fetchDrivers = async () => {
     try {
       const allUsers = await userService.getAll();
@@ -242,30 +287,39 @@ const HomePageAdmin = () => {
     } catch (error) { console.error('Błąd pobierania kierowców:', error); }
   };
 
-  // Sortujemy kopię tablicy drivers, aby online byli na górze
   const sortedDrivers = [...drivers].sort((a, b) => {
     const aOnline = (a as any).isOnline ? 1 : 0;
     const bOnline = (b as any).isOnline ? 1 : 0;
     return bOnline - aOnline; 
   });
 
-
   // ==================== EFFECTY ====================
   useEffect(() => {
-    //Zmienna do przechowywania intervalu
     let intervalId: NodeJS.Timeout;
 
     if (activeTab === 'dashboard'){
       fetchDrivers();
       intervalId = setInterval(() => {
         fetchDrivers();
-      }, 10000); // Odświeżaj co 10 sekund
+      }, 10000);
     }
     else if (activeTab === 'users') fetchUsers();
     else if (activeTab === 'fleet') fetchVehicles();
-    else if (activeTab === 'reports') fetchVehicles(); 
+    else if (activeTab === 'reportsAuto') fetchVehicles(); 
+    else if (activeTab === 'reportsDrivers') {
+      // Pobieramy listę kierowców dla dropdown
+      const getDriversForReport = async () => {
+        try {
+          const allUsers = await userService.getAll();
+          const driverList = allUsers.filter(u => u.role === 'driver');
+          setDrivers(driverList);
+        } catch (error) {
+          console.error('Błąd pobierania kierowców:', error);
+        }
+      };
+      getDriversForReport();
+    }
 
-    //Sprzątanie - czyszczenie intervalu przy zmianie zakładki
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
@@ -300,7 +354,8 @@ const HomePageAdmin = () => {
         <button className={`admin-menu-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMenuOpen(false);}}>Kursy</button>
         <button className={`admin-menu-item ${activeTab === 'users' ? 'active' : ''}`} onClick={() => {setActiveTab('users'); setIsMenuOpen(false);}}>Użytkownicy</button>
         <button className={`admin-menu-item ${activeTab === 'fleet' ? 'active' : ''}`} onClick={() => {setActiveTab('fleet'); setIsMenuOpen(false);}}>Flota</button>
-        <button className={`admin-menu-item ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => {setActiveTab('reports'); setIsMenuOpen(false);}}>Raporty</button>
+        <button className={`admin-menu-item ${activeTab === 'reportsAuto' ? 'active' : ''}`} onClick={() => {setActiveTab('reportsAuto'); setIsMenuOpen(false);}}>Raporty Aut</button>
+        <button className={`admin-menu-item ${activeTab === 'reportsDrivers' ? 'active' : ''}`} onClick={() => {setActiveTab('reportsDrivers'); setIsMenuOpen(false);}}>Raporty kierowcow</button>
         <div className="admin-menu-bottom">
           <button className="admin-menu-item logout-text" onClick={handleLogout}>Wyloguj się</button>
         </div>
@@ -315,8 +370,6 @@ const HomePageAdmin = () => {
             </div>
 
             <div className="dashboard-container" style={{ display: 'flex', height: 'calc(100vh - 150px)', width: '100%' }}>
-
-              {/* LEWY PANEL - POSORTOWANA LISTA KIEROWCÓW */}
               <aside className="admin-drivers-sidebar" style={{ width: '300px', backgroundColor: '#f8f9fa', borderRight: '1px solid #ddd', padding: '15px', overflowY: 'auto' }}>
                 <h3 style={{ color: '#0a1d56', borderBottom: '2px solid #FFD700', paddingBottom: '10px', fontSize: '18px' }}>
                   Operacyjni ({drivers.filter(d => (d as any).isOnline).length}/{drivers.length})
@@ -328,14 +381,14 @@ const HomePageAdmin = () => {
                       key={driver.id} 
                       style={{ 
                         padding: '12px', 
-                        background: selectedDriver?.id === driver.id ? '#eef2ff' : 'white', // Podświetlenie wybranego
+                        background: selectedDriver?.id === driver.id ? '#eef2ff' : 'white',
                         borderRadius: '8px', 
                         marginBottom: '10px', 
                         boxShadow: '0 2px 4px rgba(0,0,0,0.05)', 
                         cursor: 'pointer',
                         border: selectedDriver?.id === driver.id ? '1px solid #0a1d56' : '1px solid transparent'
                       }} 
-                      onClick={() => setSelectedDriver(driver)} // 🔥 Kliknięcie na liście otwiera dymek na mapie
+                      onClick={() => setSelectedDriver(driver)}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontWeight: 'bold', color: '#333' }}>{driver.firstName} {driver.lastName}</span>
@@ -357,7 +410,6 @@ const HomePageAdmin = () => {
                 </div>
               </aside>
                 
-              {/* PRAWY PANEL - MAPA Z POPRAWIONYMI DYMKAMI */}
               <main className="admin-map-area" style={{ flex: 1, position: 'relative' }}>
                 <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
                   <GoogleMap
@@ -366,12 +418,9 @@ const HomePageAdmin = () => {
                     zoom={13}
                     options={{ disableDefaultUI: false, zoomControl: true }}
                   >
-                    {/* Renderowanie markerów dla wszystkich kierowców, którzy mają koordynaty */}
                     {drivers.map(driver => {
                       const lat = Number((driver as any).currentLat);
                       const lng = Number((driver as any).currentLng);
-
-                      // Nie rysuj markera, jeśli nie ma żadnych danych GPS
                       if (!lat || !lng) return null;
                     
                       return (
@@ -379,18 +428,16 @@ const HomePageAdmin = () => {
                           key={driver.id}
                           position={{ lat, lng }}
                           icon={{
-                            // Ikona auta dla online, szara kropka dla offline
                             url: (driver as any).isOnline 
                               ? "https://cdn-icons-png.flaticon.com/512/744/744465.png" 
                               : "https://maps.google.com/mapfiles/ms/icons/grey-dot.png",
                             scaledSize: new window.google.maps.Size(30, 30)
                           }}
-                          onClick={() => setSelectedDriver(driver)} // 🔥 Kliknięcie w auto otwiera dymek
+                          onClick={() => setSelectedDriver(driver)}
                         />
                       );
                     })}
 
-                    {/* 🔥 POPRAWIONY DYMEK (InfoWindow) */}
                     {selectedDriver && (
                       <InfoWindow
                         position={{ 
@@ -420,7 +467,6 @@ const HomePageAdmin = () => {
                   </GoogleMap>
                 </LoadScript>
               </main>
-                  
             </div>
           </div>
         )}
@@ -488,7 +534,8 @@ const HomePageAdmin = () => {
                   {currentUsers.map(u => (
                     <tr key={u.id}>
                       <td>{String(u.id).substring(0,5)}</td>
-                      <td>{u.username}</td><td>{u.email}</td>
+                      <td>{u.username}</td>
+                      <td>{u.email}</td>
                       <td><span className={`role-badge ${u.role}`}>{translateRole(u.role)}</span></td>
                       <td>
                         <div className="table-actions">
@@ -564,7 +611,8 @@ const HomePageAdmin = () => {
                 <tbody>
                   {currentVehicles.map(v => (
                     <tr key={v.id}>
-                      <td>{v.registration}</td><td>{v.brand} {v.model}</td>
+                      <td>{v.registration}</td>
+                      <td>{v.brand} {v.model}</td>
                       <td><span className={`status-badge status-${v.status === 'dostępny' ? 'available' : 'in-use'}`}>{v.status}</span></td>
                       <td><button className={`breakdown-btn ${v.isBreakdown ? 'breakdown-active' : ''}`} onClick={() => toggleBreakdown(v.id, v.isBreakdown, v.registration)}>{v.isBreakdown ? 'Awaria' : 'Sprawny'}</button></td>
                       <td>
@@ -588,10 +636,10 @@ const HomePageAdmin = () => {
           </div>
         )}
 
-        {/* RAPORTY */}
-        {activeTab === 'reports' && (
+        {/* RAPORTY AUT */}
+        {activeTab === 'reportsAuto' && (
           <div className="admin-content-card">
-            <div className="card-header"><h2 className="card-title">Raporty - Historia pojazdów</h2></div>
+            <div className="card-header"><h2 className="card-title">Raporty Aut - Historia pojazdów</h2></div>
             <div className="search-bar-container">
               <label className="results-count" style={{marginRight: '10px'}}>Wybierz pojazd:</label>
               <select className="search-input" style={{maxWidth: '400px'}} value={selectedVehicleId || ''} onChange={(e) => handleVehicleSelect(Number(e.target.value))}>
@@ -605,7 +653,8 @@ const HomePageAdmin = () => {
                 <>
                   <div className="table-container">
                     <table className="modern-table">
-                      <thead><tr><th>Data</th><th>Zdarzenie</th><th>Opis</th><th>Kierowca</th><th>Zmienił</th></tr></thead>
+                      <thead><tr><th>Data</th><th>Zdarzenie</th><th>Opis</th><th>Kierowca</th><th>Zmienił</th></tr>
+                      </thead>
                       <tbody>
                         {currentReports.map(log => (
                           <tr key={log.id}>
@@ -629,6 +678,155 @@ const HomePageAdmin = () => {
                 </>
               )
             ) : (<div style={{padding: '40px', textAlign: 'center', color: '#666'}}>Wybierz pojazd powyżej.</div>)}
+          </div>
+        )}
+
+        {/* RAPORTY KIEROWCÓW - DZIAŁAJĄCY WIDOK */}
+        {activeTab === 'reportsDrivers' && (
+          <div className="admin-content-card">
+            <div className="card-header">
+              <h2 className="card-title">Raporty kierowców - Historia aktywności</h2>
+            </div>
+            
+            <div className="search-bar-container">
+              <div style={{ display: 'flex', gap: '15px', width: '100%', flexWrap: 'wrap' }}>
+                <div style={{ flex: 2 }}>
+                  <label className="results-count" style={{marginRight: '10px'}}>Wybierz kierowcę:</label>
+                  <select 
+                    className="search-input" 
+                    style={{maxWidth: '400px'}} 
+                    value={selectedDriverId || ''} 
+                    onChange={(e) => handleDriverSelect(Number(e.target.value))}
+                  >
+                    <option value="">-- Wybierz z listy --</option>
+                    {drivers.filter(d => d.role === 'driver').map(driver => (
+                      <option key={driver.id} value={driver.id}>
+                        {driver.firstName} {driver.lastName} - {driver.email}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                {selectedDriverId && driverLogs.length > 0 && (
+                  <div style={{ flex: 1 }}>
+                    <label className="results-count" style={{marginRight: '10px'}}>Filtruj po typie:</label>
+                    <select 
+                      className="search-input" 
+                      value={filterEventType} 
+                      onChange={(e) => {
+                        setFilterEventType(e.target.value);
+                        setCurrentPageDriverReports(1);
+                      }}
+                    >
+                      <option value="">Wszystkie zdarzenia</option>
+                      <option value="logowanie">🔐 Logowanie</option>
+                      <option value="wylogowanie">🚪 Wylogowanie</option>
+                      <option value="zmiana_statusu">🟢 Zmiana statusu</option>
+                      <option value="przypisanie_pojazdu">🚗 Przypisanie pojazdu</option>
+                      <option value="odpiecie_pojazdu">🔌 Odpięcie pojazdu</option>
+                      <option value="rozpoczęcie_kursu">🏁 Rozpoczęcie kursu</option>
+                      <option value="zakonczenie_kursu">🏁 Zakończenie kursu</option>
+                      <option value="edycja_profilu">✏️ Edycja profilu</option>
+                      <option value="blokada_konta">🔒 Blokada konta</option>
+                      <option value="odblokowanie_konta">🔓 Odblokowanie konta</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {selectedDriverId ? (
+              loadingDriverLogs ? (
+                <div style={{padding: '40px', textAlign: 'center'}}>
+                  <p>Ładowanie historii kierowcy...</p>
+                </div>
+              ) : driverLogs.length === 0 ? (
+                <div style={{padding: '40px', textAlign: 'center', color: '#666'}}>
+                  <p>📊 Brak logów dla tego kierowcy</p>
+                  <p style={{marginTop: '10px', fontSize: '12px'}}>
+                    Gdy kierowca będzie aktywny (logowanie, zmiana statusu, kursy), pojawią się tutaj wpisy.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="table-container">
+                    <table className="modern-table">
+                      <thead>
+                        <tr>
+                          <th>Data i czas</th>
+                          <th>Zdarzenie</th>
+                          <th>Opis</th>
+                          <th>Lokalizacja</th>
+                          <th>Zmienił</th>
+                          <th>IP</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {currentDriverReports.map(log => (
+                          <tr key={log.id}>
+                            <td style={{whiteSpace: 'nowrap'}}>{formatDate(log.eventTime)}</td>
+                            <td>
+                              <span style={{
+                                display: 'inline-block',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                fontSize: '12px',
+                                fontWeight: 'bold',
+                                backgroundColor: driverLogService.getEventTypeColor(log.eventType) + '20',
+                                color: driverLogService.getEventTypeColor(log.eventType)
+                              }}>
+                                {driverLogService.getEventTypeLabel(log.eventType)}
+                              </span>
+                            </td>
+                            <td style={{maxWidth: '300px', wordBreak: 'break-word'}}>{log.description || '-'}</td>
+                            <td>
+                              {log.locationLat && log.locationLng ? (
+                                <span style={{fontSize: '11px', color: '#666'}}>
+                                  {Number(log.locationLat).toFixed(6)}, {Number(log.locationLng).toFixed(6)}
+                                </span>
+                              ) : '-'}
+                            </td>
+                            <td>{log.changedBy || 'System'}</td>
+                            <td style={{fontSize: '11px', fontFamily: 'monospace'}}>{log.ipAddress || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  {totalPagesDriverReports > 1 && (
+                    <div className="pagination-container">
+                      <button 
+                        className="pagination-btn" 
+                        disabled={currentPageDriverReports === 1} 
+                        onClick={() => setCurrentPageDriverReports(v => v - 1)}
+                      >
+                        Poprzednia
+                      </button>
+                      <span className="pagination-info">
+                        Strona {currentPageDriverReports} z {totalPagesDriverReports}
+                      </span>
+                      <button 
+                        className="pagination-btn" 
+                        disabled={currentPageDriverReports === totalPagesDriverReports} 
+                        onClick={() => setCurrentPageDriverReports(v => v + 1)}
+                      >
+                        Następna
+                      </button>
+                    </div>
+                  )}
+                  
+                  <div style={{marginTop: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '8px', fontSize: '12px', color: '#666'}}>
+                    <strong>📈 Podsumowanie:</strong> Łącznie {driverLogs.length} zdarzeń.
+                    {filterEventType && ` Filtrowano: ${driverLogs.filter(l => l.eventType === filterEventType).length} z typu "${driverLogService.getEventTypeLabel(filterEventType)}".`}
+                  </div>
+                </>
+              )
+            ) : (
+              <div style={{padding: '40px', textAlign: 'center', color: '#666'}}>
+                Wybierz kierowcę powyżej, aby zobaczyć raporty.
+              </div>
+            )}
           </div>
         )}
       </div>

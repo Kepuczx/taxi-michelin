@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Vehicle } from './vehicle.entity';
 import { VehicleLog } from './vehicle-log.entity';
+import { DriverLog } from '../users/driver-log.entity';
+import { User } from '../users/user.entity';
 
 @Injectable()
 export class VehiclesService {
@@ -11,6 +13,10 @@ export class VehiclesService {
     private vehicleRepository: Repository<Vehicle>,
     @InjectRepository(VehicleLog)
     private vehicleLogRepository: Repository<VehicleLog>,
+    @InjectRepository(DriverLog)
+    private driverLogRepository: Repository<DriverLog>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
   ) {}
 
   async findAll(): Promise<Vehicle[]> {
@@ -161,7 +167,7 @@ export class VehiclesService {
 
   // ==================== KIEROWCY ====================
 
-  async assignDriver(vehicleId: number, driverId: number, changedBy?: string): Promise<Vehicle> {
+  async assignDriver(vehicleId: number, driverId: number, changedBy?: string, ipAddress?: string, userAgent?: string): Promise<Vehicle> {
     const vehicle = await this.vehicleRepository.findOne({
       where: { id: vehicleId },
     });
@@ -174,25 +180,47 @@ export class VehiclesService {
       throw new Error('Pojazd nie jest dostępny');
     }
 
+    // Pobierz email kierowcy
+    const driver = await this.userRepository.findOne({ where: { id: driverId } });
+    const driverEmail = driver?.email || `driver_${driverId}`;
+    
+    // changedBy może być emailem admina lub kierowcy - jeśli nie podano, użyj emaila kierowcy
+    const changedByEmail = changedBy || driverEmail;
+
     vehicle.currentDriverId = driverId;
     vehicle.status = 'w użyciu';
     
     const updatedVehicle = await this.vehicleRepository.save(vehicle);
 
-    const log = this.vehicleLogRepository.create({
+    // LOG dla pojazdu
+    const vehicleLog = this.vehicleLogRepository.create({
       vehicleId: vehicle.id,
       driverId: driverId,
       eventType: 'rozpoczęcie_pracy',
       eventTime: new Date(),
       description: `Kierowca przypisany do pojazdu`,
-      changedBy: changedBy || 'system',
+      changedBy: changedByEmail,
     });
-    await this.vehicleLogRepository.save(log);
+    await this.vehicleLogRepository.save(vehicleLog);
+
+    // 🔥 LOG DLA KIEROWCY - przypisanie pojazdu
+    const driverLog = this.driverLogRepository.create({
+      driverId: driverId,
+      eventType: 'przypisanie_pojazdu',
+      eventTime: new Date(),
+      description: `Przypisano pojazd: ${vehicle.registration} (${vehicle.brand} ${vehicle.model})`,
+      relatedEntityType: 'vehicle',
+      relatedEntityId: vehicleId,
+      changedBy: changedByEmail,
+      ipAddress: ipAddress,
+      userAgent: userAgent
+    });
+    await this.driverLogRepository.save(driverLog);
 
     return this.findOne(vehicleId);
   }
 
-  async releaseDriver(vehicleId: number, changedBy?: string): Promise<Vehicle> {
+  async releaseDriver(vehicleId: number, changedBy?: string, ipAddress?: string, userAgent?: string): Promise<Vehicle> {
     const vehicle = await this.vehicleRepository.findOne({
       where: { id: vehicleId },
     });
@@ -203,21 +231,46 @@ export class VehiclesService {
 
     const driverId = vehicle.currentDriverId;
 
+    // Pobierz email kierowcy
+    let driverEmail = 'system';
+    if (driverId) {
+      const driver = await this.userRepository.findOne({ where: { id: driverId } });
+      driverEmail = driver?.email || `driver_${driverId}`;
+    }
+    
+    // changedBy może być emailem admina lub kierowcy
+    const changedByEmail = changedBy || driverEmail;
+
     vehicle.currentDriverId = null;
     vehicle.status = 'dostępny';
     
     const updatedVehicle = await this.vehicleRepository.save(vehicle);
 
     if (driverId) {
-      const log = this.vehicleLogRepository.create({
+      // LOG dla pojazdu
+      const vehicleLog = this.vehicleLogRepository.create({
         vehicleId: vehicle.id,
         driverId: driverId,
         eventType: 'zakończenie_pracy',
         eventTime: new Date(),
         description: `Kierowca zakończył pracę`,
-        changedBy: changedBy || 'system',
+        changedBy: changedByEmail,
       });
-      await this.vehicleLogRepository.save(log);
+      await this.vehicleLogRepository.save(vehicleLog);
+
+      // 🔥 LOG DLA KIEROWCY - odpięcie pojazdu
+      const driverLog = this.driverLogRepository.create({
+        driverId: driverId,
+        eventType: 'odpiecie_pojazdu',
+        eventTime: new Date(),
+        description: `Odpięto pojazd: ${vehicle.registration} (${vehicle.brand} ${vehicle.model})`,
+        relatedEntityType: 'vehicle',
+        relatedEntityId: vehicleId,
+        changedBy: changedByEmail,
+        ipAddress: ipAddress,
+        userAgent: userAgent
+      });
+      await this.driverLogRepository.save(driverLog);
     }
 
     return this.findOne(vehicleId);

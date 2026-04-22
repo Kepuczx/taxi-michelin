@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.User = void 0;
 const typeorm_1 = require("typeorm");
 const vehicle_entity_1 = require("../vehicles/vehicle.entity");
+const driver_log_entity_1 = require("./driver-log.entity");
 let User = class User {
     id;
     username;
@@ -27,6 +28,7 @@ let User = class User {
     isActive;
     ldapDn;
     currentVehicle;
+    driverLogs;
     createdAt;
     updatedAt;
 };
@@ -97,6 +99,10 @@ __decorate([
     (0, typeorm_1.OneToOne)(() => vehicle_entity_1.Vehicle, vehicle => vehicle.currentDriver),
     __metadata("design:type", vehicle_entity_1.Vehicle)
 ], User.prototype, "currentVehicle", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => driver_log_entity_1.DriverLog, log => log.driver),
+    __metadata("design:type", Array)
+], User.prototype, "driverLogs", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)

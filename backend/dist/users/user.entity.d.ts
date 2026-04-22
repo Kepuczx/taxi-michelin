@@ -1,4 +1,5 @@
 import { Vehicle } from '../vehicles/vehicle.entity';
+import { DriverLog } from './driver-log.entity';
 export declare class User {
     id: number;
     username: string;
@@ -14,6 +15,7 @@ export declare class User {
     isActive: boolean;
     ldapDn: string;
     currentVehicle: Vehicle;
+    driverLogs: DriverLog[];
     createdAt: Date;
     updatedAt: Date;
 }
