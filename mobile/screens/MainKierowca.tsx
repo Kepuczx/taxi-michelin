@@ -134,47 +134,46 @@ function MainKierowcaContent({ navigation }: any) {
 
       console.log("GPS jest gotowy i uprawniony.");
 
-      // 2. Śledzenie pozycji
+      // Śledzenie pozycji
       positionSubscription = await Location.watchPositionAsync(
-        { 
-          accuracy: Location.Accuracy.BestForNavigation,
-          distanceInterval: 10, // Aktualizuj co 10 metrów (oszczędza baterię i transfer)
-          timeInterval: 5000    // Lub co 5 sekund
-        },
-        async (loc) => {
-          setDriverLocation(loc);
-          
-          // WYMUSZONE CENTROWANIE
-          if (isMapReady && mapCtrl.current && !activeTrip) {
-            try {
-              mapCtrl.current.moveCamera({
-                target: { lat: loc.coords.latitude, lng: loc.coords.longitude },
-                zoom: 17, bearing: 0, tilt: 0
-              });
-            } catch (e) {}
-          }
-
-          // 🔥 NOWE: WYSYŁANIE GPS DO BACKENDU
+      { 
+        accuracy: Location.Accuracy.BestForNavigation,
+        distanceInterval: 50, // Aktualizuj co 50 metrów
+        timeInterval: 10000    // Lub co 10 sekund
+      },
+      async (loc) => {
+        // Śledzenie na ekranie telefonu
+        setDriverLocation(loc);
+        
+        // Wymuszone centrowanie
+        if (isMapReady && mapCtrl.current && !activeTrip) {
           try {
-            const currentToken = await AsyncStorage.getItem('userToken');
-            const currentUserId = await AsyncStorage.getItem('userId');
-            if (currentToken && currentUserId) {
-              await axios.patch(`${API_URL}/users/${currentUserId}`, {
-                currentLat: loc.coords.latitude,
-                currentLng: loc.coords.longitude,
-                isOnline: true // Ustawiamy kierowcę jako dostępnego
-              }, {
-                headers: { Authorization: `Bearer ${currentToken}` }
-              });
-            }
+            mapCtrl.current.moveCamera({
+              target: { lat: loc.coords.latitude, lng: loc.coords.longitude },
+              zoom: 17, bearing: 0, tilt: 0
+            });
+          } catch (e) {}
+        }
+      
+        //  WYSYŁANIE GPS DO BACKENDU TYLKO PODCZAS PRACY
+        if (assignedVehicle && token && userId) {
+          try {
+            await axios.patch(`${API_URL}/users/${userId}`, {
+              currentLat: loc.coords.latitude,
+              currentLng: loc.coords.longitude,
+              // Usunęliśmy stąd isOnline, bo obsługujemy to przyciskami!
+            }, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
           } catch (error) {
             console.log('Nie udało się wysłać lokalizacji do bazy', error);
           }
         }
-      );
+      }
+    );
     })();
     return () => positionSubscription?.remove();
-  }, [isMapReady, activeTrip]);
+  }, [isMapReady, activeTrip, assignedVehicle, token, userId]);
 
   useEffect(() => {
     const newSocket = io(API_URL, { transports: ['websocket'] });
@@ -275,6 +274,13 @@ function MainKierowcaContent({ navigation }: any) {
                 {},
                 { headers: { Authorization: `Bearer ${token}` } }
               );
+              // Ustawienie statusu ONLINE w bazie danych
+            await axios.patch(`${API_URL}/users/${userId}`, 
+              { isOnline: true }, 
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+
               Alert.alert('Sukces', 'Pojazd został przypisany!');
               await fetchVehiclesAndCheckAssignment(token, userId);
             } catch (error: any) {
@@ -299,11 +305,18 @@ function MainKierowcaContent({ navigation }: any) {
           text: 'Zakończ',
           onPress: async () => {
             try {
+              // Zwolnienie pojazdu
               await axios.patch(
                 `${API_URL}/vehicles/${assignedVehicle.id}/release-driver`,
                 {},
                 { headers: { Authorization: `Bearer ${token}` } }
               );
+              // Ustawienie statusu OFFLINE w bazie
+            await axios.patch(`${API_URL}/users/${userId}`, 
+              { isOnline: false }, 
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+
               Alert.alert('Sukces', 'Zakończono pracę z pojazdem');
               setAssignedVehicle(null);
               await fetchVehiclesAndCheckAssignment(token, userId);
@@ -318,6 +331,16 @@ function MainKierowcaContent({ navigation }: any) {
   };
 
   const handleLogout = () => {
+    //  BLOKADA: Jeśli assignedVehicle nie jest nullem, nie pozwól wyjść
+  if (assignedVehicle) {
+    Alert.alert(
+      'Nie można wylogować',
+      'Najpierw musisz zakończyć pracę z pojazdem w menu profilu.',
+      [{ text: 'Rozumiem' }]
+    );
+    return;
+  }
+
     Alert.alert(
       'Wylogowanie',
       'Czy na pewno chcesz się wylogować?',
@@ -327,13 +350,26 @@ function MainKierowcaContent({ navigation }: any) {
           text: 'Wyloguj',
           style: 'destructive',
           onPress: async () => {
-            await AsyncStorage.removeItem('userToken');
-            await AsyncStorage.removeItem('userRole');
-            await AsyncStorage.removeItem('userEmail');
-            await AsyncStorage.removeItem('userId');
-            await AsyncStorage.removeItem('userName');
-            navigation.replace('Login');
-          },
+          try {
+            // Czyszczenie statusu na wszelki wypadek
+            if (userId && token) {
+              await axios.patch(`${API_URL}/users/${userId}`, 
+                { isOnline: false }, 
+                { headers: { Authorization: `Bearer ${token}` } }
+              );
+            }
+          } catch (e) {
+            console.log('Ciche czyszczenie offline...');
+          }
+
+          // Czyszczenie pamięci telefonu
+          await AsyncStorage.removeItem('userToken');
+          await AsyncStorage.removeItem('userRole');
+          await AsyncStorage.removeItem('userEmail');
+          await AsyncStorage.removeItem('userId');
+          await AsyncStorage.removeItem('userName');
+          navigation.replace('Login');
+        },
         },
       ]
     );
@@ -585,7 +621,7 @@ function MainKierowcaContent({ navigation }: any) {
             {/* 2. MAPA I NAWIGACJA */}
             <View style={{ flex: 1, borderTopWidth: 2, borderColor: '#0a1d56' }}>
               
-              {/* 🔥 NOWY KOMPONENT NAWIGACJI (Bez starych refów i wycofanych atrybutów) */}
+              {/* 🔥KOMPONENT NAWIGACJI */}
               <NavigationView
                  style={{ flex: 1 }}
                  onMapViewControllerCreated={(ctrl: any) => { mapCtrl.current = ctrl; }} 
