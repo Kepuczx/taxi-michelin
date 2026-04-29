@@ -201,121 +201,131 @@ body {
 }
 
 /* --- STATUS KURSU --- */
+/* --- STATUS KURSU (W stylu usera) --- */
 .trip-status-card {
-  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-  border-radius: 10px;
-  padding: 12px;
+  background-color: #f8f9fa;
+  border: 1px solid #002255;
+  border-radius: 6px;
+  padding: 15px;
   text-align: center;
-  border: 1px solid #eef2f6;
+  margin-bottom: 25px;
+}
+
+.trip-status-card .status-text {
+  color: #002255;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+/* --- OŚ CZASU (Zgodna z widokiem usera) --- */
+.trip-details {
+  position: relative;
+  background: white;
+  padding: 10px 0;
   margin-bottom: 20px;
 }
 
-.status-indicator {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.status-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-}
-
-.status-dot.assigned {
-  background-color: #17a2b8;
-  animation: pulse 1.5s infinite;
-}
-
-.status-dot.in_progress {
-  background-color: #28a745;
-  animation: pulse 1.5s infinite;
-}
-
-.status-text {
-  font-size: 14px;
-  font-weight: 600;
-  color: #333;
-}
-
-@keyframes pulse {
-  0% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.7; transform: scale(1.2); }
-  100% { opacity: 1; transform: scale(1); }
-}
-
-/* --- SZCZEGÓŁY KURSU (OŚ CZASU) --- */
-.trip-details {
-  background: #f8f9fa;
-  border-radius: 10px;
-  padding: 15px;
-  margin-bottom: 15px;
+/* Pionowa linia osi czasu */
+.trip-details::before {
+  content: '';
+  position: absolute;
+  left: 14px; 
+  top: 30px;
+  bottom: 40px;
+  width: 2px;
+  background: #d5dce5;
+  z-index: 1;
 }
 
 .trip-point {
   display: flex;
-  gap: 12px;
-  margin-bottom: 15px;
-  padding: 8px;
-  background-color: #ffffff;
-  border-radius: 8px;
-  border: 1px solid #f0f4f8;
+  position: relative;
+  z-index: 2;
+  align-items: center; 
+  margin-bottom: 35px;
+  background: transparent;
+  border: none;
+  padding: 0;
 }
 
 .trip-point:last-child {
   margin-bottom: 0;
 }
 
-.point-icon {
-  font-size: 20px;
-  min-width: 28px;
-  text-align: center;
+/* Pojemnik wymuszający równy lewy margines dla ikon */
+.point-icon-wrapper {
+  width: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
 }
 
-.trip-point strong {
+/* Znaczniki na osi */
+.marker-pickup {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #27ae60;
+  background-color: white;
+  border-radius: 50%;
+}
+
+.marker-destination {
+  width: 14px;
+  height: 14px;
+  background-color: #002255;
+  border-radius: 2px;
+}
+
+/* --- TEKST WYŚRODKOWANY (Balans układu) --- */
+.trip-point-content {
+  flex: 1;
+  text-align: center !important; 
+  /* Padding-right niweluje szerokość ikony z lewej, by tekst był w idealnym centrum */
+  padding-right: 30px; 
+}
+
+.trip-point-label {
   display: block;
-  margin-bottom: 4px;
-  color: #002255;
+  color: #666;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  margin-bottom: 5px;
 }
 
-.trip-point p {
+.trip-point-address {
   margin: 0;
-  color: #555;
-  font-size: 13px;
+  color: #111;
+  font-size: 14px;
+  font-weight: 500;
   line-height: 1.4;
-  word-break: break-word;
 }
 
-.coords-text {
-  font-size: 10px;
-  color: #888;
-  margin-top: 4px;
-  display: block;
+/* --- PRZYCISKI a'la USER --- */
+.order-btn {
+  width: 100%;
+  padding: 15px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all 0.2s;
 }
 
-.live-text {
-  font-size: 10px;
-  color: #e74c3c;
-  animation: pulseText 1.5s infinite;
+.start-btn {
+  background-color: #27ae60 ;
+  color: white ;
+  border: none ;
 }
 
-@keyframes pulseText {
-  0% { opacity: 1; }
-  50% { opacity: 0.5; }
-  100% { opacity: 1; }
+.complete-btn {
+  background-color: transparent ;
+  color: #e74c3c ;
+  border: 2px solid #e74c3c ;
 }
-
-.driver-location-info {
-  background-color: #e8f4fd;
-  border-left: 3px solid #002255;
-}
-
 /* --- STATYSTYKI --- */
 .trip-stats {
   display: flex;

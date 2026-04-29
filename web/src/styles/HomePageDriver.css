@@ -293,6 +293,24 @@ body {
   color: #222;
   margin: 5px 0;
 }
+/* Styl dla ikony Odbioru (Zielony pierścień) */
+.input-with-marker .marker-pickup {
+  width: 12px;
+  height: 12px;
+  border: 3px solid #27ae60;
+  border-radius: 50%;
+  flex-shrink: 0; /* Żeby kółko się nie zgniatało */
+}
+
+/* Styl dla ikony Celu (Granatowy kwadrat) */
+.input-with-marker .marker-destination {
+  width: 14px;
+  height: 14px;
+  background-color: #002255;
+  border: 2px solid #002255;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
 
 .route-point strong {
   color: #002255;

@@ -2,7 +2,7 @@
 const isDevelopment = import.meta.env.DEV;
 
 // 🔥 ZMIEŃ NA SWOJE IP (z ipconfig)
-const LOCAL_IP = '192.168.0.13';
+const LOCAL_IP = '192.168.0.16';
 
 // Pobierz klucz z zmiennych środowiskowych
 export const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyCwhS6Tsld4HpVc7yhBKFCrI6b8YsluGsI';

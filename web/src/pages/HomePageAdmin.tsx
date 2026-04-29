@@ -388,7 +388,7 @@ const HomePageAdmin = () => {
                         cursor: 'pointer',
                         border: selectedDriver?.id === driver.id ? '1px solid #0a1d56' : '1px solid transparent'
                       }} 
-                      onClick={() => setSelectedDriver(driver)}
+                      onClick={() => setSelectedDriver(selectedDriver?.id === driver.id ? null : driver)}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontWeight: 'bold', color: '#333' }}>{driver.firstName} {driver.lastName}</span>
@@ -437,7 +437,6 @@ const HomePageAdmin = () => {
                         />
                       );
                     })}
-
                     {selectedDriver && (
                       <InfoWindow
                         position={{ 
@@ -445,22 +444,56 @@ const HomePageAdmin = () => {
                           lng: Number((selectedDriver as any).currentLng) 
                         }}
                         onCloseClick={() => setSelectedDriver(null)}
+                        // Przesunięcie dymka nad samochód
+                        options={{ pixelOffset: new window.google.maps.Size(0, -35) }}
                       >
-                        <div style={{ padding: '10px', minWidth: '180px', fontFamily: 'Arial' }}>
-                          <h4 style={{ margin: '0 0 5px 0', color: '#0a1d56', borderBottom: '1px solid #eee', paddingBottom: '5px' }}>
+                        <div className="info-window-wrapper">
+                          <button 
+                          className="info-window-close-x" 
+                          onClick={() => setSelectedDriver(null)}
+                          >
+                            ✕
+                          </button>
+
+                          <h4 className="info-window-title">
                             {selectedDriver.firstName} {selectedDriver.lastName}
                           </h4>
-                          <p style={{ margin: '8px 0', fontSize: '13px' }}>
-                            Status: <strong style={{ color: (selectedDriver as any).isOnline ? '#28a745' : '#dc3545' }}>
-                              {(selectedDriver as any).isOnline ? '🟢 Online' : '⚪ Offline'}
-                            </strong>
-                          </p>
-                          <p style={{ margin: '3px 0', fontSize: '12px', color: '#666' }}>
-                            📞 Tel: {selectedDriver.phone || 'Nie podano'}
-                          </p>
-                          <p style={{ margin: '3px 0', fontSize: '12px', color: '#666' }}>
-                            📧 Email: {selectedDriver.email}
-                          </p>
+      
+                          <div className="info-window-row">
+                            <span className="info-window-label">Status:</span>
+                            <span style={{ 
+                              fontWeight: 'bold', 
+                              color: (selectedDriver as any).isOnline ? '#28a745' : '#dc3545' 
+                            }}>
+                              {(selectedDriver as any).isOnline ? 'Online' : 'Offline'}
+                            </span>
+                          </div>
+      
+                          <div className="info-window-row">
+                            <span className="info-window-label">Tel:</span>
+                            <span>{selectedDriver.phone || 'Nie podano'}</span>
+                          </div>
+      
+                          <div className="info-window-row">
+                            <span className="info-window-label">Email:</span>
+                            <span>{selectedDriver.email}</span>
+                          </div>
+
+                          <button 
+                           className="info-window-report-btn"
+                            onClick={(e) => {
+                              const driverId = selectedDriver.id; // Zapamiętujemy ID   // Przełączamy zakładkę
+                              handleDriverSelect(driverId);       // Wywołujemy ładowanie raportów dla tego ID
+                              setSelectedDriver(null);            // Zamykamy dymek
+
+                              setTimeout(() => {
+                                setActiveTab('reportsDrivers')
+                                handleDriverSelect(driverId);
+                              },150);
+                            }}
+                          >
+                            ZOBACZ RAPORTY
+                          </button>
                         </div>
                       </InfoWindow>
                     )}
@@ -719,16 +752,16 @@ const HomePageAdmin = () => {
                       }}
                     >
                       <option value="">Wszystkie zdarzenia</option>
-                      <option value="logowanie">🔐 Logowanie</option>
-                      <option value="wylogowanie">🚪 Wylogowanie</option>
-                      <option value="zmiana_statusu">🟢 Zmiana statusu</option>
-                      <option value="przypisanie_pojazdu">🚗 Przypisanie pojazdu</option>
-                      <option value="odpiecie_pojazdu">🔌 Odpięcie pojazdu</option>
-                      <option value="rozpoczęcie_kursu">🏁 Rozpoczęcie kursu</option>
-                      <option value="zakonczenie_kursu">🏁 Zakończenie kursu</option>
-                      <option value="edycja_profilu">✏️ Edycja profilu</option>
-                      <option value="blokada_konta">🔒 Blokada konta</option>
-                      <option value="odblokowanie_konta">🔓 Odblokowanie konta</option>
+                      <option value="logowanie">Logowanie</option>
+                      <option value="wylogowanie">Wylogowanie</option>
+                      <option value="zmiana_statusu">Zmiana statusu</option>
+                      <option value="przypisanie_pojazdu">Przypisanie pojazdu</option>
+                      <option value="odpiecie_pojazdu">Odpięcie pojazdu</option>
+                      <option value="rozpoczęcie_kursu">Rozpoczęcie kursu</option>
+                      <option value="zakonczenie_kursu">Zakończenie kursu</option>
+                      <option value="edycja_profilu">Edycja profilu</option>
+                      <option value="blokada_konta">Blokada konta</option>
+                      <option value="odblokowanie_konta">Odblokowanie konta</option>
                     </select>
                   </div>
                 )}
@@ -742,7 +775,7 @@ const HomePageAdmin = () => {
                 </div>
               ) : driverLogs.length === 0 ? (
                 <div style={{padding: '40px', textAlign: 'center', color: '#666'}}>
-                  <p>📊 Brak logów dla tego kierowcy</p>
+                  <p>Brak logów dla tego kierowcy</p>
                   <p style={{marginTop: '10px', fontSize: '12px'}}>
                     Gdy kierowca będzie aktywny (logowanie, zmiana statusu, kursy), pojawią się tutaj wpisy.
                   </p>
@@ -766,15 +799,7 @@ const HomePageAdmin = () => {
                           <tr key={log.id}>
                             <td style={{whiteSpace: 'nowrap'}}>{formatDate(log.eventTime)}</td>
                             <td>
-                              <span style={{
-                                display: 'inline-block',
-                                padding: '4px 8px',
-                                borderRadius: '4px',
-                                fontSize: '12px',
-                                fontWeight: 'bold',
-                                backgroundColor: driverLogService.getEventTypeColor(log.eventType) + '20',
-                                color: driverLogService.getEventTypeColor(log.eventType)
-                              }}>
+                              <span className="role-badge">
                                 {driverLogService.getEventTypeLabel(log.eventType)}
                               </span>
                             </td>
@@ -817,7 +842,7 @@ const HomePageAdmin = () => {
                   )}
                   
                   <div style={{marginTop: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '8px', fontSize: '12px', color: '#666'}}>
-                    <strong>📈 Podsumowanie:</strong> Łącznie {driverLogs.length} zdarzeń.
+                    <strong>Podsumowanie:</strong> Łącznie {driverLogs.length} zdarzeń.
                     {filterEventType && ` Filtrowano: ${driverLogs.filter(l => l.eventType === filterEventType).length} z typu "${driverLogService.getEventTypeLabel(filterEventType)}".`}
                   </div>
                 </>

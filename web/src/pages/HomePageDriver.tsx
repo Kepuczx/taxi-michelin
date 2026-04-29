@@ -29,6 +29,8 @@ interface Trip {
   status: string;
 }
 
+
+
 const toNumber = (value: any): number => {
   if (typeof value === 'number') return value;
   if (typeof value === 'string') return parseFloat(value.replace(/'/g, ''));
@@ -67,6 +69,24 @@ const HomePageDriver = () => {
 
   const socketRef = useRef<Socket | null>(null);
   const redirectDone = useRef(false);
+  const mapIcons = {
+    pickup: {
+      path: "M 0,0 m -7,0 a 7,7 0 1,0 14,0 a 7,7 0 1,0 -14,0",
+      fillColor: "#ffffff",
+      fillOpacity: 1,
+      strokeWeight: 4,
+      strokeColor: "#27ae60",
+      scale: 1,
+    },
+    destination: {
+      path: "M -6,-6 L 6,-6 L 6,6 L -6,6 Z",
+      fillColor: "#002255",
+      fillOpacity: 1,
+      strokeWeight: 2,
+      strokeColor: "#ffffff",
+      scale: 1,
+    }
+  };
 
   const checkDriverActiveTrip = async () => {
     if (redirectDone.current) return;
@@ -457,7 +477,7 @@ const HomePageDriver = () => {
         {!assignedVehicle ? (
           <div className="driver-selection-container">
             <div className="driver-selection-card">
-              <h2>🚗 Wybór pojazdu</h2>
+              <h2>Wybór pojazdu</h2>
               <p>Nie masz przypisanego pojazdu. Wybierz dostępny:</p>
               {availableVehicles.length === 0 ? (
                 <p className="no-vehicles">Brak dostępnych pojazdów.</p>
@@ -488,17 +508,23 @@ const HomePageDriver = () => {
                     <h2 className="panel-title">Dostępne zlecenia ({availableTasks.length})</h2>
                     <div className="tasks-container">
                       {availableTasks.length === 0 ? (
-                        <p style={{ textAlign: 'center', padding: 20 }}>Oczekujesz na zlecenia... ☕</p>
+                        <p style={{ textAlign: 'center', padding: 20 }}>Oczekujesz na zlecenia... </p>
                       ) : (
                         availableTasks.map((task) => (
                           <div key={task.id} className={`task-card ${selectedTrip?.id === task.id ? 'active-task' : ''}`}>
                             <div className="task-header">
                               <span className="task-time">Nowe</span>
-                              <span className="task-passengers">👥 {task.passengerCount} os.</span>
+                              <span className="task-passengers">{task.passengerCount} os.</span>
                             </div>
                             <div className="task-route">
-                              <div className="route-point"><strong>📍 Od:</strong> {task.pickupAddress}</div>
-                              <div className="route-point"><strong>🏁 Do:</strong> {task.dropoffAddress}</div>
+                              <div className="route-point" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                                <div style={{ width: '12px', height: '12px', border: '3px solid #27ae60', borderRadius: '50%', flexShrink: 0 }}></div>
+                                <span><strong>Od:</strong> {task.pickupAddress}</span>
+                              </div>
+                              <div className="route-point" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{ width: '14px', height: '14px', backgroundColor: '#002255', borderRadius: '3px', flexShrink: 0 }}></div>
+                                <span><strong>Do:</strong> {task.dropoffAddress}</span>
+                                </div>
                             </div>
                             <div className="task-actions">
                               <button 
@@ -506,7 +532,7 @@ const HomePageDriver = () => {
                                 onClick={() => showRoute(task)}
                                 disabled={calculatingRoute}
                               >
-                                {selectedTrip?.id === task.id ? '🗺️ Ukryj trasę' : '🗺️ Pokaż trasę'}
+                                {selectedTrip?.id === task.id ? 'Ukryj trasę' : 'Pokaż trasę'}
                               </button>
                               <button className="btn-accept" onClick={() => handleAcceptTask(task.id)}>
                                 Przyjmij
@@ -553,13 +579,15 @@ const HomePageDriver = () => {
                             <>
                               <Marker
                                 position={{ lat: toNumber(selectedTrip.pickupLat), lng: toNumber(selectedTrip.pickupLng) }}
-                                label={{ text: '🚩 START', color: '#2E7D32', fontSize: '14px', fontWeight: 'bold' }}
-                                icon={{ url: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png', scaledSize: new window.google.maps.Size(32, 32) }}
+                                icon={mapIcons.pickup}
+                                title="Miejsce odbioru"
+                                zIndex={50}
                               />
                               <Marker
                                 position={{ lat: toNumber(selectedTrip.dropoffLat), lng: toNumber(selectedTrip.dropoffLng) }}
-                                label={{ text: '🏁 END', color: '#C62828', fontSize: '14px', fontWeight: 'bold' }}
-                                icon={{ url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png', scaledSize: new window.google.maps.Size(32, 32) }}
+                                icon={mapIcons.destination}
+                                title="Miejsce docelowe"
+                                zIndex={50}
                               />
                             </>
                           )}
@@ -616,7 +644,7 @@ const HomePageDriver = () => {
                             textAlign: 'center',
                             zIndex: 10
                           }}>
-                            🗺️ Kliknij "Pokaż trasę" na wybranym zleceniu
+                            Kliknij "Pokaż trasę" na wybranym zleceniu
                           </div>
                         )}
 

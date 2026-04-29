@@ -33,6 +33,24 @@ const ActiveTripPageDriver = () => {
   const socketRef = useRef<Socket | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const locationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const mapIcons = {
+    pickup: {
+      path: "M 0,0 m -7,0 a 7,7 0 1,0 14,0 a 7,7 0 1,0 -14,0",
+      fillColor: "#ffffff",
+      fillOpacity: 1,
+      strokeWeight: 4,
+      strokeColor: "#27ae60",
+      scale: 1,
+    },
+    destination: {
+      path: "M -6,-6 L 6,-6 L 6,6 L -6,6 Z",
+      fillColor: "#002255",
+      fillOpacity: 1,
+      strokeWeight: 2,
+      strokeColor: "#ffffff",
+      scale: 1,
+    }
+  };
 
   const toNumber = (value: any): number => {
     if (typeof value === 'number') return value;
@@ -384,77 +402,68 @@ const ActiveTripPageDriver = () => {
 
       <div className="driver-main-content">
         <aside className="driver-sidebar">
-          <div className="form-card">
-            <h2 className="form-title">🚖 Aktywny kurs #{trip.id}</h2>
+          <div className="form-card" style={{ padding: '30px 20px', border: 'none' }}>
+            {/* Tytuł kursu */}
+            <h2 className="form-title" style={{ color: '#002255', fontSize: '24px', fontWeight: '900', textAlign: 'center', marginBottom: '25px', display: 'block' }}>
+               Aktywny kurs #{trip.id}
+            </h2>
             
+            {/* Status kursu w ramce (Kierowca w drodze / Kurs w trakcie) */}
             <div className="trip-status-card">
-              <div className="status-indicator">
-                <div className={`status-dot ${tripStatus}`}></div>
-                <span className="status-text">
-                  {tripStatus === 'assigned' ? '📍 Dojazd do klienta' : '🚖 Kurs w trakcie'}
-                </span>
+              <div className="status-text">
+                {tripStatus === 'assigned' ? 'Dojazd do klienta' : 'Kurs w trakcie'}
               </div>
             </div>
 
-            <div className="trip-details">
-              <div className="trip-point">
-                <span className="point-icon">👤</span>
-                <div>
-                  <strong>KLIENT</strong>
-                  <p>{clientName}</p>
-                </div>
-              </div>
-              
-              <div className="trip-point">
-                <span className="point-icon">📍</span>
-                <div>
-                  <strong>MIEJSCE ODBIORU</strong>
-                  <p>{trip.pickupAddress}</p>
-                  <small className="coords-text">
-                    {pickupCoords.lat.toFixed(6)}, {pickupCoords.lng.toFixed(6)}
-                  </small>
-                </div>
-              </div>
-              
-              <div className="trip-point">
-                <span className="point-icon">🏁</span>
-                <div>
-                  <strong>MIEJSCE DOCELOWE</strong>
-                  <p>{trip.dropoffAddress}</p>
-                  <small className="coords-text">
-                    {dropoffCoords.lat.toFixed(6)}, {dropoffCoords.lng.toFixed(6)}
-                  </small>
-                </div>
-              </div>
+            {/* Dane Pasażera - centralnie nad osią czasu */}
+            <div style={{ textAlign: 'center', marginBottom: '35px' }}>
+              <span style={{ fontSize: '11px', color: '#666', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.5px' }}>Pasażer</span>
+              <div style={{ fontSize: '15px', color: '#111', fontWeight: '500', marginTop: '3px' }}>{clientName}</div>
+            </div>
 
-              {driverLocation && (
-                <div className="trip-point driver-location-info">
-                  <span className="point-icon">🚕</span>
-                  <div>
-                    <strong>TWOJA LOKALIZACJA</strong>
-                    <p>{driverLocation.lat.toFixed(6)}, {driverLocation.lng.toFixed(6)}</p>
-                    <small className="live-text">🔴 Aktualizacja na żywo</small>
-                  </div>
+            {/* Oś czasu (Timeline) */}
+            <div className="trip-details">
+              
+              <div className="trip-point">
+                <div className="point-icon-wrapper">
+                  <div className="marker-pickup"></div>
                 </div>
+                <div className="trip-point-content">
+                  <span className="trip-point-label">Miejsce odbioru</span>
+                  <p className="trip-point-address">{trip.pickupAddress}</p>
+                </div>
+              </div>
+              
+              <div className="trip-point">
+                <div className="point-icon-wrapper">
+                  <div className="marker-destination"></div>
+                </div>
+                <div className="trip-point-content">
+                  <span className="trip-point-label">Miejsce docelowe</span>
+                  <p className="trip-point-address">{trip.dropoffAddress}</p>
+                </div>
+              </div>
+              
+            </div>
+
+            {/* Przyciski na dole */}
+            <div style={{ marginTop: '30px' }}>
+              {tripStatus === 'assigned' ? (
+                <button className="order-btn start-btn" onClick={handleStartTrip}>
+                  KLIENT WSIADŁ
+                </button>
+              ) : (
+                <button className="order-btn complete-btn" onClick={handleCompleteTrip}>
+                  ZAKOŃCZ KURS
+                </button>
               )}
             </div>
 
-            <div className="trip-stats">
-              <div className="stat-item">
-                <span className="stat-label">🚗 Pasażerów:</span>
-                <span className="stat-value">{trip.passengerCount || 1}</span>
-              </div>
+            {/* Liczba pasażerów - dyskretnie pod przyciskiem */}
+            <div style={{ marginTop: '20px', textAlign: 'center', color: '#666', fontSize: '12px' }}>
+               Liczba pasażerów: <strong>{trip.passengerCount || 1}</strong>
             </div>
-
-            {tripStatus === 'assigned' ? (
-              <button className="order-btn start-btn" onClick={handleStartTrip}>
-                🚀 KLIENT WSIADŁ - ROZPOCZNIJ KURS
-              </button>
-            ) : (
-              <button className="order-btn complete-btn" onClick={handleCompleteTrip}>
-                🏁 ZAKOŃCZ KURS
-              </button>
-            )}
+            
           </div>
         </aside>
 
@@ -507,22 +516,18 @@ const ActiveTripPageDriver = () => {
                   {googleReady && (
                     <Marker
                       position={pickupCoords}
-                      label={{ text: tripStatus === 'assigned' ? '📍 ODBIÓR' : '📍', color: 'white', fontSize: '12px', fontWeight: 'bold' }}
-                      icon={{
-                        url: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png',
-                        scaledSize: new window.google.maps.Size(32, 32),
-                      }}
+                      icon={mapIcons.pickup}
+                      title="Miejsce odbioru"
+                      zIndex = {50}
                     />
                   )}
 
                   {googleReady && tripStatus === 'in_progress' && (
                     <Marker
                       position={dropoffCoords}
-                      label={{ text: '🏁 KONIEC', color: 'white', fontSize: '12px', fontWeight: 'bold' }}
-                      icon={{
-                        url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
-                        scaledSize: new window.google.maps.Size(32, 32),
-                      }}
+                      icon={mapIcons.destination}
+                      title="Miejsce docelowe"
+                      zIndex = {50}
                     />
                   )}
 
@@ -544,11 +549,11 @@ const ActiveTripPageDriver = () => {
                 {directions && directions.routes[0]?.legs[0] && (
                   <div className="route-info">
                     <div className="route-info-item">
-                      <span>📏 Dystans: </span>
+                      <span>Dystans: </span>
                       <strong>{directions.routes[0].legs[0].distance?.text}</strong>
                     </div>
                     <div className="route-info-item">
-                      <span>⏱️ Czas: </span>
+                      <span>Czas: </span>
                       <strong>{directions.routes[0].legs[0].duration?.text}</strong>
                     </div>
                   </div>

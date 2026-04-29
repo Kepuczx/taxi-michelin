@@ -50,18 +50,18 @@ class DriverLogService {
 
   getEventTypeLabel(eventType: string): string {
     const labels: Record<string, string> = {
-      'logowanie': '🔐 Logowanie',
-      'wylogowanie': '🚪 Wylogowanie',
-      'zmiana_statusu': '🟢 Zmiana statusu',
-      'przypisanie_pojazdu': '🚗 Przypisanie pojazdu',
-      'odpiecie_pojazdu': '🔌 Odpięcie pojazdu',
-      'rozpoczęcie_kursu': '🏁 Rozpoczęcie kursu',
-      'zakonczenie_kursu': '🏁 Zakończenie kursu',
-      'aktualizacja_lokalizacji': '📍 Aktualizacja lokalizacji',
-      'edycja_profilu': '✏️ Edycja profilu',
-      'zmiana_hasla': '🔑 Zmiana hasła',
-      'blokada_konta': '🔒 Blokada konta',
-      'odblokowanie_konta': '🔓 Odblokowanie konta'
+      'logowanie': 'Logowanie',
+      'wylogowanie': 'Wylogowanie',
+      'zmiana_statusu': 'Zmiana statusu',
+      'przypisanie_pojazdu': 'Przypisanie pojazdu',
+      'odpiecie_pojazdu': 'Odpięcie pojazdu',
+      'rozpoczęcie_kursu': 'Rozpoczęcie kursu',
+      'zakonczenie_kursu': 'Zakończenie kursu',
+      'aktualizacja_lokalizacji': 'Aktualizacja lokalizacji',
+      'edycja_profilu': 'Edycja profilu',
+      'zmiana_hasla': 'Zmiana hasła',
+      'blokada_konta': 'Blokada konta',
+      'odblokowanie_konta': 'Odblokowanie konta'
     };
     return labels[eventType] || eventType;
   }
