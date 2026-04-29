@@ -14,7 +14,7 @@ const LOCAL_IP = '192.168.55.106';
 export const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 
 // Adres serwera w internecie (wpiszesz go, gdy już wrzucisz backend na serwer)
-const PRODUCTION_URL = 'https://api.twoja-domena-taxi.pl';
+const PRODUCTION_URL = 'https://michelin-taxi-api.onrender.com';
 
 export const API_URL = isDevelopment
   ? `http://${LOCAL_IP}:3000`

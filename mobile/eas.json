@@ -9,7 +9,14 @@
       "android": {
         "image": "latest"
       }
-    }
+    },
+    "preview": {
+      "android": {
+        "buildType": "apk"
+      }
+      
+    },
+    "production": {}
   },
   "submit": {
     "production": {}

@@ -38,9 +38,14 @@ export default {
     name: "Taxi Michelin",
     slug: "taxi-michelin-app",
     version: "1.0.0",
-
+    icon: "./assets/icon.png",
     android: {
       package: "com.michelin.taxi.driver",
+      
+      adaptiveIcon: {
+        foregroundImage: "./assets/icon.png",
+        backgroundColor: "#ffffff" 
+      },
       permissions: [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
