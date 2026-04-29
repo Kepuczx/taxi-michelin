@@ -13,5 +13,5 @@ export const API_URL = isDevelopment
   ? `http://${LOCAL_IP}:3000`
   : PRODUCTION_URL;
 
+console.log(`[Config] Uruchomiono w trybie: ${isDevelopment ? 'DEVELOPMENT' : 'PRODUCTION'}`);
 console.log(`[Config] API_URL: ${API_URL}`);
-console.log(`[Config] Google Maps API Key: ${GOOGLE_MAPS_API_KEY ? '✅ Ustawiony' : '❌ BRAK!'}`);
