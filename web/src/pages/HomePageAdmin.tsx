@@ -11,7 +11,7 @@ import type { VehicleLog } from '../types/vehicleLog.types';
 import '../styles/HomePageAdmin.css';
 
 import { GoogleMap, LoadScript, Marker, InfoWindow } from '@react-google-maps/api';
-import { GOOGLE_MAPS_API_KEY } from '../config';
+import { API_URL, GOOGLE_MAPS_API_KEY } from '../config';
 
 const HomePageAdmin = () => {
   const navigate = useNavigate();
@@ -331,7 +331,7 @@ const HomePageAdmin = () => {
   useEffect(() => {
     const user = localStorage.getItem('loggedUser');
     if (!user || role !== 'admin') navigate('/');
-    fetch('http://localhost:3000').then(res => res.text())
+    fetch(`${API_URL}`).then(res => res.text())
       .then(data => setMessage(`Połączono z backendem: ${data}`))
       .catch(() => setMessage('Brak połączenia z serwerem'));
   }, [navigate, role]);
