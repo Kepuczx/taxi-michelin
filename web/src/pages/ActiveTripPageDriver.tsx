@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { GoogleMap, LoadScript, Marker, DirectionsRenderer } from '@react-google-maps/api';
 import axios from 'axios';
@@ -16,7 +16,7 @@ const ActiveTripPageDriver = () => {
   const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
   const [mapsLoaded, setMapsLoaded] = useState(false);
   const [mapError, setMapError] = useState(false);
-  const [firstName, setFirstName] = useState(() => {
+  const [firstName] = useState(() => {
     const fullName = localStorage.getItem('userName');
     return fullName ? fullName.split(' ')[0] : 'Kierowca';
   });
