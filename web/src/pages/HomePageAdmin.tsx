@@ -43,7 +43,7 @@ const HomePageAdmin = () => {
 
   // ==================== STAN: FLOTA ====================
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [loadingVehicles, setLoadingVehicles] = useState(false);
+  const [, setLoadingVehicles] = useState(false);
   const [showVehicleForm, setShowVehicleForm] = useState(false);
   const [searchTermVehicles, setSearchTermVehicles] = useState('');
   const [currentPageVehicles, setCurrentPageVehicles] = useState(1);

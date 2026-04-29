@@ -173,7 +173,7 @@ function AdminPanel() {
         model: editingVehicle.model,
         passengerCapacity: editingVehicle.passengerCapacity,
         status: editingVehicle.status,
-        notes: editingVehicle.notes
+        notes: editingVehicle.notes || ''
       }, adminEmail || 'System')
       setShowEditVehicleForm(false)
       setEditingVehicle(null)
