@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GoogleMap, LoadScript, Marker, DirectionsRenderer } from '@react-google-maps/api';
 import { io, Socket } from 'socket.io-client';
@@ -17,7 +17,7 @@ const ActiveTripPageUser = () => {
   const [tripStatus, setTripStatus] = useState<string>('pending');
   const [loading, setLoading] = useState(true);
   const [mapError, setMapError] = useState(false);
-  const [firstName, setFirstName] = useState(() => {
+  const [firstName] = useState(() => {
     const fullName = localStorage.getItem('userName');
     return fullName ? fullName.split(' ')[0] : 'Pracownik';
   });
@@ -26,7 +26,7 @@ const ActiveTripPageUser = () => {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [mapsLoaded, setMapsLoaded] = useState(false);
   const [mapRetryCount, setMapRetryCount] = useState(0);
-  const [mapLoadingTimeout, setMapLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [mapLoadingTimeout, setMapLoadingTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [myPhysicalLocation, setMyPhysicalLocation] = useState<google.maps.LatLngLiteral | null>(null);
   
   const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null);

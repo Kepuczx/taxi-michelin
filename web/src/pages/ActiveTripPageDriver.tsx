@@ -32,7 +32,7 @@ const ActiveTripPageDriver = () => {
   const mapRef = useRef<google.maps.Map | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const watchIdRef = useRef<number | null>(null);
-  const locationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const locationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mapIcons = {
     pickup: {
       path: "M 0,0 m -7,0 a 7,7 0 1,0 14,0 a 7,7 0 1,0 -14,0",
