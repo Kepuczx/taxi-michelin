@@ -198,7 +198,10 @@ const HomePageAdmin = () => {
     e.preventDefault();
     if (!editingVehicle) return;
     try {
-      await vehicleService.update(editingVehicle.id, { ...editingVehicle }, adminEmail);
+      await vehicleService.update(editingVehicle.id, { 
+        ...editingVehicle, 
+        notes: editingVehicle.notes || '' // 🔥 Zamiana null na pusty string
+      }, adminEmail);
       setShowEditVehicleForm(false);
       setEditingVehicle(null);
       fetchVehicles();
