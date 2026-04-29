@@ -298,7 +298,7 @@ const HomePageAdmin = () => {
 
   // ==================== EFFECTY ====================
   useEffect(() => {
-    let intervalId: NodeJS.Timeout;
+    let intervalId: any;
 
     if (activeTab === 'dashboard'){
       fetchDrivers();
@@ -484,7 +484,7 @@ const HomePageAdmin = () => {
 
                           <button 
                            className="info-window-report-btn"
-                            onClick={(e) => {
+                            onClick={() => {
                               const driverId = selectedDriver.id; // Zapamiętujemy ID   // Przełączamy zakładkę
                               handleDriverSelect(driverId);       // Wywołujemy ładowanie raportów dla tego ID
                               setSelectedDriver(null);            // Zamykamy dymek

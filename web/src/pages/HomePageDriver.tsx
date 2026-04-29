@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GoogleMap, LoadScript, Marker, DirectionsRenderer } from '@react-google-maps/api';
 import { io, Socket } from 'socket.io-client';
@@ -40,7 +40,7 @@ const toNumber = (value: any): number => {
 const HomePageDriver = () => {
   const navigate = useNavigate();
   const [userId, setUserId] = useState<number | null>(null);
-  const [firstName, setFirstName] = useState(() => {
+  const [firstName] = useState(() => {
     const fullName = localStorage.getItem('userName');
     return fullName ? fullName.split(' ')[0] : 'Kierowca';
   });
@@ -59,7 +59,7 @@ const HomePageDriver = () => {
   const [mapsLoaded, setMapsLoaded] = useState(false);
   const [mapError, setMapError] = useState(false);
   const [mapRef, setMapRef] = useState<google.maps.Map | null>(null);
-  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [pollingInterval, setPollingInterval] = useState<any | null>(null);
   const [calculatingRoute, setCalculatingRoute] = useState(false);
   
   const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null);
