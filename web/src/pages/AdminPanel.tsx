@@ -174,7 +174,7 @@ function AdminPanel() {
         passengerCapacity: editingVehicle.passengerCapacity,
         status: editingVehicle.status,
         notes: editingVehicle.notes
-      }, adminEmail)
+      }, adminEmail || 'System')
       setShowEditVehicleForm(false)
       setEditingVehicle(null)
       fetchVehicles()

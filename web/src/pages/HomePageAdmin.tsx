@@ -11,14 +11,14 @@ import type { VehicleLog } from '../types/vehicleLog.types';
 import '../styles/HomePageAdmin.css';
 
 import { GoogleMap, LoadScript, Marker, InfoWindow } from '@react-google-maps/api';
-import { API_URL, GOOGLE_MAPS_API_KEY } from '../config';
+import { GOOGLE_MAPS_API_KEY } from '../config';
 
 const HomePageAdmin = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard'); 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [message, setMessage] = useState('Laczenie z backendem...');
-  const [loggedUser, setLoggedUser] = useState<string | null>(() => localStorage.getItem('loggedUser'));
+  const [, setLoggedUser] = useState<string | null>(() => localStorage.getItem('loggedUser'));
   const role = localStorage.getItem('userRole');
   
   const itemsPerPage = 5;
@@ -28,7 +28,7 @@ const HomePageAdmin = () => {
 
   // ==================== STAN: UŻYTKOWNICY ====================
   const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false); 
   const [searchTermUsers, setSearchTermUsers] = useState('');
   const [currentPageUsers, setCurrentPageUsers] = useState(1);
