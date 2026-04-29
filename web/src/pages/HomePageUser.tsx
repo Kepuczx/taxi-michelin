@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { GoogleMap, LoadScript, Marker, DirectionsRenderer } from '@react-google-maps/api';
@@ -31,7 +31,7 @@ const HomePageUser = () => {
   const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [mapError, setMapError] = useState(false);
-  const [firstName, setFirstName] = useState<string>(() => {
+  const [firstName] = useState<string>(() => {
     const fullName = localStorage.getItem('userName');
     return fullName ? fullName.split(' ')[0] : 'Pracownik';
   });

@@ -135,7 +135,7 @@ const HomePageDriver = () => {
           mapRef.setZoom(14);
         }
       },
-      (error) => {
+      () => {
         setTrackingLocation(false);
       },
       { enableHighAccuracy: true }

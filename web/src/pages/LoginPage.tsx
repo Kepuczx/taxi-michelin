@@ -12,7 +12,6 @@ const Login = () => {
   useEffect(() => {
     const isLogged = localStorage.getItem('loggedUser');
     const userRole = localStorage.getItem('userRole');
-    const userId = localStorage.getItem('userId');
 
     if (isLogged && userRole) {
       // Przenosimy na odpowiedni dashboard na podstawie roli z localStorage
