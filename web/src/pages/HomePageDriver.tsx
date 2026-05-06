@@ -95,6 +95,26 @@ const HomePageDriver = () => {
       scale: 1,
     }
   };
+  // ==============================================================
+  // ZGŁOSZENIE STATUSU "ONLINE" PO WEJŚCIU DO APLIKACJI
+  // ==============================================================
+  useEffect(() => {
+    const setOnline = async () => {
+      const currentUserId = localStorage.getItem('userId');
+      const token = localStorage.getItem('authToken');
+      if (currentUserId && token) {
+        try {
+          await axios.patch(`${API_URL}/users/${currentUserId}/status`, { isOnline: true }, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          console.log('✅ Zgłoszono do bazy status: ONLINE');
+        } catch (error) {
+          console.error('Błąd ustawiania statusu online:', error);
+        }
+      }
+    };
+    setOnline();
+  }, []);
 
   // ==============================================================
   // KULOODPORNY PING DO BAZY DANYCH (Co 10 sekund)
@@ -431,39 +451,44 @@ useEffect(() => {
     }
   };
 
-  const handleLogout = async () => {
-  if (window.confirm('Czy na pewno chcesz się wylogować?')) {
-    const userId = localStorage.getItem('userId');
-    const token = localStorage.getItem('authToken');
-    const userRole = localStorage.getItem('userRole');
-    
-    // Tylko dla kierowców wysyłamy logout do backendu
-    if (userId && token && userRole === 'driver') {
-      try {
-        await fetch('http://localhost:3000/auth/logout', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ userId: parseInt(userId) })
-        });
-        console.log('Wylogowano z backendu');
-      } catch (error) {
-        console.error('Błąd podczas wylogowania:', error);
+const handleLogout = async () => {
+    if (window.confirm('Czy na pewno chcesz się wylogować?')) {
+      const userId = localStorage.getItem('userId');
+      const token = localStorage.getItem('authToken');
+      const userRole = localStorage.getItem('userRole');
+      
+      if (userId && token && userRole === 'driver') {
+        try {
+          // 1. Zmień status na OFFLINE w bazie
+          await axios.patch(`${API_URL}/users/${userId}/status`, { isOnline: false }, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          // 2. Wyloguj z backendu
+          await fetch(`${API_URL}/auth/logout`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ userId: parseInt(userId) })
+          });
+          console.log('Wylogowano z backendu i ustawiono status OFFLINE');
+        } catch (error) {
+          console.error('Błąd podczas wylogowania:', error);
+        }
       }
+      
+      // Czyszczenie i przekierowanie
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userRole');
+      localStorage.removeItem('userEmail');
+      localStorage.removeItem('userName');
+      localStorage.removeItem('userId');
+      localStorage.removeItem('loggedUser');
+      navigate('/');
     }
-    
-    // Zawsze czyścimy localStorage i przekierowujemy
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('userEmail');
-    localStorage.removeItem('userName');
-    localStorage.removeItem('userId');
-    localStorage.removeItem('loggedUser');
-    navigate('/');
-  }
-};
+  };
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 

@@ -286,20 +286,23 @@ const HomePageAdmin = () => {
     currentPageDriverReports * itemsPerPage
   );
 
-  // ==================== LOGIKA: MAPA ====================
+// ==================== LOGIKA: MAPA ====================
   const fetchDrivers = async () => {
     try {
-      const allUsers = await userService.getAll();
-      const driverList = allUsers.filter(u => u.role === 'driver');
+      // Omijamy cache dodając unikalny stempel czasowy do adresu URL
+      const timestamp = new Date().getTime();
+      const response = await fetch(`${API_URL}/users?t=${timestamp}`);
+      
+      if (!response.ok) throw new Error('Błąd sieci');
+      
+      const allUsers = await response.json();
+      const driverList = allUsers.filter((u: any) => u.role === 'driver');
+      
       setDrivers(driverList);
-    } catch (error) { console.error('Błąd pobierania kierowców:', error); }
+    } catch (error) { 
+      console.error('Błąd pobierania kierowców na mapę:', error); 
+    }
   };
-
-  const sortedDrivers = [...drivers].sort((a, b) => {
-    const aOnline = (a as any).isOnline ? 1 : 0;
-    const bOnline = (b as any).isOnline ? 1 : 0;
-    return bOnline - aOnline; 
-  });
 
   // ==================== EFFECTY ====================
   useEffect(() => {
