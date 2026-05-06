@@ -23,29 +23,47 @@ interface Trip {
   dropoffAddress: string;
   status: string;
   vehicle?: string;
+  // Współrzędne do obliczania dystansów
+  pickupLat: number;
+  pickupLng: number;
+  dropoffLat: number;
+  dropoffLng: number;
+  driverStartLat: number; // ⚠️ Wymaga dodania do backendu (miejsce akceptacji kursu)
+  driverStartLng: number; // ⚠️ Wymaga dodania do backendu
 }
 
+// Oblicza odległość między dwoma punktami GPS w metrach
+const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371e3;
+  const rad = Math.PI / 180;
+  const a = Math.sin((lat2 - lat1) * rad / 2) ** 2 +
+            Math.cos(lat1 * rad) * Math.cos(lat2 * rad) *
+            Math.sin((lon2 - lon1) * rad / 2) ** 2;
+  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+};
+
+// Funkcja formatująca metry na kilometry (np. 1.2 km)
+const formatDistance = (meters: number) => {
+  return (meters / 1000).toFixed(1) + ' km';
+};
+
 // =========================================================================
-// 🛑 MOCK DATA (Usuń całą tę tablicę, gdy podłączysz prawdziwą bazę)
+// 🛑 MOCK DATA (Zaktualizowany o współrzędne Olsztyna do symulacji)
 // =========================================================================
 const MOCK_TRIPS: Trip[] = [
-  { id: 1, createdAt: '2026-02-25T10:34:00Z', vehicle: 'NO 12345', pickupAddress: 'Dworzec Główny', dropoffAddress: 'Galeria Warmińska', status: 'zakończony' },
-  { id: 2, createdAt: '2026-02-14T14:21:00Z', vehicle: 'NO 12345', pickupAddress: 'Stare Miasto', dropoffAddress: 'Kortowo', status: 'zakończony' },
-  { id: 3, createdAt: '2026-01-28T12:49:00Z', vehicle: 'NO 98765', pickupAddress: 'Jaroty', dropoffAddress: 'Zatorze', status: 'zakończony' },
-  { id: 4, createdAt: '2026-01-22T08:29:00Z', vehicle: 'NO 98765', pickupAddress: 'Dajtki', dropoffAddress: 'Centrum', status: 'zakończony' },
-  { id: 5, createdAt: '2026-01-18T15:04:00Z', vehicle: 'NO 11111', pickupAddress: 'UWM', dropoffAddress: 'Ratusz', status: 'anulowany' },
+  { id: 1, createdAt: '2026-02-25T10:34:00Z', vehicle: 'NO 12345', pickupAddress: 'Dworzec Główny', dropoffAddress: 'Galeria Warmińska', status: 'zakończony', driverStartLat: 53.7784, driverStartLng: 20.4801, pickupLat: 53.7820, pickupLng: 20.4950, dropoffLat: 53.7550, dropoffLng: 20.4610 },
+  { id: 2, createdAt: '2026-02-14T14:21:00Z', vehicle: 'NO 12345', pickupAddress: 'Stare Miasto', dropoffAddress: 'Kortowo', status: 'zakończony', driverStartLat: 53.7850, driverStartLng: 20.4700, pickupLat: 53.7770, pickupLng: 20.4770, dropoffLat: 53.7480, dropoffLng: 20.4500 },
+  { id: 3, createdAt: '2026-01-28T12:49:00Z', vehicle: 'NO 98765', pickupAddress: 'Jaroty', dropoffAddress: 'Zatorze', status: 'zakończony', driverStartLat: 53.7500, driverStartLng: 20.4900, pickupLat: 53.7400, pickupLng: 20.5000, dropoffLat: 53.7900, dropoffLng: 20.4900 },
 ];
 
 export default function HistoriaKierowca({ navigation }: any) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [firstName, setFirstName] = useState<string>('Kierowca');
   
-  // --- STANY BAZY DANYCH ---
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // --- STANY SORTOWANIA I FILTROWANIA ---
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [selectedMonth, setSelectedMonth] = useState<string>('Wszystkie');
   const [availableMonths, setAvailableMonths] = useState<string[]>(['Wszystkie']);
@@ -64,7 +82,6 @@ export default function HistoriaKierowca({ navigation }: any) {
     fetchUserData();
   }, []);
 
-  // Pomocnicza funkcja do wyciągania miesięcy z pobranych danych (działa dla mock i dla live)
   const extractMonths = (data: Trip[]) => {
     const months = new Set<string>();
     data.forEach((trip) => {
@@ -75,7 +92,6 @@ export default function HistoriaKierowca({ navigation }: any) {
     setAvailableMonths(['Wszystkie', ...Array.from(months)]);
   };
 
-  // Główna funkcja pobierająca dane
   const fetchHistory = async () => {
     try {
       setLoading(true);
@@ -84,28 +100,12 @@ export default function HistoriaKierowca({ navigation }: any) {
 
       if (!token || !driverId) return;
 
-      // ==========================================================
-      // 🛑 DO USUNIĘCIA (Symulacja pobierania Mock Data)
-      // ==========================================================
       setTimeout(() => {
         setTrips(MOCK_TRIPS);
         extractMonths(MOCK_TRIPS);
         setLoading(false);
         setRefreshing(false);
       }, 500);
-
-      // ==========================================================
-      // ✅ ODKOMENTUJ TO GDY DOSTANIESZ ENDPOINT
-      // ==========================================================
-      /*
-      const response = await axios.get(`WPISZ_ADRES_API_TUTAJ`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setTrips(response.data);
-      extractMonths(response.data);
-      setLoading(false);
-      setRefreshing(false);
-      */
 
     } catch (error) {
       console.error('Błąd pobierania historii:', error);
@@ -134,11 +134,9 @@ export default function HistoriaKierowca({ navigation }: any) {
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const closeMenu = () => setIsMenuOpen(false);
 
-  // Funkcja renderująca z zastosowaniem sortowania i filtrów
   const renderHistory = () => {
     let displayedTrips = [...trips];
     
-    // 1. Filtrowanie po miesiącu
     if (selectedMonth !== 'Wszystkie') {
       displayedTrips = displayedTrips.filter(trip => {
         const date = new Date(trip.createdAt);
@@ -147,7 +145,6 @@ export default function HistoriaKierowca({ navigation }: any) {
       });
     }
 
-    // 2. Sortowanie
     displayedTrips.sort((a, b) => {
       const timeA = new Date(a.createdAt).getTime();
       const timeB = new Date(b.createdAt).getTime();
@@ -174,14 +171,19 @@ export default function HistoriaKierowca({ navigation }: any) {
       if (isNewMonth) currentMonth = formattedMonthYear;
 
       const dateString = `${tripDate.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}, ${tripDate.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}`;
-      
       const statusColor = trip.status === 'zakończony' ? '#27ae60' : '#e74c3c';
       const statusText = trip.status === 'zakończony' ? 'Zakończony' : 'Anulowany';
+
+      // --- OBLICZANIE DYSTANSÓW ---
+      const distToPickupMeters = getDistance(trip.driverStartLat, trip.driverStartLng, trip.pickupLat, trip.pickupLng);
+      const distTripMeters = getDistance(trip.pickupLat, trip.pickupLng, trip.dropoffLat, trip.dropoffLng);
+      const totalDistMeters = distToPickupMeters + distTripMeters;
 
       return (
         <View key={trip.id}>
           {isNewMonth && selectedMonth === 'Wszystkie' && <Text style={styles.monthHeader}>{formattedMonthYear}</Text>}
           
+          {/* KARTA NA CAŁĄ SZEROKOŚĆ EKRANU */}
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <Text style={styles.dateText}>{dateString}</Text>
@@ -191,21 +193,57 @@ export default function HistoriaKierowca({ navigation }: any) {
             </View>
 
             <View style={styles.routeContainer}>
-              <View style={styles.routeRow}>
-                <Ionicons name="location" size={16} color="#0a1d56" style={styles.routeIcon} />
-                <Text style={styles.routeText} numberOfLines={1}><Text style={{fontWeight: 'bold'}}>Od: </Text>{trip.pickupAddress}</Text>
+              {/* LEWA STRONA: Grafika trasy */}
+              <View style={styles.graphicColumn}>
+                <View style={styles.iconCircleBlue}><Ionicons name="car-outline" size={14} color="white" /></View>
+                <View style={styles.dashedLine} />
+                <View style={styles.iconCircleGreen}><Ionicons name="person-outline" size={14} color="white" /></View>
+                <View style={styles.dashedLine} />
+                <View style={styles.iconCircleRed}><Ionicons name="flag-outline" size={14} color="white" /></View>
               </View>
-              <View style={styles.routeLine} />
-              <View style={styles.routeRow}>
-                <Ionicons name="flag" size={16} color="#dc3545" style={styles.routeIcon} />
-                <Text style={styles.routeText} numberOfLines={1}><Text style={{fontWeight: 'bold'}}>Do: </Text>{trip.dropoffAddress}</Text>
+
+              {/* PRAWA STRONA: Informacje i Dystanse */}
+              <View style={styles.infoColumn}>
+                
+                {/* 1. Start Kierowcy */}
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoTitle}>Dojazd do klienta</Text>
+                  <Text style={styles.distanceText}>{formatDistance(distToPickupMeters)}</Text>
+                </View>
+                
+                <View style={styles.spacer} />
+
+                {/* 2. Odbiór Klienta */}
+                <View style={styles.infoRow}>
+                  <View style={{flex: 1}}>
+                    <Text style={styles.infoTitle}>Kurs z klientem</Text>
+                    <Text style={styles.addressText} numberOfLines={1}>{trip.pickupAddress}</Text>
+                  </View>
+                  <Text style={styles.distanceText}>{formatDistance(distTripMeters)}</Text>
+                </View>
+
+                <View style={styles.spacer} />
+
+                {/* 3. Zakończenie (Cel) */}
+                <View style={styles.infoRow}>
+                  <View style={{flex: 1}}>
+                    <Text style={styles.infoTitle}>Miejsce docelowe</Text>
+                    <Text style={styles.addressText} numberOfLines={1}>{trip.dropoffAddress}</Text>
+                  </View>
+                </View>
+
               </View>
             </View>
 
+            {/* PODSUMOWANIE NA DOLE KARTY */}
             <View style={styles.cardFooter}>
-              <Ionicons name="car-outline" size={18} color="#666" />
-              <Text style={styles.driverText}>Pojazd: <Text style={{fontWeight: 'bold'}}>{trip.vehicle || '-'}</Text></Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="car-sport" size={18} color="#666" />
+                <Text style={styles.driverText}>Pojazd: <Text style={{fontWeight: 'bold'}}>{trip.vehicle || '-'}</Text></Text>
+              </View>
+              <Text style={styles.totalDistanceText}>Suma: <Text style={{fontWeight: '900', color: '#0a1d56'}}>{formatDistance(totalDistMeters)}</Text></Text>
             </View>
+
           </View>
         </View>
       );
@@ -226,8 +264,8 @@ export default function HistoriaKierowca({ navigation }: any) {
       </View>
 
       {/* MENU BOCZNE */}
-      {isMenuOpen && <Pressable style={styles.overlay} onPress={closeMenu} />}
-      <View style={[styles.sideMenu, isMenuOpen && styles.sideMenuOpen]}>
+      {isMenuOpen && <Pressable style={[styles.overlay, {zIndex: 99, elevation: 99}]} onPress={closeMenu} />}
+      <View style={[styles.sideMenu, isMenuOpen && styles.sideMenuOpen, {zIndex: 100, elevation: 100}]}>
         <Pressable style={styles.closeMenuBtn} onPress={closeMenu}>
           <Ionicons name="close" size={28} color="#333" />
         </Pressable>
@@ -338,14 +376,14 @@ const styles = StyleSheet.create({
   filterPillText: { fontSize: 13, fontWeight: 'bold', color: '#0a1d56' },
   filterPillTextActive: { color: '#fff' },
 
-  scrollContent: { paddingBottom: 40, paddingHorizontal: 15 },
+  scrollContent: { paddingBottom: 40, paddingHorizontal: 0 }, // Usunięty margines, by karta była na całą szerokość
   
   // Menu Boczne
-  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1500 },
+  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)' },
   sideMenu: {
     position: 'absolute', top: 0, right: '-100%', bottom: 0, width: 280,
-    backgroundColor: '#fff', zIndex: 2000, paddingTop: 60, paddingHorizontal: 20,
-    shadowColor: '#000', shadowOffset: { width: -2, height: 0 }, shadowOpacity: 0.2, shadowRadius: 5, elevation: 15,
+    backgroundColor: '#fff', paddingTop: 60, paddingHorizontal: 20,
+    shadowColor: '#000', shadowOffset: { width: -2, height: 0 }, shadowOpacity: 0.2, shadowRadius: 5,
   },
   sideMenuOpen: { right: 0 },
   closeMenuBtn: { position: 'absolute', top: 50, right: 20, zIndex: 10 },
@@ -357,23 +395,40 @@ const styles = StyleSheet.create({
   logoutText: { fontSize: 16, color: '#dc3545', fontWeight: 'bold' },
 
   // List Items
-  monthHeader: { fontSize: 18, fontWeight: 'bold', color: '#0a1d56', marginTop: 15, marginBottom: 10, marginLeft: 5 },
+  monthHeader: { fontSize: 18, fontWeight: 'bold', color: '#0a1d56', marginTop: 15, marginBottom: 10, marginLeft: 15 },
   card: {
-    backgroundColor: '#fff', borderRadius: 12, padding: 15, marginBottom: 12,
-    elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4,
-    borderLeftWidth: 4, borderLeftColor: '#0a1d56',
+    backgroundColor: '#fff', 
+    marginBottom: 12,
+    borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#e0e0e0',
+    padding: 15,
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, borderBottomWidth: 1, borderBottomColor: '#f0f2f5', paddingBottom: 10 },
   dateText: { fontSize: 14, fontWeight: 'bold', color: '#333' },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   statusText: { fontSize: 12, fontWeight: 'bold' },
-  routeContainer: { marginBottom: 15 },
-  routeRow: { flexDirection: 'row', alignItems: 'center' },
-  routeIcon: { marginRight: 8, width: 16, textAlign: 'center' },
-  routeText: { fontSize: 14, color: '#444', flex: 1 },
-  routeLine: { height: 12, borderLeftWidth: 1, borderLeftColor: '#ccc', borderStyle: 'dashed', marginLeft: 8, marginVertical: 2 },
-  cardFooter: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8f9fa', padding: 10, borderRadius: 8 },
+  
+  // Layout dla trasy (Lewa i Prawa Kolumna)
+  routeContainer: { flexDirection: 'row', marginBottom: 15 },
+  
+  // Grafika Osi
+  graphicColumn: { width: 40, alignItems: 'center', marginRight: 10, paddingTop: 5 },
+  iconCircleBlue: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#0a1d56', alignItems: 'center', justifyContent: 'center', zIndex: 2 },
+  iconCircleGreen: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#27ae60', alignItems: 'center', justifyContent: 'center', zIndex: 2 },
+  iconCircleRed: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#dc3545', alignItems: 'center', justifyContent: 'center', zIndex: 2 },
+  dashedLine: { height: 25, width: 2, borderWidth: 1, borderColor: '#ccc', borderStyle: 'dashed', marginVertical: -2, zIndex: 1 },
+
+  // Informacje tekstowe
+  infoColumn: { flex: 1, justifyContent: 'space-between' },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  infoTitle: { fontSize: 12, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 },
+  addressText: { fontSize: 15, color: '#000', fontWeight: '500', marginTop: 2 },
+  distanceText: { fontSize: 15, fontWeight: 'bold', color: '#0a1d56', backgroundColor: '#f0f4f8', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, overflow: 'hidden' },
+  spacer: { height: 18 }, // Odstępy między etapami
+
+  // Footer Karty
+  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8f9fa', padding: 12, borderRadius: 8, marginTop: 5 },
   driverText: { marginLeft: 6, fontSize: 13, color: '#555' },
+  totalDistanceText: { fontSize: 14, color: '#333' },
   
   emptyContainer: { alignItems: 'center', justifyContent: 'center', marginTop: 80 },
   emptyText: { marginTop: 10, color: '#666', fontSize: 16 }

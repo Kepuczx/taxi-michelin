@@ -53,6 +53,19 @@ interface Trip {
   dropoffLng: string | number;
 }
 
+// Oblicza odległość między dwoma punktami GPS w metrach
+const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371e3;
+  const rad = Math.PI / 180;
+  const a = Math.sin((lat2 - lat1) * rad / 2) ** 2 +
+            Math.cos(lat1 * rad) * Math.cos(lat2 * rad) *
+            Math.sin((lon2 - lon1) * rad / 2) ** 2;
+  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+};
+
+// Bezpiecznik: Upewnia się, że Google SDK inicjalizuje się tylko raz!
+let globalNavInitialized = false;
+
 function MainKierowcaContent({ navigation }: any) {
   const [loggedUser, setLoggedUser] = useState<string | null>('Kierowca');
   const [userId, setUserId] = useState<number | null>(null);
@@ -75,6 +88,9 @@ function MainKierowcaContent({ navigation }: any) {
 
   const mapCtrl = useRef<any>(null);
   const { navigationController } = useNavigation();
+
+  type TripPhase = 'idle' | 'heading_to_pickup' | 'arrived_pickup' | 'heading_to_dropoff' | 'arrived_dropoff';
+  const [tripPhase, setTripPhase] = useState<TripPhase>('idle');
 
   // --- DRAGGABLE BOTTOM SHEET LOGIC ---
   const screenHeight = Dimensions.get('window').height;
@@ -126,22 +142,27 @@ function MainKierowcaContent({ navigation }: any) {
   // ------------------------------------
 
   const initializeNavigation = useCallback(async () => {
+    // 1. Sprawdzamy, czy aplikacja już to wcześniej odpaliła
+    if (globalNavInitialized) {
+      console.log('✅ SDK Google Maps już zainicjowane, pomijam okienko regulaminu.');
+      return; 
+    }
+
     try {
       const termsAccepted = await navigationController.showTermsAndConditionsDialog();
       if (!termsAccepted) return;
 
       const status = await navigationController.init();
       if (status === NavigationSessionStatus.OK) {
-        console.log('✅ Silnik Navigation SDK zainicjalizowany.');
+        // Zapisujemy w globalnej pamięci, że wszystko poszło dobrze
+        globalNavInitialized = true; 
+        console.log('✅ Silnik Navigation SDK zainicjalizowany po raz pierwszy.');
       }
     } catch (e) {
-      console.error(e);
+      console.warn('Zignorowano błąd okna dialogowego:', e);
     }
   }, [navigationController]);
 
-  useEffect(() => {
-    initializeNavigation();
-  }, [initializeNavigation]);
 
   useEffect(() => {
     let positionSubscription: any;
@@ -226,6 +247,28 @@ function MainKierowcaContent({ navigation }: any) {
 
     return () => newSocket.disconnect();
   }, []);
+
+  useEffect(() => {
+  if (!activeTrip || !driverLocation) return;
+  
+  const dLat = driverLocation.coords.latitude;
+  const dLng = driverLocation.coords.longitude;
+  
+  // Jeśli jedziemy po klienta, sprawdzamy odległość do punktu odbioru
+  if (tripPhase === 'heading_to_pickup') {
+    const dist = getDistance(dLat, dLng, Number(activeTrip.pickupLat), Number(activeTrip.pickupLng));
+    if (dist < 300) { // 300 metrów promienia
+      setTripPhase('arrived_pickup');
+    }
+  } 
+  // Jeśli jedziemy do celu, sprawdzamy odległość do dropoffu
+  else if (tripPhase === 'heading_to_dropoff') {
+    const dist = getDistance(dLat, dLng, Number(activeTrip.dropoffLat), Number(activeTrip.dropoffLng));
+    if (dist < 300) {
+      setTripPhase('arrived_dropoff');
+    }
+  }
+}, [driverLocation, activeTrip, tripPhase]);
 
   const fetchVehiclesAndCheckAssignment = async (authToken: string | null, driverId: number | null) => {
     if (!authToken || !driverId) return;
@@ -340,30 +383,62 @@ function MainKierowcaContent({ navigation }: any) {
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const closeMenu = () => setIsMenuOpen(false);
 
-  const handleAcceptTask = async (tripId: number) => {
-    if (!userId || !token) return;
-    try {
-      const response = await axios.patch(`${API_URL}/trips/${tripId}/accept`, { driverId: userId }, { headers: { Authorization: `Bearer ${token}` } });
-      setActiveTrip(response.data);
-      setAvailableTasks(prev => prev.filter(t => t.id !== tripId));
-      Alert.alert('Sukces!', `Zlecenie #${tripId} przypisane.`);
-    } catch (error: any) {
-      Alert.alert('Błąd', error.response?.data?.message || 'Nie udało się przypisać kursu.');
-    }
-  };
+  //AKCEPTACJA KURSU + AUTOMATYCZNE ODPAŁANIE NAWIGACJI PO KLIENTA
 
-  const focusMapOnTask = (task: Trip) => {
-    if (isMapReady && mapCtrl.current) {
-      mapCtrl.current.moveCamera({
-        target: { lat: Number(task.pickupLat), lng: Number(task.pickupLng) },
-        zoom: 15,
-        bearing: 0,
-        tilt: 0
-      });
-      // Optionally drag the sheet down slightly when they focus a task
-      Animated.spring(animatedHeight, { toValue: MID_HEIGHT, useNativeDriver: false }).start();
-    }
-  };
+  const handleAcceptTask = async (tripId: number) => {
+  if (!userId || !token) return;
+  try {
+    const response = await axios.patch(`${API_URL}/trips/${tripId}/accept`, { driverId: userId }, { headers: { Authorization: `Bearer ${token}` } });
+    const trip = response.data;
+    
+    setActiveTrip(trip);
+    setAvailableTasks(prev => prev.filter(t => t.id !== tripId));
+    setTripPhase('heading_to_pickup'); // Zmieniamy fazę
+    
+    // Automatycznie odpalamy nawigację GPS po klienta
+    const waypoint = { title: trip.pickupAddress || 'Odbiór', position: { lat: Number(trip.pickupLat), lng: Number(trip.pickupLng) } };
+    await navigationController.setDestinations([waypoint], { routingOptions: { travelMode: 1 } });
+    await navigationController.startGuidance();
+    
+  } catch (error: any) {
+    Alert.alert('Błąd', error.response?.data?.message || 'Nie udało się przypisać kursu.');
+  }
+};
+
+//KLIENT WSIADŁ
+
+const handleClientBoarded = async () => {
+  if (!activeTrip) return;
+  setTripPhase('heading_to_dropoff'); // Zmieniamy fazę na "W drodze do celu"
+  
+  try {
+    // Odpalamy nawigację do celu
+    const waypoint = { title: activeTrip.dropoffAddress || 'Cel', position: { lat: Number(activeTrip.dropoffLat), lng: Number(activeTrip.dropoffLng) } };
+    await navigationController.setDestinations([waypoint], { routingOptions: { travelMode: 1 } });
+    await navigationController.startGuidance();
+  } catch (error) { console.error(error); }
+};
+
+  const focusMapOnTask = async (task: Trip) => {
+  if (isMapReady && mapCtrl.current && driverLocation) {
+    try {
+      // Ładujemy trasę (Odbiór -> Cel) do wbudowanego silnika, ale nie startujemy jeszcze nawigacji głosowej
+      const waypoints = [
+        { title: 'Odbiór', position: { lat: Number(task.pickupLat), lng: Number(task.pickupLng) } },
+        { title: 'Cel', position: { lat: Number(task.dropoffLat), lng: Number(task.dropoffLng) } }
+      ];
+      await navigationController.setDestinations(waypoints, { routingOptions: { travelMode: 1 } });
+      
+      // Pokazujemy przegląd całej trasy z oddalenia
+      if(mapCtrl.current.showRouteOverview) {
+         mapCtrl.current.showRouteOverview();
+      }
+      
+      // Zwijamy dolny panel lekko w dół, żeby kierowca miał czysty widok na mapę
+      Animated.spring(animatedHeight, { toValue: MIN_HEIGHT + 60, useNativeDriver: false }).start();
+    } catch(e) { console.error(e); }
+  }
+};
 
   const handleStartNavigation = async (type: 'pickup' | 'dropoff') => {
     if (!activeTrip || !isMapReady) return;
@@ -381,15 +456,16 @@ function MainKierowcaContent({ navigation }: any) {
   };
 
   const handleCompleteTrip = async () => {
-    if (!activeTrip) return;
-    try {
-      await axios.patch(`${API_URL}/trips/${activeTrip.id}/complete`, { driverId: userId });
-      setActiveTrip(null); 
-      await navigationController.stopGuidance();
-      await navigationController.clearDestinations();
-      Alert.alert('Sukces', 'Kurs zakończony!');
-    } catch (e) { Alert.alert('Błąd', 'Nie udało się zakończyć.'); }
-  };
+  if (!activeTrip) return;
+  try {
+    await axios.patch(`${API_URL}/trips/${activeTrip.id}/complete`, { driverId: userId });
+    setActiveTrip(null); 
+    setTripPhase('idle'); // Resetujemy fazę
+    await navigationController.stopGuidance();
+    await navigationController.clearDestinations();
+    Alert.alert('Sukces', 'Kurs zakończony!');
+  } catch (e) { Alert.alert('Błąd', 'Nie udało się zakończyć.'); }
+};
 
   // Komponent Logo - Tekst na białym tle (Wizualnie zgodny z Web)
   const TextLogo = () => (
@@ -463,59 +539,21 @@ function MainKierowcaContent({ navigation }: any) {
         </View>
       </View>
 
-      {/* MENU BOCZNE */}
-      {isMenuOpen && <Pressable style={MainKierowcaStyles.overlay} onPress={closeMenu} />}
-      <View style={[MainKierowcaStyles.sideMenu, isMenuOpen && MainKierowcaStyles.sideMenuOpen]}>
-        <Pressable style={MainKierowcaStyles.closeMenuBtn} onPress={closeMenu}>
-          <Ionicons name="close" size={28} color="#333" />
-        </Pressable>
-        <View style={MainKierowcaStyles.menuHeader}>
-          <Text style={MainKierowcaStyles.menuHeaderText}>👤 Profil Kierowcy</Text>
-        </View>
-
-        {assignedVehicle && (
-          <View style={MainKierowcaStyles.currentVehicle}>
-            <Text style={MainKierowcaStyles.vehicleLabel}>Twój pojazd:</Text>
-            <Text style={MainKierowcaStyles.vehicleNameText}>{assignedVehicle.brand} {assignedVehicle.model}</Text>
-            <Text style={MainKierowcaStyles.vehiclePlate}>{assignedVehicle.registration}</Text>
-            <Pressable style={MainKierowcaStyles.releaseBtn} onPress={handleReleaseVehicle}>
-              <Text style={MainKierowcaStyles.releaseBtnText}>Zakończ pracę</Text>
-            </Pressable>
-          </View>
-        )}
-
-        <Pressable style={[MainKierowcaStyles.menuItem, activeTab === 'tasks' && MainKierowcaStyles.menuItemActive]} onPress={() => { setActiveTab('tasks'); closeMenu(); }}>
-          <Text style={[MainKierowcaStyles.menuItemText, activeTab === 'tasks' && MainKierowcaStyles.menuItemTextActive]}>Zlecenia</Text>
-        </Pressable>
-        
-        {/* Przycisk Pauza dodany z powrotem */}
-        <Pressable style={MainKierowcaStyles.menuItem} onPress={closeMenu}>
-          <Text style={MainKierowcaStyles.menuItemText}>Pauza (Przerwa)</Text>
-        </Pressable>
-
-        <View style={MainKierowcaStyles.menuBottom}>
-          <Pressable style={[MainKierowcaStyles.menuItem, activeTab === 'history' && MainKierowcaStyles.menuItemActive]} onPress={() => { setActiveTab('history'); closeMenu(); }}>
-            <Text style={[MainKierowcaStyles.menuItemText, activeTab === 'history' && MainKierowcaStyles.menuItemTextActive]}>Historia kursów</Text>
-          </Pressable>
-          <Pressable style={MainKierowcaStyles.menuItem} onPress={handleLogout}>
-            <Text style={MainKierowcaStyles.logoutText}>Wyloguj się</Text>
-          </Pressable>
-        </View>
-      </View>
-
       <View style={{ flex: 1 }}>
         {activeTab === 'tasks' && (
           <View style={{ flex: 1, flexDirection: 'column' }}>
             
-            {/* 1. MAPA ZAWSZE NA GÓRZE */}
+            {/* MAPA ZAWSZE NA GÓRZE */}
             <View style={{ flex: 1 }}>
-              <NavigationView
-                 style={{ flex: 1 }}
-                 onMapViewControllerCreated={(ctrl: any) => { mapCtrl.current = ctrl; }} 
+              <NavigationView style={{ flex: 1 }} onMapViewControllerCreated={(ctrl: any) => { mapCtrl.current = ctrl; }} 
                  navigationUIEnabled={true}      
                  myLocationEnabled={true}        
                  myLocationButtonEnabled={true}  
-                 onMapReady={() => setIsMapReady(true)}
+                 onMapReady={() => {
+                   setIsMapReady(true);
+                   // Inicjuj SDK i pokazuj regulamin DOPIERO GDY MAPA JEST GOTOWA
+                   initializeNavigation(); 
+                 }}
               />
             </View>
 
@@ -597,10 +635,10 @@ function MainKierowcaContent({ navigation }: any) {
               </Animated.View>
             )}
 
-            {/* PANEL AKTYWNEGO ZLECENIA (Zastępuje listę, jeśli w toku) */}
+            {/* PANEL AKTYWNEGO ZLECENIA */}
             {activeTrip && (
               <View style={{ 
-                height: 220,
+                height: 180,
                 backgroundColor: 'white', 
                 padding: 20,
                 borderTopLeftRadius: 20,
@@ -610,26 +648,40 @@ function MainKierowcaContent({ navigation }: any) {
                 <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#0a1d56', marginBottom: 15, textAlign: 'center' }}>
                   Zlecenie #{activeTrip.id} w toku
                 </Text>
-                
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 }}>
+
+                {tripPhase === 'heading_to_pickup' && (
+                  <View style={{ alignItems: 'center', marginTop: 10 }}>
+                    <ActivityIndicator size="small" color="#007bff" />
+                    <Text style={{ marginTop: 10, color: '#666', fontWeight: 'bold' }}>Nawigacja do klienta włączona.</Text>
+                    <Text style={{ marginTop: 5, color: '#999', fontSize: 12 }}>Przycisk odbioru pojawi się po dotarciu na miejsce.</Text>
+                  </View>
+                )}
+
+                {tripPhase === 'arrived_pickup' && (
                   <Pressable 
-                    style={{ flex: 1, backgroundColor: isMapReady ? '#007bff' : '#ccc', padding: 15, borderRadius: 8, marginRight: 5, alignItems: 'center' }} 
-                    onPress={() => handleStartNavigation('pickup')} disabled={!isMapReady}
+                    style={{ backgroundColor: '#28a745', padding: 15, borderRadius: 8, alignItems: 'center' }} 
+                    onPress={handleClientBoarded}
                   >
-                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>{isMapReady ? 'PO KLIENTA' : '...'}</Text>
+                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>🤝 KLIENT WSIADŁ</Text>
                   </Pressable>
-            
+                )}
+
+                {tripPhase === 'heading_to_dropoff' && (
+                  <View style={{ alignItems: 'center', marginTop: 10 }}>
+                    <ActivityIndicator size="small" color="#17a2b8" />
+                    <Text style={{ marginTop: 10, color: '#666', fontWeight: 'bold' }}>Nawigacja do celu włączona.</Text>
+                    <Text style={{ marginTop: 5, color: '#999', fontSize: 12 }}>Przycisk zakończenia kursu pojawi się po dotarciu na miejsce.</Text>
+                  </View>
+                )}
+
+                {tripPhase === 'arrived_dropoff' && (
                   <Pressable 
-                    style={{ flex: 1, backgroundColor: isMapReady ? '#17a2b8' : '#ccc', padding: 15, borderRadius: 8, marginLeft: 5, alignItems: 'center' }} 
-                    onPress={() => handleStartNavigation('dropoff')} disabled={!isMapReady}
+                    style={{ backgroundColor: '#dc3545', padding: 15, borderRadius: 8, alignItems: 'center' }} 
+                    onPress={handleCompleteTrip}
                   >
-                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>{isMapReady ? 'DO CELU' : '...'}</Text>
+                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>✅ ZAKOŃCZ KURS</Text>
                   </Pressable>
-                </View>
-            
-                <Pressable style={{ backgroundColor: '#dc3545', padding: 15, borderRadius: 8, alignItems: 'center' }} onPress={handleCompleteTrip}>
-                  <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>✅ ZAKOŃCZ KURS</Text>
-                </Pressable>
+                )}
               </View>
             )}
           </View>
@@ -643,6 +695,50 @@ function MainKierowcaContent({ navigation }: any) {
             </View>
           </View>
         )}
+      </View>
+
+      {/* MENU BOCZNE */}
+      {/* MENU BOCZNE */}
+      {isMenuOpen && <Pressable style={[MainKierowcaStyles.overlay, { zIndex: 99, elevation: 99 }]} onPress={closeMenu} />}
+      <View style={[MainKierowcaStyles.sideMenu, isMenuOpen && MainKierowcaStyles.sideMenuOpen, { zIndex: 100, elevation: 100 }]}>
+        <Pressable style={MainKierowcaStyles.closeMenuBtn} onPress={closeMenu}>
+          <Ionicons name="close" size={28} color="#333" />
+        </Pressable>
+        <View style={MainKierowcaStyles.menuHeader}>
+          <Text style={MainKierowcaStyles.menuHeaderText}>👤 Profil Kierowcy</Text>
+        </View>
+
+        {assignedVehicle && (
+          <View style={MainKierowcaStyles.currentVehicle}>
+            <Text style={MainKierowcaStyles.vehicleLabel}>Twój pojazd:</Text>
+            <Text style={MainKierowcaStyles.vehicleNameText}>{assignedVehicle.brand} {assignedVehicle.model}</Text>
+            <Text style={MainKierowcaStyles.vehiclePlate}>{assignedVehicle.registration}</Text>
+            <Pressable style={MainKierowcaStyles.releaseBtn} onPress={handleReleaseVehicle}>
+              <Text style={MainKierowcaStyles.releaseBtnText}>Zakończ pracę</Text>
+            </Pressable>
+          </View>
+        )}
+
+        <Pressable style={[MainKierowcaStyles.menuItem, activeTab === 'tasks' && MainKierowcaStyles.menuItemActive]} onPress={() => { setActiveTab('tasks'); closeMenu(); }}>
+          <Text style={[MainKierowcaStyles.menuItemText, activeTab === 'tasks' && MainKierowcaStyles.menuItemTextActive]}>Zlecenia</Text>
+        </Pressable>
+        
+        {/* Przycisk Pauza dodany z powrotem */}
+        <Pressable style={MainKierowcaStyles.menuItem} onPress={closeMenu}>
+          <Text style={MainKierowcaStyles.menuItemText}>Pauza (Przerwa)</Text>
+        </Pressable>
+
+        <View style={MainKierowcaStyles.menuBottom}>
+          <Pressable style={MainKierowcaStyles.menuItem} onPress={() => { 
+            closeMenu(); 
+            navigation.navigate('HistoriaKierowca'); 
+          }}>
+            <Text style={MainKierowcaStyles.menuItemText}>Historia kursów</Text>
+          </Pressable>
+          <Pressable style={MainKierowcaStyles.menuItem} onPress={handleLogout}>
+            <Text style={MainKierowcaStyles.logoutText}>Wyloguj się</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
