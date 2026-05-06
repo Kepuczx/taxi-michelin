@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GoogleMap, LoadScript, Marker, DirectionsRenderer } from '@react-google-maps/api';
 import { io, Socket } from 'socket.io-client';
@@ -40,7 +40,7 @@ const toNumber = (value: any): number => {
 const HomePageDriver = () => {
   const navigate = useNavigate();
   const [userId, setUserId] = useState<number | null>(null);
-  const [firstName] = useState(() => {
+  const [firstName, setFirstName] = useState(() => {
     const fullName = localStorage.getItem('userName');
     return fullName ? fullName.split(' ')[0] : 'Kierowca';
   });
@@ -59,7 +59,7 @@ const HomePageDriver = () => {
   const [mapsLoaded, setMapsLoaded] = useState(false);
   const [mapError, setMapError] = useState(false);
   const [mapRef, setMapRef] = useState<google.maps.Map | null>(null);
-  const [pollingInterval, setPollingInterval] = useState<any | null>(null);
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
   const [calculatingRoute, setCalculatingRoute] = useState(false);
   
   const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -135,14 +135,14 @@ const HomePageDriver = () => {
           mapRef.setZoom(14);
         }
       },
-      () => {
+      (error) => {
         setTrackingLocation(false);
       },
       { enableHighAccuracy: true }
     );
   };
 
-  useEffect(() => {
+useEffect(() => {
     if (!mapsLoaded || initialCheck) return;
     
     getDriverLocation();
@@ -150,25 +150,43 @@ const HomePageDriver = () => {
     const interval = setInterval(() => {
       if (mapsLoaded && navigator.geolocation && !initialCheck) {
         navigator.geolocation.getCurrentPosition(
-          (position) => {
+          async (position) => {
             const newLocation = {
               lat: position.coords.latitude,
               lng: position.coords.longitude,
             };
+            
+            // 1. Aktualizacja stanu w komponencie kierowcy (na mapie lokalnej)
             setDriverLocation(newLocation);
             
             if (autoCenter && mapRef && !selectedTrip) {
               mapRef.panTo(newLocation);
             }
+
+            // 2. NOWY KOD: Pingowanie lokalizacji do bazy danych co 10 sekund!
+            if (userId) {
+              try {
+                const token = localStorage.getItem('authToken');
+                // Wywołanie endpointu aktualizującego 'currentLat' i 'currentLng'
+                await axios.patch(`${API_URL}/users/${userId}/location`, newLocation, {
+                  headers: { Authorization: `Bearer ${token}` }
+                });
+                console.log('📍 Wysłano pozycję do Admina:', newLocation);
+              } catch (error) {
+                console.error('Błąd wysyłania lokalizacji do bazy:', error);
+              }
+            }
           },
-          () => {},
+          (error) => {
+             console.error('Błąd geolokalizacji w interwale:', error);
+          },
           { enableHighAccuracy: true }
         );
       }
-    }, 10000);
+    }, 10000); // 10000 ms = 10 sekund
     
     return () => clearInterval(interval);
-  }, [mapsLoaded, autoCenter, selectedTrip, initialCheck]);
+  }, [mapsLoaded, autoCenter, selectedTrip, initialCheck, userId]); // <-- dodałem userId do tablicy zależności
 
   const fetchPendingTrips = async () => {
     if (initialCheck) return;
@@ -386,7 +404,7 @@ const HomePageDriver = () => {
     // Tylko dla kierowców wysyłamy logout do backendu
     if (userId && token && userRole === 'driver') {
       try {
-        await fetch(`${API_URL}/auth/logout`, {
+        await fetch('http://localhost:3000/auth/logout', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -508,7 +526,7 @@ const HomePageDriver = () => {
                     <h2 className="panel-title">Dostępne zlecenia ({availableTasks.length})</h2>
                     <div className="tasks-container">
                       {availableTasks.length === 0 ? (
-                        <p style={{ textAlign: 'center', padding: 20 }}>Oczekujesz na zlecenia... </p>
+                        <p style={{ textAlign: 'center', padding: 20}}>Oczekujesz na zlecenia... </p>
                       ) : (
                         availableTasks.map((task) => (
                           <div key={task.id} className={`task-card ${selectedTrip?.id === task.id ? 'active-task' : ''}`}>

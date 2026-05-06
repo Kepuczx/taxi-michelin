@@ -229,14 +229,31 @@ const ActiveTripPageDriver = () => {
     );
     
     // Dodatkowo interwał na wysyłanie lokalizacji co 3 sekundy (na wypadek gdyby watch nie działał)
-    locationIntervalRef.current = setInterval(() => {
-      if (driverLocation && socketRef.current?.connected) {
-        socketRef.current.emit('driverLocation', {
-          tripId: trip.id,
-          location: driverLocation
-        });
+    locationIntervalRef.current = setInterval(async () => {
+      if (driverLocation) {
+        // 1. Szybki ping przez WebSocket dla pasażera
+        if (socketRef.current?.connected) {
+          socketRef.current.emit('driverLocation', {
+            tripId: trip.id,
+            location: driverLocation
+          });
+        }
+
+        // 2. Ping do bazy danych dla widoku Admina (żeby mapa główna się aktualizowała)
+        try {
+          const token = localStorage.getItem('authToken');
+          const driverId = localStorage.getItem('userId');
+          if (driverId) {
+            await axios.patch(`${API_URL}/users/${driverId}/location`, driverLocation, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            console.log('📍 Wysłano pozycję w trakcie trasy do Admina');
+          }
+        } catch (error) {
+          console.error('Błąd aktualizacji GPS w bazie:', error);
+        }
       }
-    }, 3000);
+    }, 10000);
     
     return () => {
       if (watchIdRef.current) {
