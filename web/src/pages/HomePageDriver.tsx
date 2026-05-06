@@ -45,13 +45,6 @@ const { isLoaded, loadError} = useJsApiLoader({
     libraries: libraries
   });
 
-  useEffect(() => {
-    if (isLoaded) { setMapsLoaded(true);
-  }
-  if (loadError) {
-    setMapError(true);
-  }
-  }, [isLoaded, loadError]);
   const [userId, setUserId] = useState<number | null>(null);
   const [firstName, setFirstName] = useState(() => {
     const fullName = localStorage.getItem('userName');
@@ -69,14 +62,24 @@ const { isLoaded, loadError} = useJsApiLoader({
   const [availableTasks, setAvailableTasks] = useState<Trip[]>([]);
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
+  
   const [mapsLoaded, setMapsLoaded] = useState(false);
   const [mapError, setMapError] = useState(false);
+
   const [mapRef, setMapRef] = useState<google.maps.Map | null>(null);
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
   const [calculatingRoute, setCalculatingRoute] = useState(false);
   
   const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null);
   
+  useEffect(() => {
+    if (isLoaded) { setMapsLoaded(true);
+  }
+  if (loadError) {
+    setMapError(true);
+  }
+  }, [isLoaded, loadError]);
+
   // NOWY REF: Zawsze trzyma najświeższą lokalizację bez resetowania interwałów
   const latestLocationRef = useRef<{lat: number, lng: number} | null>(null);
 
@@ -213,9 +216,9 @@ useEffect(() => {
       } else {
         setInitialCheck(false);
       }
-    } catch (error: any) {
-      setInitialCheck(false);
-    }
+    } catch {
+    setInitialCheck(false);
+  }
   };
 
   const getDriverLocation = () => {
@@ -236,7 +239,7 @@ useEffect(() => {
           mapRef.setZoom(14);
         }
       },
-      (error) => {
+      () => {
         setTrackingLocation(false);
       },
       { enableHighAccuracy: true }
@@ -287,6 +290,8 @@ useEffect(() => {
     }, 10000); // 10000 ms = 10 sekund
     
     return () => clearInterval(interval);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapsLoaded, autoCenter, selectedTrip, initialCheck, userId]); // <-- dodałem userId do tablicy zależności
 
   const fetchPendingTrips = async () => {
@@ -317,10 +322,11 @@ useEffect(() => {
       return;
     }
     
-    if (!window.google || !window.google.maps) {
+    if (!(window as any).google || !(window as any).google.maps) {
       alert('Google Maps nie jest jeszcze dostępne');
       return;
     }
+    const directionsService = new (window as any).google.maps.DirectionsService();
     
     if (selectedTrip?.id === trip.id) {
       setSelectedTrip(null);
