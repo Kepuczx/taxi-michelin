@@ -23,6 +23,13 @@ const ActiveTripPageDriver = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [clientName, setClientName] = useState<string>('Klient');
   const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null);
+  
+  // NOWY REF DO ŚLEDZENIA
+  const latestLocationRef = useRef<{lat: number, lng: number} | null>(null);
+
+  useEffect(() => {
+    latestLocationRef.current = driverLocation;
+  }, [driverLocation]);
   const [trackingLocation, setTrackingLocation] = useState(false);
   const [tripStatus, setTripStatus] = useState<string>('assigned');
   const [loading, setLoading] = useState(true);
@@ -229,28 +236,29 @@ const ActiveTripPageDriver = () => {
     );
     
     // Dodatkowo interwał na wysyłanie lokalizacji co 3 sekundy (na wypadek gdyby watch nie działał)
+// Niezawodny interwał na wysyłanie lokalizacji (WebSocket + API)
     locationIntervalRef.current = setInterval(async () => {
-      if (driverLocation) {
-        // 1. Szybki ping przez WebSocket dla pasażera
+      if (latestLocationRef.current) {
+        // 1. WebSocket dla pasażera
         if (socketRef.current?.connected) {
           socketRef.current.emit('driverLocation', {
             tripId: trip.id,
-            location: driverLocation
+            location: latestLocationRef.current
           });
         }
 
-        // 2. Ping do bazy danych dla widoku Admina (żeby mapa główna się aktualizowała)
+        // 2. Baza danych dla Admina
         try {
           const token = localStorage.getItem('authToken');
-          const driverId = localStorage.getItem('userId');
-          if (driverId) {
-            await axios.patch(`${API_URL}/users/${driverId}/location`, driverLocation, {
+          const currentDriverId = localStorage.getItem('userId');
+          if (currentDriverId && token) {
+            await axios.patch(`${API_URL}/users/${currentDriverId}/location`, latestLocationRef.current, {
               headers: { Authorization: `Bearer ${token}` }
             });
-            console.log('📍 Wysłano pozycję w trakcie trasy do Admina');
+            console.log('📍 [W TRASIE] Zapisano w bazie:', latestLocationRef.current);
           }
         } catch (error) {
-          console.error('Błąd aktualizacji GPS w bazie:', error);
+          console.error('❌ Błąd PINGu do bazy:', error);
         }
       }
     }, 10000);

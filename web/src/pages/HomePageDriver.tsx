@@ -63,6 +63,14 @@ const HomePageDriver = () => {
   const [calculatingRoute, setCalculatingRoute] = useState(false);
   
   const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null);
+  
+  // NOWY REF: Zawsze trzyma najświeższą lokalizację bez resetowania interwałów
+  const latestLocationRef = useRef<{lat: number, lng: number} | null>(null);
+
+  // Aktualizujemy refa za każdym razem, gdy GPS znajdzie nową pozycję
+  useEffect(() => {
+    latestLocationRef.current = driverLocation;
+  }, [driverLocation]);
   const [trackingLocation, setTrackingLocation] = useState(false);
   const [autoCenter, setAutoCenter] = useState(true);
   const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
@@ -87,6 +95,34 @@ const HomePageDriver = () => {
       scale: 1,
     }
   };
+
+  // ==============================================================
+  // KULOODPORNY PING DO BAZY DANYCH (Co 10 sekund)
+  // ==============================================================
+  useEffect(() => {
+    const pingApi = async () => {
+      const currentUserId = localStorage.getItem('userId');
+      const token = localStorage.getItem('authToken');
+      
+      // Jeśli nie jesteśmy zalogowani lub nie mamy jeszcze fixa GPS -> ignoruj
+      if (!currentUserId || !token || !latestLocationRef.current) return;
+
+      try {
+        await axios.patch(`${API_URL}/users/${currentUserId}/location`, latestLocationRef.current, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        console.log('📍 [API PING] Zapisano w bazie:', latestLocationRef.current);
+      } catch (error) {
+        console.error('❌ Błąd PINGu do bazy:', error);
+      }
+    };
+
+    // Odpal interwał
+    const pingInterval = setInterval(pingApi, 10000);
+    
+    // Posprzątaj po wyjściu
+    return () => clearInterval(pingInterval);
+  }, []); // Pusta tablica = uruchamia się raz i działa niezależnie od renderów
 
   const checkDriverActiveTrip = async () => {
     if (redirectDone.current) return;
