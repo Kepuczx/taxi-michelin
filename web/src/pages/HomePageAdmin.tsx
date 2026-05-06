@@ -286,6 +286,21 @@ const HomePageAdmin = () => {
     currentPageDriverReports * itemsPerPage
   );
 
+// cache driverow
+
+const fetchDrivers = async () => {
+  try {
+    // 🔥 DODAJ timestamp żeby ominąć cache
+    const timestamp = new Date().getTime();
+    const allUsers = await userService.getAll();
+    const driverList = allUsers.filter(u => u.role === 'driver');
+    setDrivers(driverList);
+    console.log('📍 Odświeżono listę kierowców:', driverList.length);
+  } catch (error) { 
+    console.error('Błąd pobierania kierowców na mapę:', error); 
+  }
+};
+
 // ==================== LOGIKA: MAPA ====================
   const fetchDrivers = async () => {
     try {
@@ -312,7 +327,7 @@ const HomePageAdmin = () => {
       fetchDrivers();
       intervalId = setInterval(() => {
         fetchDrivers();
-      }, 10000);
+      }, 2000);
     }
     else if (activeTab === 'users') fetchUsers();
     else if (activeTab === 'fleet') fetchVehicles();

@@ -99,22 +99,45 @@ const HomePageDriver = () => {
   // ZGŁOSZENIE STATUSU "ONLINE" PO WEJŚCIU DO APLIKACJI
   // ==============================================================
   useEffect(() => {
-    const setOnline = async () => {
+  const setOnline = async () => {
+    const currentUserId = localStorage.getItem('userId');
+    const token = localStorage.getItem('authToken');
+    if (currentUserId && token) {
+      try {
+        console.log('📡 Wysyłam PATCH /users/${currentUserId}/status z isOnline: true');
+        const response = await axios.patch(`${API_URL}/users/${currentUserId}/status`, 
+          { isOnline: true },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        console.log('✅ Status ONLINE ustawiony w bazie:', response.data);
+      } catch (error) {
+        console.error('❌ Błąd ustawiania statusu online:', error);
+        // Spróbuj ponownie za 5 sekund
+        setTimeout(setOnline, 5000);
+      }
+    }
+  };
+  setOnline();
+  
+  // Przy rozmontowaniu komponentu - ustaw offline
+  return () => {
+    const setOffline = async () => {
       const currentUserId = localStorage.getItem('userId');
       const token = localStorage.getItem('authToken');
       if (currentUserId && token) {
         try {
-          await axios.patch(`${API_URL}/users/${currentUserId}/status`, { isOnline: true }, {
+          await axios.patch(`${API_URL}/users/${currentUserId}/status`, { isOnline: false }, {
             headers: { Authorization: `Bearer ${token}` }
           });
-          console.log('✅ Zgłoszono do bazy status: ONLINE');
+          console.log('✅ Status OFFLINE ustawiony w bazie');
         } catch (error) {
-          console.error('Błąd ustawiania statusu online:', error);
+          console.error('❌ Błąd ustawiania statusu offline:', error);
         }
       }
     };
-    setOnline();
-  }, []);
+    setOffline();
+  };
+}, []);
 
   // ==============================================================
   // KULOODPORNY PING DO BAZY DANYCH (Co 10 sekund)
