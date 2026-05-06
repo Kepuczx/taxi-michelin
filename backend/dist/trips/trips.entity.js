@@ -21,6 +21,9 @@ let Trip = class Trip {
     driverId;
     vehicle;
     vehicleId;
+    driverStartLat;
+    driverStartLng;
+    driverStartAddress;
     pickupLat;
     pickupLng;
     pickupAddress;
@@ -39,6 +42,9 @@ let Trip = class Trip {
     passengerCount;
     notes;
     cancellationReason;
+    distanceToPickupKm;
+    distanceTripKm;
+    totalDistanceKm;
     createdAt;
     updatedAt;
 };
@@ -74,6 +80,18 @@ __decorate([
     (0, typeorm_1.Column)({ name: 'vehicle_id', nullable: true }),
     __metadata("design:type", Number)
 ], Trip.prototype, "vehicleId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'driver_start_lat', type: 'decimal', precision: 10, scale: 8, nullable: true }),
+    __metadata("design:type", Number)
+], Trip.prototype, "driverStartLat", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'driver_start_lng', type: 'decimal', precision: 11, scale: 8, nullable: true }),
+    __metadata("design:type", Number)
+], Trip.prototype, "driverStartLng", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'driver_start_address', nullable: true, type: 'text' }),
+    __metadata("design:type", String)
+], Trip.prototype, "driverStartAddress", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 8, name: 'pickup_lat' }),
     __metadata("design:type", Number)
@@ -146,6 +164,18 @@ __decorate([
     (0, typeorm_1.Column)({ name: 'cancellation_reason', nullable: true, type: 'text' }),
     __metadata("design:type", String)
 ], Trip.prototype, "cancellationReason", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'distance_to_pickup_km', nullable: true, type: 'decimal', precision: 10, scale: 2 }),
+    __metadata("design:type", Number)
+], Trip.prototype, "distanceToPickupKm", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'distance_trip_km', nullable: true, type: 'decimal', precision: 10, scale: 2 }),
+    __metadata("design:type", Number)
+], Trip.prototype, "distanceTripKm", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'total_distance_km', nullable: true, type: 'decimal', precision: 10, scale: 2 }),
+    __metadata("design:type", Number)
+], Trip.prototype, "totalDistanceKm", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
     __metadata("design:type", Date)

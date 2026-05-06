@@ -27,6 +27,15 @@ export class Trip {
   @Column({ name: 'vehicle_id', nullable: true })
   vehicleId: number;
 
+  @Column({ name: 'driver_start_lat', type: 'decimal', precision: 10, scale: 8, nullable: true })
+  driverStartLat: number;
+
+  @Column({ name: 'driver_start_lng', type: 'decimal', precision: 11, scale: 8, nullable: true })
+  driverStartLng: number;
+
+  @Column({ name: 'driver_start_address', nullable: true, type: 'text' })
+  driverStartAddress: string;
+
   @Column({ type: 'decimal', precision: 10, scale: 8, name: 'pickup_lat' })
   pickupLat: number;
   @Column({ type: 'decimal', precision: 11, scale: 8, name: 'pickup_lng' })
@@ -68,6 +77,15 @@ export class Trip {
   notes: string;
   @Column({ name: 'cancellation_reason', nullable: true, type: 'text' })
   cancellationReason: string;
+
+  @Column({ name: 'distance_to_pickup_km', nullable: true, type: 'decimal', precision: 10, scale: 2 })
+distanceToPickupKm: number;
+
+@Column({ name: 'distance_trip_km', nullable: true, type: 'decimal', precision: 10, scale: 2 })
+distanceTripKm: number;
+
+@Column({ name: 'total_distance_km', nullable: true, type: 'decimal', precision: 10, scale: 2 })
+totalDistanceKm: number;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

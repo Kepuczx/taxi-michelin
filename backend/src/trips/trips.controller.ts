@@ -17,9 +17,15 @@ export class TripsController {
   }
 
   @Patch(':id/accept')
-  async acceptTrip(@Param('id') id: string, @Body('driverId') driverId: number) {
-    return this.tripsService.acceptTrip(+id, driverId);
-  }
+async acceptTrip(
+  @Param('id') id: string, 
+  @Body('driverId') driverId: number,
+  @Body('driverLat') driverLat?: number,
+  @Body('driverLng') driverLng?: number,
+  @Body('driverAddress') driverAddress?: string
+) {
+  return this.tripsService.acceptTrip(+id, driverId, driverLat, driverLng, driverAddress);
+}
 
   // 🔥 ZMIENIONE: pobieranie przypisanych kursów (assigned)
   @Get('driver/:driverId/assigned')
@@ -79,4 +85,13 @@ export class TripsController {
   async getAllTrips() {
     return this.tripsService.getAllTrips();
   }
+
+  @Get('driver/:driverId/history')
+  async getDriverHistory(@Param('driverId') driverId: string) {
+  return this.tripsService.getDriverHistory(+driverId);
+}
+  @Get('driver/:driverId/stats')
+async getDriverStats(@Param('driverId') driverId: string) {
+  return this.tripsService.getDriverStats(+driverId);
+}
 }

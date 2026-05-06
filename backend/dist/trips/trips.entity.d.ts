@@ -9,6 +9,9 @@ export declare class Trip {
     driverId: number;
     vehicle: Vehicle;
     vehicleId: number;
+    driverStartLat: number;
+    driverStartLng: number;
+    driverStartAddress: string;
     pickupLat: number;
     pickupLng: number;
     pickupAddress: string;
@@ -27,6 +30,9 @@ export declare class Trip {
     passengerCount: number;
     notes: string;
     cancellationReason: string;
+    distanceToPickupKm: number;
+    distanceTripKm: number;
+    totalDistanceKm: number;
     createdAt: Date;
     updatedAt: Date;
 }

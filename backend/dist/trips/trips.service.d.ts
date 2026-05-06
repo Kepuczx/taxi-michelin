@@ -10,7 +10,7 @@ export declare class TripsService {
     private readonly tripsGateway;
     constructor(tripRepository: Repository<Trip>, driverLogRepository: Repository<DriverLog>, userRepository: Repository<User>, tripsGateway: TripsGateway);
     requestTrip(clientId: number, data: any): Promise<Trip>;
-    acceptTrip(tripId: number, driverId: number): Promise<Trip>;
+    acceptTrip(tripId: number, driverId: number, driverLat?: number, driverLng?: number, driverAddress?: string): Promise<Trip>;
     getPendingTrips(): Promise<Trip[]>;
     startTrip(tripId: number, driverId: number, ipAddress?: string, userAgent?: string): Promise<Trip>;
     completeTrip(tripId: number, driverId: number, ipAddress?: string, userAgent?: string): Promise<Trip>;
@@ -21,4 +21,6 @@ export declare class TripsService {
     cancelTrip(tripId: number, userId: number, reason?: string): Promise<Trip>;
     getDriverActiveTrip(driverId: number): Promise<Trip | null>;
     getAllTrips(): Promise<Trip[]>;
+    getDriverHistory(driverId: number): Promise<Trip[]>;
+    getDriverStats(driverId: number): Promise<any>;
 }
