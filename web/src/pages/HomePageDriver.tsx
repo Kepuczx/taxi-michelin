@@ -96,27 +96,36 @@ const HomePageDriver = () => {
     }
   };
   // ==============================================================
-  // ZGŁOSZENIE STATUSU "ONLINE" PO WEJŚCIU DO APLIKACJI
-  // ==============================================================
-  useEffect(() => {
+// ZGŁOSZENIE STATUSU "ONLINE" PO WEJŚCIU DO APLIKACJI
+// ==============================================================
+useEffect(() => {
   const setOnline = async () => {
     const currentUserId = localStorage.getItem('userId');
     const token = localStorage.getItem('authToken');
+    console.log('📡 [HomePageDriver] Próba ustawienia statusu ONLINE dla userId:', currentUserId);
+    
     if (currentUserId && token) {
       try {
-        console.log('📡 Wysyłam PATCH /users/${currentUserId}/status z isOnline: true');
         const response = await axios.patch(`${API_URL}/users/${currentUserId}/status`, 
           { isOnline: true },
-          { headers: { Authorization: `Bearer ${token}` } }
+          { 
+            headers: { 
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            } 
+          }
         );
         console.log('✅ Status ONLINE ustawiony w bazie:', response.data);
-      } catch (error) {
-        console.error('❌ Błąd ustawiania statusu online:', error);
+      } catch (error: any) {
+        console.error('❌ Błąd ustawiania statusu online:', error.response?.data || error.message);
         // Spróbuj ponownie za 5 sekund
         setTimeout(setOnline, 5000);
       }
+    } else {
+      console.log('⚠️ Brak userId lub token, nie mogę ustawić statusu');
     }
   };
+  
   setOnline();
   
   // Przy rozmontowaniu komponentu - ustaw offline

@@ -139,26 +139,59 @@ const ActiveTripPageDriver = () => {
     
     fetchClientData();
   }, [trip]);
-    // ==============================================================
-  // ZGŁOSZENIE STATUSU "ONLINE" PO WEJŚCIU DO APLIKACJI
+
   // ==============================================================
-  useEffect(() => {
-    const setOnline = async () => {
+// ZGŁOSZENIE STATUSU "ONLINE" PO WEJŚCIU DO STRONY AKTYWNEGO KURSU
+// ==============================================================
+useEffect(() => {
+  const setOnline = async () => {
+    const currentUserId = localStorage.getItem('userId');
+    const token = localStorage.getItem('authToken');
+    console.log('📡 [ActiveTrip] Próba ustawienia statusu ONLINE dla userId:', currentUserId);
+    
+    if (currentUserId && token) {
+      try {
+        const response = await axios.patch(`${API_URL}/users/${currentUserId}/status`, 
+          { isOnline: true },
+          { 
+            headers: { 
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            } 
+          }
+        );
+        console.log('✅ [ActiveTrip] Status ONLINE ustawiony w bazie:', response.data);
+      } catch (error: any) {
+        console.error('❌ [ActiveTrip] Błąd ustawiania statusu online:', error.response?.data || error.message);
+        // Spróbuj ponownie za 5 sekund
+        setTimeout(setOnline, 5000);
+      }
+    }
+  };
+  
+  setOnline();
+  
+  // Przy rozmontowaniu komponentu - ustaw offline
+  return () => {
+    const setOffline = async () => {
       const currentUserId = localStorage.getItem('userId');
       const token = localStorage.getItem('authToken');
       if (currentUserId && token) {
         try {
-          await axios.patch(`${API_URL}/users/${currentUserId}/status`, { isOnline: true }, {
+          await axios.patch(`${API_URL}/users/${currentUserId}/status`, { isOnline: false }, {
             headers: { Authorization: `Bearer ${token}` }
           });
-          console.log('✅ Zgłoszono do bazy status: ONLINE');
+          console.log('✅ [ActiveTrip] Status OFFLINE ustawiony w bazie');
         } catch (error) {
-          console.error('Błąd ustawiania statusu online:', error);
+          console.error('❌ [ActiveTrip] Błąd ustawiania statusu offline:', error);
         }
       }
     };
-    setOnline();
-  }, []);
+    setOffline();
+  };
+}, []);
+
+
   // 🔥 WEBSOCKET - POŁĄCZENIE
   useEffect(() => {
     if (!trip || loading) return;
@@ -331,38 +364,50 @@ const ActiveTripPageDriver = () => {
   }, [mapsLoaded, googleReady, trip, driverLocation, tripStatus]);
 
   const handleStartTrip = async () => {
-    try {
-      const token = localStorage.getItem('authToken');
-      const driverId = localStorage.getItem('userId');
-      await axios.patch(
-        `${API_URL}/trips/${trip.id}/start`,
-        { driverId: parseInt(driverId || '0') },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setTripStatus('in_progress');
-      alert('Kurs rozpoczęty! Jedź do celu.');
-    } catch (error) {
-      console.error('Błąd rozpoczęcia kursu:', error);
-      alert('Nie udało się rozpocząć kursu');
-    }
-  };
+  try {
+    const token = localStorage.getItem('authToken');
+    const driverId = localStorage.getItem('userId');
+    
+    // 🔥 DODAJ - potwierdzenie że kierowca nadal online
+    await axios.patch(`${API_URL}/users/${driverId}/status`, { isOnline: true }, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    
+    await axios.patch(
+      `${API_URL}/trips/${trip.id}/start`,
+      { driverId: parseInt(driverId || '0') },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    setTripStatus('in_progress');
+    alert('Kurs rozpoczęty! Jedź do celu.');
+  } catch (error) {
+    console.error('Błąd rozpoczęcia kursu:', error);
+    alert('Nie udało się rozpocząć kursu');
+  }
+};
 
   const handleCompleteTrip = async () => {
-    try {
-      const token = localStorage.getItem('authToken');
-      const driverId = localStorage.getItem('userId');
-      await axios.patch(
-        `${API_URL}/trips/${trip.id}/complete`,
-        { driverId: parseInt(driverId || '0') },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      alert('Kurs zakończony!');
-      navigate('/homeDriver');
-    } catch (error) {
-      console.error('Błąd zakończenia kursu:', error);
-      alert('Nie udało się zakończyć kursu');
-    }
-  };
+  try {
+    const token = localStorage.getItem('authToken');
+    const driverId = localStorage.getItem('userId');
+    
+    // 🔥 DODAJ - potwierdzenie że kierowca nadal online przed zakończeniem
+    await axios.patch(`${API_URL}/users/${driverId}/status`, { isOnline: true }, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    
+    await axios.patch(
+      `${API_URL}/trips/${trip.id}/complete`,
+      { driverId: parseInt(driverId || '0') },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    alert('Kurs zakończony!');
+    navigate('/homeDriver');
+  } catch (error) {
+    console.error('Błąd zakończenia kursu:', error);
+    alert('Nie udało się zakończyć kursu');
+  }
+};
 
 const handleLogout = async () => {
     if (window.confirm('Czy na pewno chcesz się wylogować?')) {
