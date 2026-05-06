@@ -224,10 +224,19 @@ function MainKierowcaContent({ navigation }: any) {
     });
 
     const getData = async () => {
-      const storedToken = await AsyncStorage.getItem('userToken');
-      const role = await AsyncStorage.getItem('userRole');
-      const id = await AsyncStorage.getItem('userId');
-      const name = await AsyncStorage.getItem('userName');
+  const storedToken = await AsyncStorage.getItem('userToken');
+  const role = await AsyncStorage.getItem('userRole');
+  const id = await AsyncStorage.getItem('userId');
+  const name = await AsyncStorage.getItem('userName');
+  
+  // 🔥 DODAJ TO - upewnij się że authToken też istnieje
+  if (storedToken) {
+    await AsyncStorage.setItem('authToken', storedToken);
+    console.log('✅ [MainKierowca] Skopiowano token do authToken');
+  }
+  
+  console.log('📦 [MainKierowca] storedToken:', storedToken ? 'OK' : 'BRAK');
+  console.log('📦 [MainKierowca] authToken po kopii:', await AsyncStorage.getItem('authToken') ? 'OK' : 'BRAK');
       
       if (role !== 'driver') {
         Alert.alert('Brak dostępu', 'Tylko dla kierowców', [
@@ -387,16 +396,46 @@ function MainKierowcaContent({ navigation }: any) {
 
   const handleAcceptTask = async (tripId: number) => {
   if (!userId || !token) return;
+  
+  // 🔥 POBIERZ AKTUALNĄ LOKALIZACJĘ KIEROWCY
+  let driverLat = null;
+  let driverLng = null;
+  let driverAddress = '';
+  
   try {
-    const response = await axios.patch(`${API_URL}/trips/${tripId}/accept`, { driverId: userId }, { headers: { Authorization: `Bearer ${token}` } });
+    const location = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.High
+    });
+    driverLat = location.coords.latitude;
+    driverLng = location.coords.longitude;
+    
+    console.log('📍 Lokalizacja startowa przy akceptacji:', { driverLat, driverLng });
+  } catch (error) {
+    console.log('⚠️ Nie udało się pobrać lokalizacji startowej:', error);
+  }
+  
+  try {
+    const response = await axios.patch(
+      `${API_URL}/trips/${tripId}/accept`, 
+      { 
+        driverId: userId,
+        driverLat: driverLat,
+        driverLng: driverLng,
+        driverAddress: driverAddress || ''
+      }, 
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
     const trip = response.data;
     
     setActiveTrip(trip);
     setAvailableTasks(prev => prev.filter(t => t.id !== tripId));
-    setTripPhase('heading_to_pickup'); // Zmieniamy fazę
+    setTripPhase('heading_to_pickup');
     
     // Automatycznie odpalamy nawigację GPS po klienta
-    const waypoint = { title: trip.pickupAddress || 'Odbiór', position: { lat: Number(trip.pickupLat), lng: Number(trip.pickupLng) } };
+    const waypoint = { 
+      title: trip.pickupAddress || 'Odbiór', 
+      position: { lat: Number(trip.pickupLat), lng: Number(trip.pickupLng) } 
+    };
     await navigationController.setDestinations([waypoint], { routingOptions: { travelMode: 1 } });
     await navigationController.startGuidance();
     

@@ -23,13 +23,15 @@ interface Trip {
   dropoffAddress: string;
   status: string;
   vehicle?: string;
-  // Współrzędne do obliczania dystansów
   pickupLat: number;
   pickupLng: number;
   dropoffLat: number;
   dropoffLng: number;
-  driverStartLat: number; // ⚠️ Wymaga dodania do backendu (miejsce akceptacji kursu)
-  driverStartLng: number; // ⚠️ Wymaga dodania do backendu
+  driverStartLat: number;
+  driverStartLng: number;
+  distanceToPickupKm?: number;  // 🔥 DODAJ
+  distanceTripKm?: number;       // 🔥 DODAJ
+  totalDistanceKm?: number;      // 🔥 DODAJ
 }
 
 // Oblicza odległość między dwoma punktami GPS w metrach
@@ -93,27 +95,58 @@ export default function HistoriaKierowca({ navigation }: any) {
   };
 
   const fetchHistory = async () => {
-    try {
-      setLoading(true);
-      const token = await AsyncStorage.getItem('userToken');
-      const driverId = await AsyncStorage.getItem('userId');
+  try {
+    setLoading(true);
+    const token = await AsyncStorage.getItem('authToken');
+    const driverId = await AsyncStorage.getItem('userId');
+    
+    console.log('🔍 [Historia] Token:', token ? 'OK (długość: ' + token.length + ')' : 'BRAK');
+    console.log('🔍 [Historia] DriverId:', driverId);
+    console.log('🔍 [Historia] URL:', `${API_URL}/trips/driver/${driverId}/history`);
 
-      if (!token || !driverId) return;
-
-      setTimeout(() => {
-        setTrips(MOCK_TRIPS);
-        extractMonths(MOCK_TRIPS);
-        setLoading(false);
-        setRefreshing(false);
-      }, 500);
-
-    } catch (error) {
-      console.error('Błąd pobierania historii:', error);
-      Alert.alert('Błąd', 'Nie udało się pobrać historii przejazdów.');
+    if (!token || !driverId) {
+      console.log('❌ Brak tokenu lub driverId');
       setLoading(false);
-      setRefreshing(false);
+      return;
     }
-  };
+
+    const response = await axios.get(`${API_URL}/trips/driver/${driverId}/history`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    
+    console.log('✅ [Historia] Odpowiedź status:', response.status);
+    console.log('✅ [Historia] Liczba kursów:', response.data.length);
+    console.log('✅ [Historia] Dane:', JSON.stringify(response.data, null, 2));
+    
+       // Mapowanie danych z backendu
+    const tripsFromBackend = response.data.map((trip: any) => ({
+  id: trip.id,
+  createdAt: trip.completedAt || trip.createdAt || trip.requestedAt,
+  pickupAddress: trip.pickupAddress,
+  dropoffAddress: trip.dropoffAddress,
+  status: trip.status === 'completed' ? 'zakończony' : 'anulowany',
+  vehicle: trip.vehicle?.registration || '-',
+  pickupLat: parseFloat(trip.pickupLat),
+  pickupLng: parseFloat(trip.pickupLng),
+  dropoffLat: parseFloat(trip.dropoffLat || 0),
+  dropoffLng: parseFloat(trip.dropoffLng || 0),
+  driverStartLat: parseFloat(trip.driverStartLat || 0),
+  distanceToPickupKm: parseFloat(trip.distanceToPickupKm) || 0,
+  distanceTripKm: parseFloat(trip.distanceTripKm) || 0,
+  totalDistanceKm: parseFloat(trip.totalDistanceKm) || 0,
+}));
+
+    setTrips(tripsFromBackend);
+    extractMonths(tripsFromBackend);
+    
+  } catch (error: any) {
+    console.error('❌ [Historia] Błąd:', error.response?.status, error.response?.data || error.message);
+    Alert.alert('Błąd', error.response?.data?.message || 'Nie udało się pobrać historii');
+  } finally {
+    setLoading(false);
+    setRefreshing(false);
+  }
+};
 
   useEffect(() => {
     fetchHistory();
@@ -175,9 +208,9 @@ export default function HistoriaKierowca({ navigation }: any) {
       const statusText = trip.status === 'zakończony' ? 'Zakończony' : 'Anulowany';
 
       // --- OBLICZANIE DYSTANSÓW ---
-      const distToPickupMeters = getDistance(trip.driverStartLat, trip.driverStartLng, trip.pickupLat, trip.pickupLng);
-      const distTripMeters = getDistance(trip.pickupLat, trip.pickupLng, trip.dropoffLat, trip.dropoffLng);
-      const totalDistMeters = distToPickupMeters + distTripMeters;
+      const distToPickupMeters = (trip.distanceToPickupKm || 0) * 1000;
+const distTripMeters = (trip.distanceTripKm || 0) * 1000;
+const totalDistMeters = (trip.totalDistanceKm || 0) * 1000;
 
       return (
         <View key={trip.id}>
