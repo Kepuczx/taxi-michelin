@@ -5,9 +5,6 @@ import { API_URL } from './config';
 
 const backgroundImage = require('../assets/LoginBackground.jpg');
 
-// 🔥 UŻYJ SWOJEGO IP (z ipconfig)
-
-
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -37,7 +34,6 @@ export default function LoginScreen({ navigation }: any) {
     const checkLoggedIn = async () => {
       const token = await AsyncStorage.getItem('userToken');
       const role = await AsyncStorage.getItem('userRole');
-      const userId = await AsyncStorage.getItem('userId');
       
       if (token && role === 'admin') {
         navigation.replace('AdminPanel');
@@ -68,21 +64,23 @@ export default function LoginScreen({ navigation }: any) {
       const data = await response.json();
 
       if (response.ok) {
-        // 🔥 ZAPISUJEMY WSZYSTKIE DANE
+        // 🔥 ZAPISUJEMY WSZYSTKIE DANE (w tym authToken dla kompatybilności)
         await AsyncStorage.setItem('userToken', data.access_token);
+        await AsyncStorage.setItem('authToken', data.access_token); // 🔥 DODANE!
         await AsyncStorage.setItem('userRole', data.role);
         await AsyncStorage.setItem('userEmail', email);
         
-        // 🔥 DODANE: ZAPISUJEMY ID I IMIĘ/NAZWISKO
+        // ZAPISUJEMY ID I IMIĘ/NAZWISKO
         if (data.user && data.user.id) {
           await AsyncStorage.setItem('userId', data.user.id.toString());
           await AsyncStorage.setItem('userName', `${data.user.firstName} ${data.user.lastName}`);
         }
         
-        console.log('Zalogowano jako:', data.role);
-        console.log('UserId:', data.user?.id);
+        console.log('✅ Zalogowano jako:', data.role);
+        console.log('✅ UserId:', data.user?.id);
+        console.log('✅ Token zapisany jako userToken i authToken');
         
-        // 🔥 PRZEKIEROWANIE NA PODSTAWIE ROLI
+        // PRZEKIEROWANIE NA PODSTAWIE ROLI
         if (data.role === 'admin') {
           navigation.replace('AdminPanel');
         } else if (data.role === 'driver') {

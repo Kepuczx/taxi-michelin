@@ -463,38 +463,59 @@ useEffect(() => {
   };
 
   const handleAcceptTask = async (tripId: number) => {
-    if (!userId) {
-      alert('Nie jesteś zalogowany jako kierowca');
-      return;
-    }
-    
-    if (!assignedVehicle) {
-      alert('Najpierw wybierz pojazd, z którego będziesz korzystać');
-      return;
-    }
-    
+  if (!userId) {
+    alert('Nie jesteś zalogowany jako kierowca');
+    return;
+  }
+  
+  if (!assignedVehicle) {
+    alert('Najpierw wybierz pojazd, z którego będziesz korzystać');
+    return;
+  }
+  
+  // 🔥 POBIERZ AKTUALNĄ LOKALIZACJĘ KIEROWCY (PRZED AKCEPTACJĄ)
+  let driverLat = null;
+  let driverLng = null;
+  
+  if (navigator.geolocation) {
     try {
-      const token = localStorage.getItem('authToken');
-      
-      const response = await axios.patch(
-        `${API_URL}/trips/${tripId}/accept`,
-        { driverId: userId },
-        { 
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          } 
-        }
-      );
-      
-      if (response.data) {
-        alert(`Zlecenie #${tripId} zostało przypisane do Ciebie!`);
-        window.location.href = '/active-trip-driver';
-      }
-    } catch (error: any) {
-      alert(`Nie udało się przyjąć kursu: ${error.response?.data?.message || error.message}`);
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true });
+      });
+      driverLat = position.coords.latitude;
+      driverLng = position.coords.longitude;
+      console.log('📍 Lokalizacja startowa przy akceptacji:', { driverLat, driverLng });
+    } catch (error) {
+      console.log('⚠️ Nie udało się pobrać lokalizacji startowej:', error);
     }
-  };
+  }
+  
+  try {
+    const token = localStorage.getItem('authToken');
+    
+    const response = await axios.patch(
+      `${API_URL}/trips/${tripId}/accept`,
+      { 
+        driverId: userId,
+        driverLat: driverLat,   // 🔥 DODANE
+        driverLng: driverLng    // 🔥 DODANE
+      },
+      { 
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        } 
+      }
+    );
+    
+    if (response.data) {
+      alert(`Zlecenie #${tripId} zostało przypisane do Ciebie!`);
+      window.location.href = '/active-trip-driver';
+    }
+  } catch (error: any) {
+    alert(`Nie udało się przyjąć kursu: ${error.response?.data?.message || error.message}`);
+  }
+};
 
 const handleLogout = async () => {
     if (window.confirm('Czy na pewno chcesz się wylogować?')) {
