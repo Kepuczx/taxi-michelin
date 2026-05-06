@@ -195,7 +195,7 @@ export class TripsService {
   async getClientHistory(clientId: number): Promise<Trip[]> {
     return this.tripRepository.find({
       where: { clientId },
-      relations: ['driver', 'vehicle'], // 🔥 Dodana linijka
+      relations: ['driver', 'vehicle'],
       order: { requestedAt: 'DESC' },
     });
   }

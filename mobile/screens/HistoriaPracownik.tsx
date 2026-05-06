@@ -21,6 +21,7 @@ interface Trip {
   pickupAddress: string;
   dropoffAddress: string;
   status: string;
+  distanceKm?: string | number;
   driver?: {
     firstName: string;
     lastName: string;
@@ -67,7 +68,6 @@ export default function HistoriaPracownik({ navigation }: any) {
       const response = await axios.get(`${API_URL}/trips/client/${userId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-
       // Zapisujemy surowe dane z bazy
       setTrips(response.data);
 
@@ -185,9 +185,23 @@ export default function HistoriaPracownik({ navigation }: any) {
               </View>
             </View>
 
-            <View style={styles.cardFooter}>
-              <Ionicons name="person-circle-outline" size={18} color="#666" />
-              <Text style={styles.driverText}>Kierowca: {driverInfo} <Text style={{fontWeight: 'bold'}}>({vehicleInfo})</Text></Text>
+            <View style={[styles.cardFooter, { justifyContent: 'space-between' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <Ionicons name="person-circle-outline" size={18} color="#666" />
+                <Text style={styles.driverText} numberOfLines={1}>
+                  Kierowca: {driverInfo} <Text style={{fontWeight: 'bold'}}>({vehicleInfo})</Text>
+                </Text>
+              </View>
+              
+              {/* Sekcja dystansu (wyświetli się tylko jeśli dystans istnieje w bazie) */}
+              {trip.distanceKm && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 10 }}>
+                  <Ionicons name="swap-horizontal-outline" size={16} color="#666" />
+                  <Text style={{ marginLeft: 4, fontSize: 13, color: '#555', fontWeight: 'bold' }}>
+                    {Number(trip.distanceKm).toFixed(1).replace('.', ',')} km
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
         </View>
@@ -204,39 +218,6 @@ export default function HistoriaPracownik({ navigation }: any) {
           <Text style={{ color: 'white', marginRight: 15, fontWeight: 'bold' }}>Witaj, {firstName}!</Text>
           <Pressable onPress={toggleMenu} style={styles.menuButton}>
             <Ionicons name="menu" size={28} color="white" />
-          </Pressable>
-        </View>
-      </View>
-
-      {/* MENU BOCZNE */}
-      {isMenuOpen && <Pressable style={styles.overlay} onPress={closeMenu} />}
-      <View style={[styles.sideMenu, isMenuOpen && styles.sideMenuOpen]}>
-        <Pressable style={styles.closeMenuBtn} onPress={closeMenu}>
-          <Ionicons name="close" size={28} color="#333" />
-        </Pressable>
-        <View style={styles.menuHeader}>
-          <Text style={styles.menuHeaderText}>Twój Profil</Text>
-        </View>
-
-        <Pressable style={styles.menuItem} onPress={() => { console.log('Rezerwacja auta - w budowie'); closeMenu(); }}>
-          <Text style={styles.menuItemText}>Rezerwacja auta</Text>
-        </Pressable>
-        <Pressable style={styles.menuItem} onPress={() => { closeMenu(); navigation.navigate('ZamowieniePracownik'); }}>
-          <Text style={styles.menuItemText}>Zamów TAXI</Text>
-        </Pressable>
-        <Pressable style={styles.menuItem} onPress={() => { console.log('Status przejazdu - w budowie'); closeMenu(); }}>
-          <Text style={styles.menuItemText}>Status przejazdu</Text>
-        </Pressable>
-        <Pressable style={styles.menuItem} onPress={() => { console.log('Zgłoś usterkę - w budowie'); closeMenu(); }}>
-          <Text style={styles.menuItemText}>Zgłoś usterkę</Text>
-        </Pressable>
-
-        <View style={styles.menuBottom}>
-          <Pressable style={[styles.menuItem, { backgroundColor: '#f4f6f9' }]} onPress={closeMenu}>
-            <Text style={[styles.menuItemText, { fontWeight: 'bold', color: '#0a1d56' }]}>Historia przejazdów</Text>
-          </Pressable>
-          <Pressable style={styles.menuItem} onPress={handleLogout}>
-            <Text style={styles.logoutText}>Wyloguj się</Text>
           </Pressable>
         </View>
       </View>
@@ -290,6 +271,48 @@ export default function HistoriaPracownik({ navigation }: any) {
           {renderHistory()}
         </ScrollView>
       )}
+
+      {/* MENU BOCZNE */}
+      {isMenuOpen && <Pressable style={styles.overlay} onPress={closeMenu} />}
+      <View style={[styles.sideMenu, isMenuOpen && styles.sideMenuOpen]}>
+        <Pressable style={styles.closeMenuBtn} onPress={closeMenu}>
+          <Ionicons name="close" size={28} color="#333" />
+        </Pressable>
+        <View style={styles.menuHeader}>
+          <Text style={styles.menuHeaderText}>Twój Profil</Text>
+        </View>
+
+        {/* POZYCJE MENU (PRZENIESIONE WYŻEJ + IKONY) */}
+        <Pressable 
+          style={[styles.menuItem, { paddingLeft: 20, marginLeft: -20, marginRight: -20 }]} 
+          onPress={() => { closeMenu(); navigation.navigate('ZamowieniePracownik'); }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Ionicons name="car-sport-outline" size={22} color="#555" style={{ marginRight: 12 }} />
+            <Text style={styles.menuItemText}>Zamów TAXI</Text>
+          </View>
+        </Pressable>
+
+        <Pressable 
+          style={[styles.menuItem, { backgroundColor: '#f8f9fa', borderLeftWidth: 4, borderLeftColor: '#0a1d56', paddingLeft: 16, marginLeft: -20, marginRight: -20 }]} 
+          onPress={closeMenu}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Ionicons name="time" size={22} color="#0a1d56" style={{ marginRight: 12 }} />
+            <Text style={[styles.menuItemText, { fontWeight: 'bold', color: '#0a1d56' }]}>Historia przejazdów</Text>
+          </View>
+        </Pressable>
+
+        {/* DOLNA SEKCJA - TYLKO WYLOGUJ */}
+        <View style={styles.menuBottom}>
+          <Pressable style={[styles.menuItem, { paddingLeft: 20, marginLeft: -20, marginRight: -20, borderBottomWidth: 0 }]} onPress={handleLogout}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="log-out-outline" size={22} color="#dc3545" style={{ marginRight: 12 }} />
+              <Text style={styles.logoutText}>Wyloguj się</Text>
+            </View>
+          </Pressable>
+        </View>
+      </View>
     </View>
   );
 }
@@ -323,11 +346,11 @@ const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 40, paddingHorizontal: 15 },
   
   // Menu Boczne
-  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1500 },
+  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1500, elevation: 25 },
   sideMenu: {
-    position: 'absolute', top: 0, right: '-100%', bottom: 0, width: 280,
-    backgroundColor: '#fff', zIndex: 2000, paddingTop: 60, paddingHorizontal: 20,
-    shadowColor: '#000', shadowOffset: { width: -2, height: 0 }, shadowOpacity: 0.2, shadowRadius: 5, elevation: 15,
+  position: 'absolute', top: 0, right: '-100%', bottom: 0, width: 280,
+  backgroundColor: '#fff', zIndex: 2000, paddingTop: 60, paddingHorizontal: 20,
+  shadowColor: '#000', shadowOffset: { width: -2, height: 0 }, shadowOpacity: 0.2, shadowRadius: 5, elevation: 30, // Tutaj zmiana z 15 na 30
   },
   sideMenuOpen: { right: 0 },
   closeMenuBtn: { position: 'absolute', top: 50, right: 20, zIndex: 10 },
