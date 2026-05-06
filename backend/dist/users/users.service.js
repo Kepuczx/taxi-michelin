@@ -80,15 +80,18 @@ let UsersService = class UsersService {
         });
     }
     async updateDriverStatus(driverId, isOnline, lat, lng, changedBy, ipAddress, userAgent) {
+        console.log(`📡 updateDriverStatus: driverId=${driverId}, isOnline=${isOnline}`);
         const driver = await this.findOne(driverId);
         if (driver.role !== 'driver') {
             throw new common_1.BadRequestException('Tylko kierowcy mogą zmieniać status online/offline');
         }
         const oldStatus = driver.isOnline;
         await this.usersRepository.update(driverId, {
-            isOnline,
-            ...(lat && lng ? { currentLat: lat, currentLng: lng } : {})
+            isOnline: isOnline,
+            ...(lat !== undefined && lng !== undefined ? { currentLat: lat, currentLng: lng } : {})
         });
+        const updatedDriver = await this.findOne(driverId);
+        console.log(`✅ Status zaktualizowany: ${oldStatus} -> ${updatedDriver.isOnline}`);
         const log = this.driverLogRepository.create({
             driverId,
             eventType: 'zmiana_statusu',
@@ -103,7 +106,7 @@ let UsersService = class UsersService {
             userAgent
         });
         await this.driverLogRepository.save(log);
-        return this.findOne(driverId);
+        return updatedDriver;
     }
     async updateDriverLocation(driverId, lat, lng, address) {
         const driver = await this.findOne(driverId);
