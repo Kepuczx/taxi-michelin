@@ -82,45 +82,52 @@ export class UsersService {
   }
 
   async updateDriverStatus(
-    driverId: number, 
-    isOnline: boolean, 
-    lat?: number, 
-    lng?: number,
-    changedBy?: string,
-    ipAddress?: string,
-    userAgent?: string
-  ): Promise<User> {
-    const driver = await this.findOne(driverId);
-    
-    if (driver.role !== 'driver') {
-      throw new BadRequestException('Tylko kierowcy mogą zmieniać status online/offline');
-    }
-    
-    const oldStatus = driver.isOnline;
-    
-    await this.usersRepository.update(driverId, { 
-      isOnline,
-      ...(lat && lng ? { currentLat: lat, currentLng: lng } : {})
-    });
-    
-    // LOG zmiany statusu
-    const log = this.driverLogRepository.create({
-      driverId,
-      eventType: 'zmiana_statusu',
-      eventTime: new Date(),
-      locationLat: lat,
-      locationLng: lng,
-      description: `Zmiana statusu z ${oldStatus ? 'online' : 'offline'} na ${isOnline ? 'online' : 'offline'}`,
-      changedBy: changedBy || driver.email,
-      oldValues: { isOnline: oldStatus },
-      newValues: { isOnline },
-      ipAddress,
-      userAgent
-    });
-    await this.driverLogRepository.save(log);
-    
-    return this.findOne(driverId);
+  driverId: number, 
+  isOnline: boolean, 
+  lat?: number, 
+  lng?: number,
+  changedBy?: string,
+  ipAddress?: string,
+  userAgent?: string
+): Promise<User> {
+  console.log(`📡 updateDriverStatus: driverId=${driverId}, isOnline=${isOnline}`);
+  
+  const driver = await this.findOne(driverId);
+  
+  if (driver.role !== 'driver') {
+    throw new BadRequestException('Tylko kierowcy mogą zmieniać status online/offline');
   }
+  
+  const oldStatus = driver.isOnline;
+  
+  // WYKONAJ UPDATE
+  await this.usersRepository.update(driverId, { 
+    isOnline: isOnline,
+    ...(lat !== undefined && lng !== undefined ? { currentLat: lat, currentLng: lng } : {})
+  });
+  
+  // Sprawdź czy zadziałało
+  const updatedDriver = await this.findOne(driverId);
+  console.log(`✅ Status zaktualizowany: ${oldStatus} -> ${updatedDriver.isOnline}`);
+  
+  // LOG zmiany statusu
+  const log = this.driverLogRepository.create({
+    driverId,
+    eventType: 'zmiana_statusu',
+    eventTime: new Date(),
+    locationLat: lat,
+    locationLng: lng,
+    description: `Zmiana statusu z ${oldStatus ? 'online' : 'offline'} na ${isOnline ? 'online' : 'offline'}`,
+    changedBy: changedBy || driver.email,
+    oldValues: { isOnline: oldStatus },
+    newValues: { isOnline },
+    ipAddress,
+    userAgent
+  });
+  await this.driverLogRepository.save(log);
+  
+  return updatedDriver;
+}
   
   async updateDriverLocation(
     driverId: number, 
