@@ -257,6 +257,91 @@ function MainKierowcaContent({ navigation }: any) {
     return () => newSocket.disconnect();
   }, []);
 
+
+  // 🔥 POLLING DLA ZLECEŃ (co 5 sekund) - FALLBACK GDY WEBSOCKET NIE DZIAŁA
+useEffect(() => {
+  if (!token) return;
+  
+  const fetchTrips = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/trips/pending`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAvailableTasks(response.data);
+      console.log('🔄 [Polling] Odświeżono zlecenia, liczba:', response.data.length);
+    } catch (error) {
+      console.error('❌ [Polling] Błąd:', error);
+    }
+  };
+  
+  // Od razu pobierz
+  fetchTrips();
+  
+  // Ustaw interwał co 5 sekund
+  const interval = setInterval(fetchTrips, 5000);
+  
+  return () => clearInterval(interval);
+}, [token]);
+
+
+
+  // 🔥 SPRAWDZANIE AKTYWNEGO KURSU PRZY STARCIE APLIKACJI
+useEffect(() => {
+  const checkActiveTrip = async () => {
+    try {
+      const authToken = await AsyncStorage.getItem('authToken');
+      const driverId = await AsyncStorage.getItem('userId');
+      
+      console.log('🔍 [Startup] Sprawdzanie aktywnego kursu...');
+      console.log('🔍 [Startup] authToken:', authToken ? 'OK' : 'BRAK');
+      console.log('🔍 [Startup] driverId:', driverId);
+      
+      if (!authToken || !driverId) return;
+      
+      const response = await axios.get(`${API_URL}/trips/driver/${driverId}/active`, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      
+      console.log('📡 [Startup] Odpowiedź API:', response.data);
+      
+      if (response.data && response.data.id) {
+        console.log('✅ [Startup] Znaleziono aktywny kurs:', response.data.id);
+        setActiveTrip(response.data);
+        
+        if (response.data.status === 'assigned') {
+          setTripPhase('heading_to_pickup');
+          // Uruchom nawigację do pickupu
+          const waypoint = { 
+            title: response.data.pickupAddress || 'Odbiór', 
+            position: { lat: Number(response.data.pickupLat), lng: Number(response.data.pickupLng) } 
+          };
+          await navigationController.setDestinations([waypoint], { routingOptions: { travelMode: 1 } });
+          await navigationController.startGuidance();
+        } else if (response.data.status === 'in_progress') {
+          setTripPhase('heading_to_dropoff');
+          // Uruchom nawigację do dropoff
+          const waypoint = { 
+            title: response.data.dropoffAddress || 'Cel', 
+            position: { lat: Number(response.data.dropoffLat), lng: Number(response.data.dropoffLng) } 
+          };
+          await navigationController.setDestinations([waypoint], { routingOptions: { travelMode: 1 } });
+          await navigationController.startGuidance();
+        }
+      } else {
+        console.log('❌ [Startup] Brak aktywnego kursu');
+      }
+    } catch (error) {
+      console.error('❌ [Startup] Błąd sprawdzania aktywnego kursu:', error);
+    }
+  };
+  
+  // Opóźnij sprawdzanie aż mapa będzie gotowa i navigationController dostępny
+  if (isMapReady && navigationController) {
+    checkActiveTrip();
+  }
+}, [isMapReady, navigationController]);
+
+
   useEffect(() => {
   if (!activeTrip || !driverLocation) return;
   
@@ -427,6 +512,9 @@ function MainKierowcaContent({ navigation }: any) {
     );
     const trip = response.data;
     
+    // 🔥 ZAPISZ AKTYWNY TRIP W ASYNCSTORAGE
+    await AsyncStorage.setItem('activeTripId', trip.id.toString());
+    
     setActiveTrip(trip);
     setAvailableTasks(prev => prev.filter(t => t.id !== tripId));
     setTripPhase('heading_to_pickup');
@@ -448,16 +536,33 @@ function MainKierowcaContent({ navigation }: any) {
 
 const handleClientBoarded = async () => {
   if (!activeTrip) return;
-  setTripPhase('heading_to_dropoff'); // Zmieniamy fazę na "W drodze do celu"
   
   try {
+    // 🔥 WYŚLIJ PATCH DO BACKENDU
+    const token = await AsyncStorage.getItem('authToken');
+    await axios.patch(
+      `${API_URL}/trips/${activeTrip.id}/start`,
+      { driverId: userId },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    
+    console.log('✅ Status kursu zmieniony na: in_progress');
+    
+    setTripPhase('heading_to_dropoff');
+    
     // Odpalamy nawigację do celu
-    const waypoint = { title: activeTrip.dropoffAddress || 'Cel', position: { lat: Number(activeTrip.dropoffLat), lng: Number(activeTrip.dropoffLng) } };
+    const waypoint = { 
+      title: activeTrip.dropoffAddress || 'Cel', 
+      position: { lat: Number(activeTrip.dropoffLat), lng: Number(activeTrip.dropoffLng) } 
+    };
     await navigationController.setDestinations([waypoint], { routingOptions: { travelMode: 1 } });
     await navigationController.startGuidance();
-  } catch (error) { console.error(error); }
+    
+  } catch (error) {
+    console.error('❌ Błąd zmiany statusu kursu:', error);
+    Alert.alert('Błąd', 'Nie udało się zmienić statusu kursu');
+  }
 };
-
   const focusMapOnTask = async (task: Trip) => {
   if (isMapReady && mapCtrl.current && driverLocation) {
     try {
@@ -498,12 +603,18 @@ const handleClientBoarded = async () => {
   if (!activeTrip) return;
   try {
     await axios.patch(`${API_URL}/trips/${activeTrip.id}/complete`, { driverId: userId });
+    
+    // 🔥 USUŃ AKTYWNY TRIP Z ASYNCSTORAGE
+    await AsyncStorage.removeItem('activeTripId');
+    
     setActiveTrip(null); 
     setTripPhase('idle'); // Resetujemy fazę
     await navigationController.stopGuidance();
     await navigationController.clearDestinations();
     Alert.alert('Sukces', 'Kurs zakończony!');
-  } catch (e) { Alert.alert('Błąd', 'Nie udało się zakończyć.'); }
+  } catch (e) { 
+    Alert.alert('Błąd', 'Nie udało się zakończyć.'); 
+  }
 };
 
   // Komponent Logo - Tekst na białym tle (Wizualnie zgodny z Web)
@@ -597,132 +708,146 @@ const handleClientBoarded = async () => {
             </View>
 
             {/* 2. ZLECENIA NA DOLE (Draggable Bottom Sheet) */}
-            {!activeTrip && (
-              <Animated.View style={{ 
-                height: animatedHeight, 
-                backgroundColor: '#f4f6f9', 
-                borderTopLeftRadius: 20, 
-                borderTopRightRadius: 20, 
-                elevation: 10,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: -3 },
-                shadowOpacity: 0.2,
-                shadowRadius: 5
-              }}>
-                {/* Drag Handle Area */}
-                <View 
-                  {...panResponder.panHandlers}
-                  style={{ 
-                    padding: 15, 
-                    borderBottomWidth: 1, 
-                    borderBottomColor: '#ddd', 
-                    backgroundColor: '#fff', 
-                    borderTopLeftRadius: 20, 
-                    borderTopRightRadius: 20,
-                    alignItems: 'center'
-                  }}
-                >
-                  <View style={{ width: 40, height: 5, backgroundColor: '#ccc', borderRadius: 3, marginBottom: 10 }} />
-                  <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#0a1d56' }}>Dostępne zlecenia ({availableTasks.length})</Text>
-                </View>
-                
-                {/* Scrollable List */}
-                <ScrollView contentContainerStyle={{ paddingBottom: 20, flexGrow: 1 }}>
-                  {availableTasks.length === 0 ? (
-                    <Text style={{ padding: 30, textAlign: 'center', color: '#666', fontSize: 16 }}>Oczekujesz na zlecenia... ☕</Text>
-                  ) : (
-                    availableTasks.map((task) => (
-                      <View key={task.id} style={{ 
-                        marginHorizontal: 15, 
-                        marginTop: 15, 
-                        backgroundColor: '#fff', 
-                        borderRadius: 12, 
-                        padding: 15, 
-                        elevation: 3,
-                        borderLeftWidth: 4,
-                        borderLeftColor: '#0a1d56'
-                      }}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
-                          <Text style={{ color: '#28a745', fontWeight: 'bold', backgroundColor: '#e8f5e9', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 5, overflow: 'hidden' }}>Nowe</Text>
-                          <Text style={{ color: '#666', fontWeight: 'bold' }}>👥 {task.passengerCount} os.</Text>
-                        </View>
+            {/* ZAWSZE POKAZUJ PANEL AKTYWNEGO KURSU JAKO PIERWSZY */}
+{activeTrip ? (
+  <View style={{ 
+    height: 280, 
+    backgroundColor: 'white', 
+    padding: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0
+  }}>
+    <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#0a1d56', marginBottom: 15, textAlign: 'center' }}>
+      🚕 AKTYWNY KURS #{activeTrip.id}
+    </Text>
 
-                        <View style={{ marginBottom: 15 }}>
-                          <Text style={{ fontSize: 14, color: '#444', marginBottom: 6 }}>📍 Od: <Text style={{fontWeight: 'bold', color: '#000'}}>{task.pickupAddress}</Text></Text>
-                          <Text style={{ fontSize: 14, color: '#444' }}>🏁 Do: <Text style={{fontWeight: 'bold', color: '#000'}}>{task.dropoffAddress}</Text></Text>
-                        </View>
+    <View style={{ marginBottom: 15 }}>
+      <Text style={{ fontSize: 14, color: '#666' }}>📍 Odbiór:</Text>
+      <Text style={{ fontSize: 16, fontWeight: '500', color: '#333' }}>{activeTrip.pickupAddress}</Text>
+      <View style={{ height: 1, backgroundColor: '#eee', marginVertical: 10 }} />
+      <Text style={{ fontSize: 14, color: '#666' }}>🏁 Cel:</Text>
+      <Text style={{ fontSize: 16, fontWeight: '500', color: '#333' }}>{activeTrip.dropoffAddress}</Text>
+    </View>
 
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                          <Pressable 
-                            style={{ flex: 1, backgroundColor: '#f0f2f5', padding: 12, borderRadius: 8, marginRight: 5, alignItems: 'center' }} 
-                            onPress={() => focusMapOnTask(task)}
-                          >
-                            <Text style={{ color: '#0a1d56', fontWeight: 'bold' }}>🗺️ Pokaż trasę</Text>
-                          </Pressable>
+    {tripPhase === 'heading_to_pickup' && (
+      <View style={{ alignItems: 'center', marginTop: 10 }}>
+        <ActivityIndicator size="small" color="#007bff" />
+        <Text style={{ marginTop: 10, color: '#666', fontWeight: 'bold' }}>Nawigacja do klienta włączona.</Text>
+        <Text style={{ marginTop: 5, color: '#999', fontSize: 12 }}>Przycisk odbioru pojawi się po dotarciu na miejsce.</Text>
+      </View>
+    )}
 
-                          <Pressable 
-                            style={{ flex: 1, backgroundColor: '#0a1d56', padding: 12, borderRadius: 8, marginLeft: 5, alignItems: 'center' }} 
-                            onPress={() => handleAcceptTask(task.id)}
-                          >
-                            <Text style={{ color: 'white', fontWeight: 'bold' }}>Przyjmij</Text>
-                          </Pressable>
-                        </View>
-                      </View>
-                    ))
-                  )}
-                </ScrollView>
-              </Animated.View>
-            )}
+    {tripPhase === 'arrived_pickup' && (
+      <Pressable 
+        style={{ backgroundColor: '#28a745', padding: 15, borderRadius: 8, alignItems: 'center', marginTop: 10 }} 
+        onPress={handleClientBoarded}
+      >
+        <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>🤝 KLIENT WSIADŁ</Text>
+      </Pressable>
+    )}
 
-            {/* PANEL AKTYWNEGO ZLECENIA */}
-            {activeTrip && (
-              <View style={{ 
-                height: 180,
-                backgroundColor: 'white', 
-                padding: 20,
-                borderTopLeftRadius: 20,
-                borderTopRightRadius: 20,
-                elevation: 10 
-              }}>
-                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#0a1d56', marginBottom: 15, textAlign: 'center' }}>
-                  Zlecenie #{activeTrip.id} w toku
-                </Text>
+    {tripPhase === 'heading_to_dropoff' && (
+      <View style={{ alignItems: 'center', marginTop: 10 }}>
+        <ActivityIndicator size="small" color="#17a2b8" />
+        <Text style={{ marginTop: 10, color: '#666', fontWeight: 'bold' }}>Nawigacja do celu włączona.</Text>
+        <Text style={{ marginTop: 5, color: '#999', fontSize: 12 }}>Przycisk zakończenia kursu pojawi się po dotarciu na miejsce.</Text>
+      </View>
+    )}
 
-                {tripPhase === 'heading_to_pickup' && (
-                  <View style={{ alignItems: 'center', marginTop: 10 }}>
-                    <ActivityIndicator size="small" color="#007bff" />
-                    <Text style={{ marginTop: 10, color: '#666', fontWeight: 'bold' }}>Nawigacja do klienta włączona.</Text>
-                    <Text style={{ marginTop: 5, color: '#999', fontSize: 12 }}>Przycisk odbioru pojawi się po dotarciu na miejsce.</Text>
-                  </View>
-                )}
+    {tripPhase === 'arrived_dropoff' && (
+      <Pressable 
+        style={{ backgroundColor: '#dc3545', padding: 15, borderRadius: 8, alignItems: 'center', marginTop: 10 }} 
+        onPress={handleCompleteTrip}
+      >
+        <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>✅ ZAKOŃCZ KURS</Text>
+      </Pressable>
+    )}
+  </View>
+) : (
+  <Animated.View style={{ 
+    height: animatedHeight, 
+    backgroundColor: '#f4f6f9', 
+    borderTopLeftRadius: 20, 
+    borderTopRightRadius: 20, 
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5
+  }}>
+    {/* Drag Handle Area */}
+    <View 
+      {...panResponder.panHandlers}
+      style={{ 
+        padding: 15, 
+        borderBottomWidth: 1, 
+        borderBottomColor: '#ddd', 
+        backgroundColor: '#fff', 
+        borderTopLeftRadius: 20, 
+        borderTopRightRadius: 20,
+        alignItems: 'center'
+      }}
+    >
+      <View style={{ width: 40, height: 5, backgroundColor: '#ccc', borderRadius: 3, marginBottom: 10 }} />
+      <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#0a1d56' }}>Dostępne zlecenia ({availableTasks.length})</Text>
+    </View>
+    
+    {/* Scrollable List */}
+    <ScrollView contentContainerStyle={{ paddingBottom: 20, flexGrow: 1 }}>
+      {availableTasks.length === 0 ? (
+        <Text style={{ padding: 30, textAlign: 'center', color: '#666', fontSize: 16 }}>Oczekujesz na zlecenia... ☕</Text>
+      ) : (
+        availableTasks.map((task) => (
+          <View key={task.id} style={{ 
+            marginHorizontal: 15, 
+            marginTop: 15, 
+            backgroundColor: '#fff', 
+            borderRadius: 12, 
+            padding: 15, 
+            elevation: 3,
+            borderLeftWidth: 4,
+            borderLeftColor: '#0a1d56'
+          }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
+              <Text style={{ color: '#28a745', fontWeight: 'bold', backgroundColor: '#e8f5e9', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 5, overflow: 'hidden' }}>Nowe</Text>
+              <Text style={{ color: '#666', fontWeight: 'bold' }}>👥 {task.passengerCount} os.</Text>
+            </View>
 
-                {tripPhase === 'arrived_pickup' && (
-                  <Pressable 
-                    style={{ backgroundColor: '#28a745', padding: 15, borderRadius: 8, alignItems: 'center' }} 
-                    onPress={handleClientBoarded}
-                  >
-                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>🤝 KLIENT WSIADŁ</Text>
-                  </Pressable>
-                )}
+            <View style={{ marginBottom: 15 }}>
+              <Text style={{ fontSize: 14, color: '#444', marginBottom: 6 }}>📍 Od: <Text style={{fontWeight: 'bold', color: '#000'}}>{task.pickupAddress}</Text></Text>
+              <Text style={{ fontSize: 14, color: '#444' }}>🏁 Do: <Text style={{fontWeight: 'bold', color: '#000'}}>{task.dropoffAddress}</Text></Text>
+            </View>
 
-                {tripPhase === 'heading_to_dropoff' && (
-                  <View style={{ alignItems: 'center', marginTop: 10 }}>
-                    <ActivityIndicator size="small" color="#17a2b8" />
-                    <Text style={{ marginTop: 10, color: '#666', fontWeight: 'bold' }}>Nawigacja do celu włączona.</Text>
-                    <Text style={{ marginTop: 5, color: '#999', fontSize: 12 }}>Przycisk zakończenia kursu pojawi się po dotarciu na miejsce.</Text>
-                  </View>
-                )}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Pressable 
+                style={{ flex: 1, backgroundColor: '#f0f2f5', padding: 12, borderRadius: 8, marginRight: 5, alignItems: 'center' }} 
+                onPress={() => focusMapOnTask(task)}
+              >
+                <Text style={{ color: '#0a1d56', fontWeight: 'bold' }}>🗺️ Pokaż trasę</Text>
+              </Pressable>
 
-                {tripPhase === 'arrived_dropoff' && (
-                  <Pressable 
-                    style={{ backgroundColor: '#dc3545', padding: 15, borderRadius: 8, alignItems: 'center' }} 
-                    onPress={handleCompleteTrip}
-                  >
-                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>✅ ZAKOŃCZ KURS</Text>
-                  </Pressable>
-                )}
-              </View>
-            )}
+              <Pressable 
+                style={{ flex: 1, backgroundColor: '#0a1d56', padding: 12, borderRadius: 8, marginLeft: 5, alignItems: 'center' }} 
+                onPress={() => handleAcceptTask(task.id)}
+              >
+                <Text style={{ color: 'white', fontWeight: 'bold' }}>Przyjmij</Text>
+              </Pressable>
+            </View>
+          </View>
+        ))
+      )}
+    </ScrollView>
+  </Animated.View>
+)}
           </View>
         )}
 
