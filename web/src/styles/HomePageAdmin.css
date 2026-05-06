@@ -565,4 +565,72 @@ body {
   background-color: #003366;
 }
 
+/* ==================== KILOMETRÓWKA I EKSPORT ==================== */
+.admin-mileage-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 25px;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.admin-mileage-card {
+  background-color: #f8f9fa; /* Jasnoszare tło spójne z formularzami */
+  border: 1px solid #e0e0e0;
+  padding: 20px;
+  border-radius: 8px;
+  flex: 1;
+  min-width: 300px;
+}
+
+.admin-mileage-title {
+  margin: 0 0 15px 0;
+  color: #002255; /* Granat administratora */
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  border-bottom: 2px solid #f0f4f8;
+  padding-bottom: 10px;
+}
+
+.admin-mileage-list {
+  margin: 0;
+  padding-left: 20px;
+  color: #333;
+  font-size: 14px;
+}
+
+.admin-mileage-list li {
+  margin-bottom: 6px;
+}
+
+.admin-mileage-empty {
+  font-size: 13px;
+  color: #666;
+  font-style: italic;
+  display: block;
+  margin-top: 5px;
+}
+
+.btn-export {
+  background-color: #002255;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.btn-export:hover {
+  background-color: #002255;
+}
 

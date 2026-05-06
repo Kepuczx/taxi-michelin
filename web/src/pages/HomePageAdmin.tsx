@@ -10,13 +10,17 @@ import type { Vehicle, NewVehicle } from '../types/vehicle.types';
 import type { VehicleLog } from '../types/vehicleLog.types';
 import '../styles/HomePageAdmin.css';
 
-import { GoogleMap, LoadScript, Marker, InfoWindow } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 import { API_URL, GOOGLE_MAPS_API_KEY } from '../config';
 
 const HomePageAdmin = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard'); 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY || ''
+  });
   const [message, setMessage] = useState('Laczenie z backendem...');
   const [, setLoggedUser] = useState<string | null>(() => localStorage.getItem('loggedUser'));
   const role = localStorage.getItem('userRole');
@@ -65,6 +69,7 @@ const HomePageAdmin = () => {
   const [loadingDriverLogs, setLoadingDriverLogs] = useState(false);
   const [currentPageDriverReports, setCurrentPageDriverReports] = useState(1);
   const [filterEventType, setFilterEventType] = useState<string>('');
+
 
   // ==================== STAN: MAPA ====================
   const [drivers, setDrivers] = useState<User[]>([]);
@@ -341,6 +346,50 @@ const HomePageAdmin = () => {
     return roles[role] || role;
   };
 
+
+
+  //Eskporty raportów
+  const downloadCSV = (title: string, headers: string[], rows: (string | number)[][]) => {
+    // Dodajemy BOM, aby Excel poprawnie czytał polskie znaki
+    const csvContent = '\uFEFF' + [
+      headers.join(';'),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';'))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `${title}_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const vehicleMileageSummary = vehicleLogs.reduce((acc: any, log: any) => {
+    const distance = Number(log.distance_km) || 0;
+    if (distance > 0) {
+      const driverName = log.driver ? `${log.driver.firstName} ${log.driver.lastName}` : 'Nieznany kierowca';
+      if (!acc[driverName]) acc[driverName] = 0;
+      acc[driverName] += distance;
+    }
+    return acc;
+  }, {});
+
+  // 3. Sumowanie kilometrów dla wybranego KIEROWCY (podział na auta)
+  const driverMileageSummary = driverLogs.reduce((acc: any, log: any) => {
+    const distance = Number(log.distance_km) || 0;
+    if (distance > 0) {
+      const vehicleReg = log.vehicle ? log.vehicle.registration : (log.description?.match(/[A-Z0-9]{4,8}/)?.[0] || 'Nieznany pojazd');
+      if (!acc[vehicleReg]) acc[vehicleReg] = 0;
+      acc[vehicleReg] += distance;
+    }
+    return acc;
+  }, {});
+
+  const totalVehicleKm = Object.values(vehicleMileageSummary).reduce((a: any, b: any) => a + b, 0) as number;
+  const totalDriverKm = Object.values(driverMileageSummary).reduce((a: any, b: any) => a + b, 0) as number;
+
   return (
     <div className="admin-page-wrapper">
       <header className="admin-header">
@@ -414,7 +463,7 @@ const HomePageAdmin = () => {
               </aside>
                 
               <main className="admin-map-area" style={{ flex: 1, position: 'relative' }}>
-                <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
+                {isLoaded ? (
                   <GoogleMap
                     mapContainerStyle={{ width: '100%', height: '100%' }}
                     center={mapCenter}
@@ -501,7 +550,11 @@ const HomePageAdmin = () => {
                       </InfoWindow>
                     )}
                   </GoogleMap>
-                </LoadScript>
+                ) : (
+                  <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%'}}>
+                    Ładowanie mapy...
+                  </div>
+                )}
               </main>
             </div>
           </div>
@@ -687,6 +740,40 @@ const HomePageAdmin = () => {
             {selectedVehicleId ? (
               loadingLogs ? <p>Ładowanie historii...</p> : (
                 <>
+{/* --- PANEL KILOMETRÓWKI I EKSPORTU (AUTA) --- */}
+                  <div className="admin-mileage-panel">
+                    <div className="admin-mileage-card">
+                      <h4 className="admin-mileage-title">
+                        Kilometrówka (Suma: {totalVehicleKm.toFixed(2)} km)
+                      </h4>
+                      {Object.keys(vehicleMileageSummary).length > 0 ? (
+                        <ul className="admin-mileage-list">
+                          {Object.entries(vehicleMileageSummary).map(([driver, km]) => (
+                            <li key={driver}><strong>{driver}:</strong> {Number(km).toFixed(2)} km</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <span className="admin-mileage-empty">Brak danych o dystansie w logach. (Upewnij się, że backend zwraca pole "distanceKm").</span>
+                      )}
+                    </div>
+
+                    <button 
+                      className="btn-export" 
+                      onClick={() => {
+                        const headers = ["Data", "Zdarzenie", "Opis", "Kierowca", "Zmienił"];
+                        const rows = vehicleLogs.map(log => [
+                          formatDate(log.eventTime),
+                          getEventTypeLabel(log.eventType),
+                          log.description || '',
+                          log.driver ? `${log.driver.firstName} ${log.driver.lastName}` : 'Brak',
+                          log.changedBy || 'System'
+                        ]);
+                        downloadCSV(`Raport_Pojazdu_${selectedVehicleId}`, headers, rows);
+                      }}
+                    >
+                      Eksportuj do CSV
+                    </button>
+                  </div>
                   <div className="table-container">
                     <table className="modern-table">
                       <thead><tr><th>Data</th><th>Zdarzenie</th><th>Opis</th><th>Kierowca</th><th>Zmienił</th></tr>
@@ -785,6 +872,41 @@ const HomePageAdmin = () => {
                 </div>
               ) : (
                 <>
+{/* --- PANEL KILOMETRÓWKI I EKSPORTU (KIEROWCY) --- */}
+                  <div className="admin-mileage-panel">
+                    <div className="admin-mileage-card">
+                      <h4 className="admin-mileage-title">
+                        Kilometrówka (Suma: {totalDriverKm.toFixed(2)} km)
+                      </h4>
+                      {Object.keys(driverMileageSummary).length > 0 ? (
+                        <ul className="admin-mileage-list">
+                          {Object.entries(driverMileageSummary).map(([vehicle, km]) => (
+                            <li key={vehicle}><strong>Pojazd {vehicle}:</strong> {Number(km).toFixed(2)} km</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <span className="admin-mileage-empty">Brak danych o dystansie w logach. (Upewnij się, że backend zwraca pole "distanceKm").</span>
+                      )}
+                    </div>
+
+                    <button 
+                      className="btn-export" 
+                      onClick={() => {
+                        const headers = ["Data i czas", "Zdarzenie", "Opis", "Lokalizacja", "Zmienił", "IP"];
+                        const rows = filteredDriverLogs.map(log => [
+                          formatDate(log.eventTime),
+                          driverLogService.getEventTypeLabel(log.eventType),
+                          log.description || '',
+                          (log.locationLat && log.locationLng) ? `${Number(log.locationLat).toFixed(6)}, ${Number(log.locationLng).toFixed(6)}` : 'Brak',
+                          log.changedBy || 'System',
+                          log.ipAddress || 'Brak'
+                        ]);
+                        downloadCSV(`Raport_Kierowcy_${selectedDriverId}`, headers, rows);
+                      }}
+                    >
+                      Eksportuj do CSV
+                    </button>
+                  </div>
                   <div className="table-container">
                     <table className="modern-table">
                       <thead>
