@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GoogleMap, LoadScript, Marker, DirectionsRenderer } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Marker, DirectionsRenderer } from '@react-google-maps/api';
 import { io, Socket } from 'socket.io-client';
 import axios from 'axios';
 import { vehicleService } from '../services/vehicleService';
@@ -39,6 +39,19 @@ const toNumber = (value: any): number => {
 
 const HomePageDriver = () => {
   const navigate = useNavigate();
+const { isLoaded, loadError} = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY || '',
+    libraries: libraries
+  });
+
+  useEffect(() => {
+    if (isLoaded) { setMapsLoaded(true);
+  }
+  if (loadError) {
+    setMapError(true);
+  }
+  }, [isLoaded, loadError]);
   const [userId, setUserId] = useState<number | null>(null);
   const [firstName, setFirstName] = useState(() => {
     const fullName = localStorage.getItem('userName');
@@ -661,148 +674,144 @@ const handleLogout = async () => {
                     <div className="map-card">
                       <span className="map-placeholder-text">⚠️ Brak klucza API</span>
                     </div>
-                  ) : mapError ? (
+                  ) : loadError || mapError ? (
                     <div className="map-card">
                       <span className="map-placeholder-text">⚠️ Błąd ładowania mapy</span>
                     </div>
-                  ) : (
-                    <LoadScript
-                      googleMapsApiKey={GOOGLE_MAPS_API_KEY}
-                      libraries={libraries}
-                      onError={() => setMapError(true)}
-                      onLoad={() => {
-                        setMapsLoaded(true);
-                      }}
-                    >
-                      <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-                        <GoogleMap
-                          mapContainerStyle={mapContainerStyle}
-                          center={driverLocation || { lat: 53.7784, lng: 20.4801 }}
-                          zoom={13}
-                          onLoad={(map) => {
-                            setMapRef(map);
-                            if (driverLocation && autoCenter && !selectedTrip) {
-                              map.panTo(driverLocation);
-                            }
-                          }}
-                        >
-                          {selectedTrip && (
-                            <>
-                              <Marker
-                                position={{ lat: toNumber(selectedTrip.pickupLat), lng: toNumber(selectedTrip.pickupLng) }}
-                                icon={mapIcons.pickup}
-                                title="Miejsce odbioru"
-                                zIndex={50}
-                              />
-                              <Marker
-                                position={{ lat: toNumber(selectedTrip.dropoffLat), lng: toNumber(selectedTrip.dropoffLng) }}
-                                icon={mapIcons.destination}
-                                title="Miejsce docelowe"
-                                zIndex={50}
-                              />
-                            </>
-                          )}
-                          
-                          {driverLocation && (
+                  ) : isLoaded ? (
+                    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+                      <GoogleMap
+                        mapContainerStyle={mapContainerStyle}
+                        center={driverLocation || { lat: 53.7784, lng: 20.4801 }}
+                        zoom={13}
+                        onLoad={(map) => {
+                          setMapRef(map);
+                          if (driverLocation && autoCenter && !selectedTrip) {
+                            map.panTo(driverLocation);
+                          }
+                        }}
+                      >
+                        {selectedTrip && (
+                          <>
                             <Marker
-                              position={driverLocation}
-                              icon={{ url: 'https://cdn-icons-png.flaticon.com/512/744/744465.png', scaledSize: new window.google.maps.Size(40, 40), origin: new window.google.maps.Point(0, 0), anchor: new window.google.maps.Point(20, 20) }}
-                              title="Twoja lokalizacja"
-                              label={{ text: '🚕', color: 'black', fontSize: '14px', fontWeight: 'bold' }}
+                              position={{ lat: toNumber(selectedTrip.pickupLat), lng: toNumber(selectedTrip.pickupLng) }}
+                              icon={mapIcons.pickup}
+                              title="Miejsce odbioru"
+                              zIndex={50}
                             />
-                          )}
-                          
-                          {directions && (
-                            <DirectionsRenderer
-                              directions={directions}
-                              options={{ polylineOptions: { strokeColor: '#002255', strokeWeight: 6, strokeOpacity: 0.9 }, suppressMarkers: true }}
+                            <Marker
+                              position={{ lat: toNumber(selectedTrip.dropoffLat), lng: toNumber(selectedTrip.dropoffLng) }}
+                              icon={mapIcons.destination}
+                              title="Miejsce docelowe"
+                              zIndex={50}
                             />
-                          )}
-                        </GoogleMap>
-                        
-                        {routeInfo && (
-                          <div className="route-info">
-                            📏 {routeInfo.distance} • ⏱️ {routeInfo.duration}
-                          </div>
+                          </>
                         )}
                         
-                        {calculatingRoute && (
-                          <div style={{
-                            position: 'absolute',
-                            top: '50%',
-                            left: '50%',
-                            transform: 'translate(-50%, -50%)',
-                            backgroundColor: 'rgba(0,0,0,0.7)',
-                            color: 'white',
-                            padding: '10px 20px',
-                            borderRadius: '8px',
-                            zIndex: 20
-                          }}>
-                            ⏳ Obliczanie trasy...
-                          </div>
+                        {driverLocation && (
+                          <Marker
+                            position={driverLocation}
+                            icon={{ url: 'https://cdn-icons-png.flaticon.com/512/744/744465.png', scaledSize: new window.google.maps.Size(40, 40), origin: new window.google.maps.Point(0, 0), anchor: new window.google.maps.Point(20, 20) }}
+                            title="Twoja lokalizacja"
+                            label={{ text: '🚕', color: 'black', fontSize: '14px', fontWeight: 'bold' }}
+                          />
                         )}
+                        
+                        {directions && (
+                          <DirectionsRenderer
+                            directions={directions}
+                            options={{ polylineOptions: { strokeColor: '#002255', strokeWeight: 6, strokeOpacity: 0.9 }, suppressMarkers: true }}
+                          />
+                        )}
+                      </GoogleMap>
+                      
+                      {routeInfo && (
+                        <div className="route-info">
+                          📏 {routeInfo.distance} • ⏱️ {routeInfo.duration}
+                        </div>
+                      )}
+                      
+                      {calculatingRoute && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '50%',
+                          left: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          backgroundColor: 'rgba(0,0,0,0.7)',
+                          color: 'white',
+                          padding: '10px 20px',
+                          borderRadius: '8px',
+                          zIndex: 20
+                        }}>
+                          ⏳ Obliczanie trasy...
+                        </div>
+                      )}
 
-                        {!selectedTrip && availableTasks.length > 0 && (
-                          <div style={{
-                            position: 'absolute',
-                            top: '50%',
-                            left: '50%',
-                            transform: 'translate(-50%, -50%)',
-                            backgroundColor: 'rgba(0,0,0,0.6)',
-                            color: 'white',
-                            padding: '15px 25px',
-                            borderRadius: '8px',
-                            textAlign: 'center',
-                            zIndex: 10
-                          }}>
-                            Kliknij "Pokaż trasę" na wybranym zleceniu
-                          </div>
-                        )}
+                      {!selectedTrip && availableTasks.length > 0 && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '50%',
+                          left: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          backgroundColor: 'rgba(0,0,0,0.6)',
+                          color: 'white',
+                          padding: '15px 25px',
+                          borderRadius: '8px',
+                          textAlign: 'center',
+                          zIndex: 10
+                        }}>
+                          Kliknij "Pokaż trasę" na wybranym zleceniu
+                        </div>
+                      )}
 
-                        {trackingLocation && !driverLocation && (
-                          <div style={{
-                            position: 'absolute',
-                            bottom: 20,
-                            right: 20,
-                            backgroundColor: 'rgba(0,0,0,0.6)',
-                            color: 'white',
-                            padding: '5px 10px',
-                            borderRadius: '8px',
-                            fontSize: '11px',
-                            zIndex: 10
-                          }}>
-                            📍 Pobieranie lokalizacji...
-                          </div>
-                        )}
+                      {trackingLocation && !driverLocation && (
+                        <div style={{
+                          position: 'absolute',
+                          bottom: 20,
+                          right: 20,
+                          backgroundColor: 'rgba(0,0,0,0.6)',
+                          color: 'white',
+                          padding: '5px 10px',
+                          borderRadius: '8px',
+                          fontSize: '11px',
+                          zIndex: 10
+                        }}>
+                          📍 Pobieranie lokalizacji...
+                        </div>
+                      )}
 
-                        {!autoCenter && selectedTrip && (
-                          <div style={{
-                            position: 'absolute',
-                            bottom: 20,
-                            left: 20,
-                            backgroundColor: 'white',
-                            padding: '8px 12px',
-                            borderRadius: '8px',
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
-                            zIndex: 10,
-                            cursor: 'pointer'
-                          }}
-                          onClick={() => {
-                            setAutoCenter(true);
-                            setSelectedTrip(null);
-                            setDirections(null);
-                            setRouteInfo(null);
-                            if (driverLocation && mapRef) {
-                              mapRef.panTo(driverLocation);
-                              mapRef.setZoom(14);
-                            }
-                          }}
-                          >
-                            🚕 Wróć do mojej lokalizacji
-                          </div>
-                        )}
-                      </div>
-                    </LoadScript>
+                      {!autoCenter && selectedTrip && (
+                        <div style={{
+                          position: 'absolute',
+                          bottom: 20,
+                          left: 20,
+                          backgroundColor: 'white',
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                          zIndex: 10,
+                          cursor: 'pointer'
+                        }}
+                        onClick={() => {
+                          setAutoCenter(true);
+                          setSelectedTrip(null);
+                          setDirections(null);
+                          setRouteInfo(null);
+                          if (driverLocation && mapRef) {
+                            mapRef.panTo(driverLocation);
+                            mapRef.setZoom(14);
+                          }
+                        }}
+                        >
+                          🚕 Wróć do mojej lokalizacji
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="map-card" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
+                      <div className="loading-spinner"></div>
+                      <p style={{ marginTop: 10 }}>Ładowanie mapy...</p>
+                    </div>
                   )}
                 </main>
               </>

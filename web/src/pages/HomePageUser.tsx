@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { GoogleMap, LoadScript, Marker, DirectionsRenderer } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Marker, DirectionsRenderer } from '@react-google-maps/api';
 import axios from 'axios';
 import { API_URL, GOOGLE_MAPS_API_KEY } from '../config';
 import '../styles/HomePageUser.css';
@@ -20,6 +20,21 @@ const libraries: ("places")[] = ["places"];
 
 const HomePageUser = () => {
   const navigate = useNavigate();
+const { isLoaded, loadError } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY || '',
+    libraries: libraries
+  });
+
+  useEffect(() => {
+    if (isLoaded) {
+      setMapsLoaded(true);
+      initServices();
+    }
+    if (loadError) {
+      setMapError(true);
+    }
+  }, [isLoaded, loadError]);
   const [pickup, setPickup] = useState({
     address: '',
     coords: { lat: 53.7784, lng: 20.4801 }
@@ -584,82 +599,66 @@ const HomePageUser = () => {
           </div>
         </aside>
 
-        <main className="user-map-area">
-          {!mapError ? (
-            <LoadScript 
-              googleMapsApiKey={GOOGLE_MAPS_API_KEY}
-              libraries={libraries}
-              onError={() => setMapError(true)}
-              onLoad={() => {
-                console.log('✅ LoadScript onLoad - mapy gotowe');
-                setMapsLoaded(true);
-                initServices();
-              }}
-            >
-              <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-                {!mapsLoaded && (
-                  <div style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    background: 'rgba(255,255,255,0.9)',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    zIndex: 10,
-                    borderRadius: '12px'
-                  }}>
-                    <div style={{ textAlign: 'center' }}>
-                      <div className="loading-spinner" style={{ margin: '0 auto', width: '40px', height: '40px', border: '4px solid #f3f3f3', borderTop: '4px solid #002255', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-                      <p style={{ marginTop: 10, color: '#666' }}>Ładowanie mapy...</p>
-                    </div>
-                  </div>
-                )}
-                <GoogleMap
-                  mapContainerStyle={mapContainerStyle}
-                  center={mapCenter}
-                  zoom={mapZoom}
-                  onClick={handleMapClick}
-                  onLoad={(map) => { 
-                    mapRef.current = map;
-                  }}
-                >
-                  {myPhysicalLocation && (
-                    <Marker 
-                      position={myPhysicalLocation} 
-                      icon={mapIcons.current}
-                      zIndex={100}
-                      title="Twoja lokalizacja"
-                    />
-                  )}
-                  <Marker
-                    position={pickup.coords}
-                    icon={mapIcons.pickup}
-                    zIndex={50}
-                    title="Miejsce odbioru"
-                  />
-                  {destination.coords.lat !== 0 && (
-                    <Marker 
-                      position={destination.coords} 
-                      icon={mapIcons.destination}
-                      zIndex={50}
-                      title="Miejsce docelowe"
-                    />
-                  )}
-                  {directions && <DirectionsRenderer directions={directions} options={{
-                    preserveViewport: true,
-                    suppressMarkers: true,
-                    polylineOptions: { strokeColor: "#002255", strokeWeight: 5, strokeOpacity: 0.6}
-                  }} />}
-                </GoogleMap>
-              </div>
-            </LoadScript>
-          ) : (
+<main className="user-map-area">
+          {loadError || mapError ? (
             <div className="map-card" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
               <span className="map-placeholder-text">⚠️ Błąd ładowania mapy</span>
               <p style={{ marginTop: 10 }}>Sprawdź klucz API Google Maps</p>
+            </div>
+          ) : isLoaded ? (
+            <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+              <GoogleMap
+                mapContainerStyle={mapContainerStyle}
+                center={mapCenter}
+                zoom={mapZoom}
+                onClick={handleMapClick}
+                onLoad={(map) => { 
+                  mapRef.current = map;
+                }}
+              >
+                {myPhysicalLocation && (
+                  <Marker 
+                    position={myPhysicalLocation} 
+                    icon={mapIcons.current}
+                    zIndex={100}
+                    title="Twoja lokalizacja"
+                  />
+                )}
+                <Marker
+                  position={pickup.coords}
+                  icon={mapIcons.pickup}
+                  zIndex={50}
+                  title="Miejsce odbioru"
+                />
+                {destination.coords.lat !== 0 && (
+                  <Marker 
+                    position={destination.coords} 
+                    icon={mapIcons.destination}
+                    zIndex={50}
+                    title="Miejsce docelowe"
+                  />
+                )}
+                {directions && <DirectionsRenderer directions={directions} options={{
+                  preserveViewport: true,
+                  suppressMarkers: true,
+                  polylineOptions: { strokeColor: "#002255", strokeWeight: 5, strokeOpacity: 0.6}
+                }} />}
+              </GoogleMap>
+            </div>
+          ) : (
+            <div style={{
+              width: '100%',
+              height: '100%',
+              background: 'rgba(255,255,255,0.9)',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              borderRadius: '12px'
+            }}>
+              <div style={{ textAlign: 'center' }}>
+                <div className="loading-spinner" style={{ margin: '0 auto', width: '40px', height: '40px', border: '4px solid #f3f3f3', borderTop: '4px solid #002255', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                <p style={{ marginTop: 10, color: '#666' }}>Ładowanie mapy...</p>
+              </div>
             </div>
           )}
         </main>

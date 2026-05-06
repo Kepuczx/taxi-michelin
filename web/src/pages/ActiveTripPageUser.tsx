@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GoogleMap, LoadScript, Marker, DirectionsRenderer } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Marker, DirectionsRenderer } from '@react-google-maps/api';
 import { io, Socket } from 'socket.io-client';
 import axios from 'axios';
 import { API_URL, GOOGLE_MAPS_API_KEY } from '../config';
@@ -33,6 +33,23 @@ const ActiveTripPageUser = () => {
   const [socket, setSocket] = useState<Socket | null>(null);
 
   const mapRef = useRef<google.maps.Map | null>(null);
+  // --- NOWE BEZPIECZNE ŁADOWANIE MAP ---
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY || '',
+    libraries: libraries
+  });
+
+  useEffect(() => {
+    if (isLoaded) {
+      if (mapLoadingTimeout) clearTimeout(mapLoadingTimeout);
+      setMapsLoaded(true);
+      setMapRetryCount(0);
+    }
+    if (loadError) {
+      setMapError(true);
+    }
+  }, [isLoaded, loadError, mapLoadingTimeout]);
   
   const mapIcons = {
     current: {
@@ -435,92 +452,84 @@ const ActiveTripPageUser = () => {
         </aside>
 
         <main className="user-map-area">
-          {!mapError ? (
-            <LoadScript 
-              googleMapsApiKey={GOOGLE_MAPS_API_KEY} 
-              libraries={libraries} 
-              onError={() => setMapError(true)} 
-              onLoad={() => { if (mapLoadingTimeout) clearTimeout(mapLoadingTimeout); setMapsLoaded(true); setMapRetryCount(0); }}
-            >
-              <div className="map-card" style={{ padding: 0, overflow: 'hidden', position: 'relative' }}>
-                {!mapsLoaded && (
-                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(255,255,255,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 10, borderRadius: '12px' }}>
-                    <div style={{ textAlign: 'center' }}>
-                      <div className="loading-spinner" style={{ margin: '0 auto' }}></div>
-                      <p style={{ marginTop: 10, color: '#666' }}>Ładowanie mapy...</p>
-                    </div>
-                  </div>
-                )}
-                <GoogleMap mapContainerStyle={{ width: '100%', height: '100%', minHeight: '500px' }} center={pickup.coords} zoom={14} onLoad={(map) => { mapRef.current = map; }}>
-                  {/* Marker Twojej lokalizacji */}
-                  {myPhysicalLocation && (
-                    <Marker position={myPhysicalLocation} icon={mapIcons.current} title="Twoja lokalizacja" />
-                  )}
-                  
-                  {/* Marker odbioru */}
-                  <Marker position={pickup.coords} icon={mapIcons.pickup} title="Miejsce odbioru" />
-                  
-                  {/* Marker celu (zawsze widoczny) */}
-                  <Marker position={destination.coords} icon={mapIcons.destination} title="Miejsce docelowe" />
-                  
-                  {/* MARKER KIEROWCY - TAKSÓWKA (tylko gdy assigned) */}
-                  {tripStatus === 'assigned' && driverLocation && (
-                    <Marker 
-                      position={driverLocation} 
-                      icon={{
-                        url: 'https://cdn-icons-png.flaticon.com/512/744/744465.png',
-                        scaledSize: new window.google.maps.Size(40, 40),
-                        origin: new window.google.maps.Point(0, 0),
-                        anchor: new window.google.maps.Point(20, 20),
-                      }}
-                      title="Lokalizacja kierowcy"
-                    />
-                  )}
-                  
-                  {/* MARKER KIEROWCY - TAKSÓWKA (również gdy kurs w trakcie - pokazuje gdzie jest) */}
-                  {tripStatus === 'in_progress' && driverLocation && (
-                    <Marker 
-                      position={driverLocation} 
-                      icon={{
-                        url: 'https://cdn-icons-png.flaticon.com/512/744/744465.png',
-                        scaledSize: new window.google.maps.Size(40, 40),
-                        origin: new window.google.maps.Point(0, 0),
-                        anchor: new window.google.maps.Point(20, 20),
-                      }}
-                      title="Lokalizacja kierowcy"
-                    />
-                  )}
-                  
-                  {/* Trasa kierowcy do odbioru (tylko gdy assigned) */}
-                  {tripStatus === 'assigned' && driverDirections && (
-                    <DirectionsRenderer 
-                      directions={driverDirections} 
-                      options={{
-                        preserveViewport: true,
-                        suppressMarkers: true,
-                        polylineOptions: { strokeColor: "#FF6B6B", strokeWeight: 5, strokeOpacity: 0.8 }
-                      }} 
-                    />
-                  )}
-                  
-                  {/* Trasa kierowcy do celu (tylko gdy in_progress - z aktualnej lokalizacji) */}
-                  {tripStatus === 'in_progress' && directions && (
-                    <DirectionsRenderer 
-                      directions={directions} 
-                      options={{
-                        preserveViewport: true,
-                        suppressMarkers: true,
-                        polylineOptions: { strokeColor: "#002255", strokeWeight: 5, strokeOpacity: 0.8 }
-                      }} 
-                    />
-                  )}
-                </GoogleMap>
-              </div>
-            </LoadScript>
-          ) : (
-            <div className="map-card" style={{ flexDirection: 'column', gap: '15px' }}>
+          {loadError || mapError ? (
+            <div className="map-card" style={{ flexDirection: 'column', gap: '15px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
               <span className="map-placeholder-text">⚠️ Błąd ładowania mapy</span>
               <button onClick={handleRetryMap} style={{ padding: '10px 20px', backgroundColor: '#002255', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Spróbuj ponownie</button>
+            </div>
+          ) : isLoaded ? (
+            <div className="map-card" style={{ padding: 0, overflow: 'hidden', position: 'relative' }}>
+              <GoogleMap mapContainerStyle={{ width: '100%', height: '100%', minHeight: '500px' }} center={pickup.coords} zoom={14} onLoad={(map) => { mapRef.current = map; }}>
+                {/* Marker Twojej lokalizacji */}
+                {myPhysicalLocation && (
+                  <Marker position={myPhysicalLocation} icon={mapIcons.current} title="Twoja lokalizacja" />
+                )}
+                
+                {/* Marker odbioru */}
+                <Marker position={pickup.coords} icon={mapIcons.pickup} title="Miejsce odbioru" />
+                
+                {/* Marker celu (zawsze widoczny) */}
+                <Marker position={destination.coords} icon={mapIcons.destination} title="Miejsce docelowe" />
+                
+                {/* MARKER KIEROWCY - TAKSÓWKA (tylko gdy assigned) */}
+                {tripStatus === 'assigned' && driverLocation && (
+                  <Marker 
+                    position={driverLocation} 
+                    icon={{
+                      url: 'https://cdn-icons-png.flaticon.com/512/744/744465.png',
+                      scaledSize: new window.google.maps.Size(40, 40),
+                      origin: new window.google.maps.Point(0, 0),
+                      anchor: new window.google.maps.Point(20, 20),
+                    }}
+                    title="Lokalizacja kierowcy"
+                  />
+                )}
+                
+                {/* MARKER KIEROWCY - TAKSÓWKA (również gdy kurs w trakcie - pokazuje gdzie jest) */}
+                {tripStatus === 'in_progress' && driverLocation && (
+                  <Marker 
+                    position={driverLocation} 
+                    icon={{
+                      url: 'https://cdn-icons-png.flaticon.com/512/744/744465.png',
+                      scaledSize: new window.google.maps.Size(40, 40),
+                      origin: new window.google.maps.Point(0, 0),
+                      anchor: new window.google.maps.Point(20, 20),
+                    }}
+                    title="Lokalizacja kierowcy"
+                  />
+                )}
+                
+                {/* Trasa kierowcy do odbioru (tylko gdy assigned) */}
+                {tripStatus === 'assigned' && driverDirections && (
+                  <DirectionsRenderer 
+                    directions={driverDirections} 
+                    options={{
+                      preserveViewport: true,
+                      suppressMarkers: true,
+                      polylineOptions: { strokeColor: "#FF6B6B", strokeWeight: 5, strokeOpacity: 0.8 }
+                    }} 
+                  />
+                )}
+                
+                {/* Trasa kierowcy do celu (tylko gdy in_progress - z aktualnej lokalizacji) */}
+                {tripStatus === 'in_progress' && directions && (
+                  <DirectionsRenderer 
+                    directions={directions} 
+                    options={{
+                      preserveViewport: true,
+                      suppressMarkers: true,
+                      polylineOptions: { strokeColor: "#002255", strokeWeight: 5, strokeOpacity: 0.8 }
+                    }} 
+                  />
+                )}
+              </GoogleMap>
+            </div>
+          ) : (
+            <div className="map-card" style={{ padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '500px' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div className="loading-spinner" style={{ margin: '0 auto', width: '40px', height: '40px', border: '4px solid #f3f3f3', borderTop: '4px solid #002255', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                <p style={{ marginTop: 10, color: '#666' }}>Ładowanie mapy...</p>
+              </div>
             </div>
           )}
         </main>

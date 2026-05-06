@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { GoogleMap, LoadScript, Marker, DirectionsRenderer } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Marker, DirectionsRenderer } from '@react-google-maps/api';
 import axios from 'axios';
 import { io, Socket } from 'socket.io-client';
 import { API_URL, GOOGLE_MAPS_API_KEY } from '../config';
@@ -12,6 +12,22 @@ const mapContainerStyle = { width: '100%', height: '100%' };
 const ActiveTripPageDriver = () => {
   const navigate = useNavigate();
   const location = useLocation();
+// --- NOWE BEZPIECZNE ŁADOWANIE MAP ---
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY || '',
+    libraries: libraries
+  });
+
+  useEffect(() => {
+    if (isLoaded) {
+      setMapsLoaded(true);
+      setGoogleReady(true);
+    }
+    if (loadError) {
+      setMapError(true);
+    }
+  }, [isLoaded, loadError]);
   const [trip, setTrip] = useState<any>(null);
   const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
   const [mapsLoaded, setMapsLoaded] = useState(false);
@@ -561,106 +577,99 @@ const handleLogout = async () => {
             
           </div>
         </aside>
-
         <main className="driver-map-area">
           {!GOOGLE_MAPS_API_KEY ? (
             <div className="map-card">
               <span className="map-placeholder-text">⚠️ Brak klucza API</span>
             </div>
-          ) : mapError ? (
+          ) : loadError || mapError ? (
             <div className="map-card">
               <span className="map-placeholder-text">⚠️ Błąd ładowania mapy</span>
             </div>
+          ) : isLoaded ? (
+            <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+              <GoogleMap
+                mapContainerStyle={mapContainerStyle}
+                center={driverLocation || pickupCoords}
+                zoom={14}
+                onLoad={(map) => {
+                  mapRef.current = map;
+                  if (driverLocation) {
+                    map.panTo(driverLocation);
+                  }
+                }}
+              >
+                {googleReady && driverLocation && (
+                  <Marker
+                    position={driverLocation}
+                    icon={{
+                      url: 'https://cdn-icons-png.flaticon.com/512/744/744465.png',
+                      scaledSize: new window.google.maps.Size(40, 40),
+                      origin: new window.google.maps.Point(0, 0),
+                      anchor: new window.google.maps.Point(20, 20),
+                    }}
+                    title="Twoja lokalizacja"
+                    label={{ text: '🚕', color: 'black', fontSize: '14px', fontWeight: 'bold' }}
+                  />
+                )}
+
+                {googleReady && (
+                  <Marker
+                    position={pickupCoords}
+                    icon={mapIcons.pickup}
+                    title="Miejsce odbioru"
+                    zIndex={50}
+                  />
+                )}
+
+                {googleReady && tripStatus === 'in_progress' && (
+                  <Marker
+                    position={dropoffCoords}
+                    icon={mapIcons.destination}
+                    title="Miejsce docelowe"
+                    zIndex={50}
+                  />
+                )}
+
+                {directions && (
+                  <DirectionsRenderer
+                    directions={directions}
+                    options={{
+                      polylineOptions: {
+                        strokeColor: '#002255',
+                        strokeWeight: 6,
+                        strokeOpacity: 0.9
+                      },
+                      suppressMarkers: true
+                    }}
+                  />
+                )}
+              </GoogleMap>
+
+              {directions && directions.routes[0]?.legs[0] && (
+                <div className="route-info">
+                  <div className="route-info-item">
+                    <span>Dystans: </span>
+                    <strong>{directions.routes[0].legs[0].distance?.text}</strong>
+                  </div>
+                  <div className="route-info-item">
+                    <span>Czas: </span>
+                    <strong>{directions.routes[0].legs[0].duration?.text}</strong>
+                  </div>
+                </div>
+              )}
+
+              {trackingLocation && !driverLocation && (
+                <div className="location-loader">
+                  📍 Pobieranie lokalizacji...
+                </div>
+              )}
+            </div>
           ) : (
-            <LoadScript
-              googleMapsApiKey={GOOGLE_MAPS_API_KEY}
-              libraries={libraries}
-              onError={() => setMapError(true)}
-              onLoad={() => {
-                console.log('✅ Mapy Google załadowane');
-                setMapsLoaded(true);
-                setGoogleReady(true);
-              }}
-            >
-              <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-                <GoogleMap
-                  mapContainerStyle={mapContainerStyle}
-                  center={driverLocation || pickupCoords}
-                  zoom={14}
-                  onLoad={(map) => {
-                    mapRef.current = map;
-                    if (driverLocation) {
-                      map.panTo(driverLocation);
-                    }
-                  }}
-                >
-                  {googleReady && driverLocation && (
-                    <Marker
-                      position={driverLocation}
-                      icon={{
-                        url: 'https://cdn-icons-png.flaticon.com/512/744/744465.png',
-                        scaledSize: new window.google.maps.Size(40, 40),
-                        origin: new window.google.maps.Point(0, 0),
-                        anchor: new window.google.maps.Point(20, 20),
-                      }}
-                      title="Twoja lokalizacja"
-                      label={{ text: '🚕', color: 'black', fontSize: '14px', fontWeight: 'bold' }}
-                    />
-                  )}
-
-                  {googleReady && (
-                    <Marker
-                      position={pickupCoords}
-                      icon={mapIcons.pickup}
-                      title="Miejsce odbioru"
-                      zIndex = {50}
-                    />
-                  )}
-
-                  {googleReady && tripStatus === 'in_progress' && (
-                    <Marker
-                      position={dropoffCoords}
-                      icon={mapIcons.destination}
-                      title="Miejsce docelowe"
-                      zIndex = {50}
-                    />
-                  )}
-
-                  {directions && (
-                    <DirectionsRenderer
-                      directions={directions}
-                      options={{
-                        polylineOptions: {
-                          strokeColor: '#002255',
-                          strokeWeight: 6,
-                          strokeOpacity: 0.9
-                        },
-                        suppressMarkers: true
-                      }}
-                    />
-                  )}
-                </GoogleMap>
-
-                {directions && directions.routes[0]?.legs[0] && (
-                  <div className="route-info">
-                    <div className="route-info-item">
-                      <span>Dystans: </span>
-                      <strong>{directions.routes[0].legs[0].distance?.text}</strong>
-                    </div>
-                    <div className="route-info-item">
-                      <span>Czas: </span>
-                      <strong>{directions.routes[0].legs[0].duration?.text}</strong>
-                    </div>
-                  </div>
-                )}
-
-                {trackingLocation && !driverLocation && (
-                  <div className="location-loader">
-                    📍 Pobieranie lokalizacji...
-                  </div>
-                )}
-              </div>
-            </LoadScript>
+            <div className="map-card" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
+              <div className="loading-spinner"></div>
+              <p style={{ marginTop: 10 }}>Ładowanie mapy...</p>
+            </div>
           )}
         </main>
       </div>
