@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GoogleMap, useJsApiLoader, Marker, DirectionsRenderer } from '@react-google-maps/api';
 import { io, Socket } from 'socket.io-client';
@@ -46,7 +46,7 @@ const { isLoaded, loadError} = useJsApiLoader({
   });
 
   const [userId, setUserId] = useState<number | null>(null);
-  const [firstName, setFirstName] = useState(() => {
+  const [firstName] = useState(() => {
     const fullName = localStorage.getItem('userName');
     return fullName ? fullName.split(' ')[0] : 'Kierowca';
   });
@@ -67,7 +67,7 @@ const { isLoaded, loadError} = useJsApiLoader({
   const [mapError, setMapError] = useState(false);
 
   const [mapRef, setMapRef] = useState<google.maps.Map | null>(null);
-  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [pollingInterval, setPollingInterval] = useState<ReturnType<typeof setInterval> | null>(null);
   const [calculatingRoute, setCalculatingRoute] = useState(false);
   
   const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -355,7 +355,6 @@ useEffect(() => {
     setRouteInfo(null);
     setAutoCenter(false);
     
-    const directionsService = new window.google.maps.DirectionsService();
     
     directionsService.route(
       {
@@ -363,7 +362,7 @@ useEffect(() => {
         destination: destination,
         travelMode: window.google.maps.TravelMode.DRIVING,
       },
-      (result, status) => {
+      (result: any, status: any) => {
         setCalculatingRoute(false);
         
         if (status === 'OK' && result) {
