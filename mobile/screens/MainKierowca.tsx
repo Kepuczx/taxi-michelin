@@ -771,6 +771,10 @@ const handleClientBoarded = async () => {
         <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>✅ ZAKOŃCZ KURS</Text>
       </Pressable>
     )}
+    <Pressable 
+      style={{ backgroundColor: '#fff', borderWidth: 2, borderColor: '#dc3545', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 15 }}>
+      <Text style={{ color: '#dc3545', fontWeight: 'bold', fontSize: 14 }}>ANULUJ PRZEJAZD</Text>
+    </Pressable>
   </View>
 ) : (
   <Animated.View style={{ 

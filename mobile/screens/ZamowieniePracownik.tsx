@@ -603,6 +603,14 @@ export default function ZamowieniePracownik({ navigation }: any) {
               </Pressable>
             </View>
           )}
+          {(tripStatus === 'pending' || tripStatus === 'assigned' || tripStatus === 'in_progress') && (
+            <Pressable 
+              style={{ marginTop: 20, padding: 12, backgroundColor: '#fff', borderWidth: 2, borderColor: '#dc3545', borderRadius: 8, width: '100%', alignItems: 'center' }}
+              onPress={() => console.log('Pracownik klika: Odwołaj przejazd')}
+            >
+              <Text style={{ color: '#dc3545', fontWeight: 'bold', fontSize: 15 }}>Odwołaj przejazd</Text>
+            </Pressable>
+          )}
 
         </ScrollView>
       </Animated.View>
