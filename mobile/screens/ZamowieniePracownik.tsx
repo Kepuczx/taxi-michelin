@@ -598,6 +598,9 @@ export default function ZamowieniePracownik({ navigation }: any) {
                  <Text style={{ fontSize: 30, fontWeight: '900', color: '#27ae60' }}>{Math.ceil(etaInfo.duration)} min</Text>
                  <Text style={{ color: '#666', fontWeight: 'bold' }}>Pozostało ({etaInfo.distance.toFixed(1)} km)</Text>
               </View>
+              <Pressable style={{ marginTop: 20, padding: 12, backgroundColor: '#fff3cd', borderWidth: 1, borderColor: '#ffeeba', borderRadius: 8, width: '100%', alignItems: 'center' }}>
+                <Text style={{ color: '#856404', fontWeight: 'bold' }}>Zgłoś usterkę pojazdu</Text>
+              </Pressable>
             </View>
           )}
 

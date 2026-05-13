@@ -880,6 +880,9 @@ const handleClientBoarded = async () => {
             <Pressable style={MainKierowcaStyles.releaseBtn} onPress={handleReleaseVehicle}>
               <Text style={MainKierowcaStyles.releaseBtnText}>Zakończ pracę</Text>
             </Pressable>
+            <Pressable style={[MainKierowcaStyles.releaseBtn, { backgroundColor: '#ffc107', marginTop: 10 }]}>
+              <Text style={MainKierowcaStyles.releaseBtnText}>Zgłoś usterkę</Text>
+            </Pressable>
           </View>
         )}
 
