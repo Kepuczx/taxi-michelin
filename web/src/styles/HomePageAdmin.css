@@ -634,3 +634,41 @@ body {
   background-color: #002255;
 }
 
+/* Kontener dla pola daty, aby ikona była dobrze wypozycjonowana */
+.admin-date-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* Stylizacja samego pola daty */
+input[type="date"].search-input {
+  cursor: pointer;
+  padding-right: 35px !important; /* Miejsce na ikonę */
+  position: relative;
+}
+
+/* Wymuszenie, aby domyślna ikona przeglądarki (Chrome/Edge) była klikalna na całym polu */
+input[type="date"].search-input::-webkit-calendar-picker-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: auto;
+  height: auto;
+  color: transparent;
+  background: transparent;
+  cursor: pointer;
+  z-index: 1;
+}
+
+/* Dodanie własnej, widocznej ikony kalendarza */
+.admin-date-input-wrapper::after {
+  content: '🗓️';
+  position: absolute;
+  right: 10px;
+  pointer-events: none; /* Kliknięcie przechodzi "przez" ikonę do inputa */
+  font-size: 16px;
+  z-index: 0;
+}

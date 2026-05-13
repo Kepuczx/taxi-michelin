@@ -13,6 +13,19 @@ import '../styles/HomePageAdmin.css';
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 import { API_URL, GOOGLE_MAPS_API_KEY } from '../config';
 
+// Obliczanie dystansu (Haversine Formula) w km
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
+  const R = 6371; // Promień Ziemi
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+};
+
 const HomePageAdmin = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard'); 
@@ -69,6 +82,16 @@ const HomePageAdmin = () => {
   const [loadingDriverLogs, setLoadingDriverLogs] = useState(false);
   const [currentPageDriverReports, setCurrentPageDriverReports] = useState(1);
   const [filterEventType, setFilterEventType] = useState<string>('');
+
+  // ==================== NOWE STANY: FILTRY I EKSPORT ====================
+  const [reportsStartDate, setReportsStartDate] = useState('');
+  const [reportsEndDate, setReportsEndDate] = useState('');
+  const [filterVehicleEventType, setFilterVehicleEventType] = useState<string>('');
+  
+  // Stany dla okienka eksportu CSV
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportContext, setExportContext] = useState<'vehicle' | 'driver' | null>(null);
+  const [exportColumns, setExportColumns] = useState<Record<string, boolean>>({})
 
 
   // ==================== STAN: MAPA ====================
@@ -247,8 +270,6 @@ const HomePageAdmin = () => {
     else setVehicleLogs([]);
   };
 
-  const totalPagesReports = Math.ceil(vehicleLogs.length / itemsPerPage);
-  const currentReports = vehicleLogs.slice((currentPageReports - 1) * itemsPerPage, currentPageReports * itemsPerPage);
 
   // ==================== LOGIKA: RAPORTY KIEROWCÓW ====================
   const fetchDriverLogs = async (driverId: number) => {
@@ -275,16 +296,6 @@ const HomePageAdmin = () => {
     }
   };
 
-  // Filtrowanie logów po typie zdarzenia
-  const filteredDriverLogs = filterEventType 
-    ? driverLogs.filter(log => log.eventType === filterEventType)
-    : driverLogs;
-
-  const totalPagesDriverReports = Math.ceil(filteredDriverLogs.length / itemsPerPage);
-  const currentDriverReports = filteredDriverLogs.slice(
-    (currentPageDriverReports - 1) * itemsPerPage, 
-    currentPageDriverReports * itemsPerPage
-  );
 
 // cache driverow
 
@@ -300,7 +311,7 @@ const fetchDrivers = async () => {
   }
 };
 
-// DODAJ TEŻ FUNKCJĘ sortedDrivers (brakuje jej w Twoim kodzie)
+
 const sortedDrivers = [...drivers].sort((a, b) => {
   const aOnline = (a as any).isOnline ? 1 : 0;
   const bOnline = (b as any).isOnline ? 1 : 0;
@@ -353,9 +364,25 @@ const sortedDrivers = [...drivers].sort((a, b) => {
 
 
 
-  //Eskporty raportów
+// ==================== ZASTOSOWANIE FILTRÓW (DATY I TYPY) ====================
+  const filteredVehicleLogs = vehicleLogs.filter(log => {
+    const logDate = new Date(log.eventTime).toISOString().split('T')[0];
+    const passStartDate = reportsStartDate ? logDate >= reportsStartDate : true;
+    const passEndDate = reportsEndDate ? logDate <= reportsEndDate : true;
+    const passEventType = filterVehicleEventType ? log.eventType === filterVehicleEventType : true;
+    return passStartDate && passEndDate && passEventType;
+  });
+
+  const filteredDriverLogs = driverLogs.filter(log => {
+    const logDate = new Date(log.eventTime).toISOString().split('T')[0];
+    const passStartDate = reportsStartDate ? logDate >= reportsStartDate : true;
+    const passEndDate = reportsEndDate ? logDate <= reportsEndDate : true;
+    const passEventType = filterEventType ? log.eventType === filterEventType : true;
+    return passStartDate && passEndDate && passEventType;
+  });
+
+  // ==================== FUNKCJE OKNA EKSPORTU CSV ====================
   const downloadCSV = (title: string, headers: string[], rows: (string | number)[][]) => {
-    // Dodajemy BOM, aby Excel poprawnie czytał polskie znaki
     const csvContent = '\uFEFF' + [
       headers.join(';'),
       ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';'))
@@ -371,29 +398,125 @@ const sortedDrivers = [...drivers].sort((a, b) => {
     document.body.removeChild(link);
   };
 
-  const vehicleMileageSummary = vehicleLogs.reduce((acc: any, log: any) => {
-    const distance = Number(log.distance_km) || 0;
-    if (distance > 0) {
+  const openExportModal = (context: 'vehicle' | 'driver') => {
+    setExportContext(context);
+    if (context === 'vehicle') {
+      setExportColumns({ date: true, event: true, description: true, driver: true, changedBy: true , distance: true });
+    } else {
+      setExportColumns({ date: true, event: true, description: true, location: true, changedBy: true, ip: true, distance:true });
+    }
+    setShowExportModal(true);
+  };
+
+const executeExport = () => {
+    if (exportContext === 'vehicle') {
+      const headers: string[] = [];
+      if (exportColumns.date) headers.push("Data");
+      if (exportColumns.event) headers.push("Zdarzenie");
+      if (exportColumns.description) headers.push("Opis");
+      if (exportColumns.driver) headers.push("Kierowca");
+      if (exportColumns.changedBy) headers.push("Zmienił");
+      if (exportColumns.distance) headers.push("Kilometrówka");
+
+      const rows = [...filteredVehicleLogs]
+        .sort((a, b) => new Date(a.eventTime).getTime() - new Date(b.eventTime).getTime())
+        .map((log, index, array) => {
+          const row = [];
+          if (exportColumns.date) row.push(formatDate(log.eventTime));
+          if (exportColumns.event) row.push(getEventTypeLabel(log.eventType));
+          if (exportColumns.description) row.push(log.description || '');
+          if (exportColumns.driver) row.push(log.driver ? `${log.driver.firstName} ${log.driver.lastName}` : 'Brak');
+          if (exportColumns.changedBy) row.push(log.changedBy || 'System');
+          if (exportColumns.distance) {
+            const dist = index > 0 ? calculateDistance(
+              Number(array[index-1].locationLat), Number(array[index-1].locationLng),
+              Number(log.locationLat), Number(log.locationLng)
+            ) : 0;
+            row.push(dist.toFixed(3));
+          }
+          return row;
+        });
+      downloadCSV(`Raport_Pojazdu_${selectedVehicleId}`, headers, rows);
+
+    } else if (exportContext === 'driver') {
+      const headers: string[] = [];
+      if (exportColumns.date) headers.push("Data i czas");
+      if (exportColumns.event) headers.push("Zdarzenie");
+      if (exportColumns.description) headers.push("Opis");
+      if (exportColumns.location) headers.push("Lokalizacja");
+      if (exportColumns.changedBy) headers.push("Zmienił");
+      if (exportColumns.ip) headers.push("IP");
+      if (exportColumns.distance) headers.push("Kilometrówka");
+
+      const rows = [...filteredDriverLogs]
+        .sort((a, b) => new Date(a.eventTime).getTime() - new Date(b.eventTime).getTime())
+        .map((log, index, array) => {
+          const row = [];
+          if (exportColumns.date) row.push(formatDate(log.eventTime));
+          if (exportColumns.event) row.push(driverLogService.getEventTypeLabel(log.eventType));
+          if (exportColumns.description) row.push(log.description || '');
+          if (exportColumns.location) row.push(`${log.locationLat}, ${log.locationLng}`);
+          if (exportColumns.changedBy) row.push(log.changedBy || 'System');
+          if (exportColumns.ip) row.push(log.ipAddress || 'Brak');
+          if (exportColumns.distance) {
+            const dist = index > 0 ? calculateDistance(
+              Number(array[index-1].locationLat), Number(array[index-1].locationLng),
+              Number(log.locationLat), Number(log.locationLng)
+            ) : 0;
+            row.push(dist.toFixed(3));
+          }
+          return row;
+        });
+      downloadCSV(`Raport_Kierowcy_${selectedDriverId}`, headers, rows);
+    }
+    setShowExportModal(false);
+  };
+  // Kilometrówka używa przefiltrowanych list
+// --- NOWA LOGIKA OBLICZANIA KILOMETRÓWKI Z GPS ---
+  
+// Kilometrówka dla pojazdów obliczana z GPS
+  const vehicleMileageSummary = [...filteredVehicleLogs]
+    .sort((a, b) => new Date(a.eventTime).getTime() - new Date(b.eventTime).getTime())
+    .reduce((acc: any, log, index, array) => {
       const driverName = log.driver ? `${log.driver.firstName} ${log.driver.lastName}` : 'Nieznany kierowca';
       if (!acc[driverName]) acc[driverName] = 0;
-      acc[driverName] += distance;
-    }
-    return acc;
-  }, {});
 
-  // 3. Sumowanie kilometrów dla wybranego KIEROWCY (podział na auta)
-  const driverMileageSummary = driverLogs.reduce((acc: any, log: any) => {
-    const distance = Number(log.distance_km) || 0;
-    if (distance > 0) {
-      const vehicleReg = log.vehicle ? log.vehicle.registration : (log.description?.match(/[A-Z0-9]{4,8}/)?.[0] || 'Nieznany pojazd');
+      if (index > 0) {
+        const prev = array[index - 1];
+        const dist = calculateDistance(
+          Number(prev.locationLat), Number(prev.locationLng),
+          Number(log.locationLat), Number(log.locationLng)
+        );
+        acc[driverName] += dist;
+      }
+      return acc;
+    }, {});
+
+  // Kilometrówka dla kierowców obliczana z GPS
+  const driverMileageSummary = [...filteredDriverLogs]
+    .sort((a, b) => new Date(a.eventTime).getTime() - new Date(b.eventTime).getTime())
+    .reduce((acc: any, log, index, array) => {
+      const vehicleReg = log.vehicle ? log.vehicle.registration : 'Nieznany pojazd';
       if (!acc[vehicleReg]) acc[vehicleReg] = 0;
-      acc[vehicleReg] += distance;
-    }
-    return acc;
-  }, {});
 
+      if (index > 0) {
+        const prev = array[index - 1];
+        const dist = calculateDistance(
+          Number(prev.locationLat), Number(prev.locationLng),
+          Number(log.locationLat), Number(log.locationLng)
+        );
+        acc[vehicleReg] += dist;
+      }
+      return acc;
+    }, {});
   const totalVehicleKm = Object.values(vehicleMileageSummary).reduce((a: any, b: any) => a + b, 0) as number;
   const totalDriverKm = Object.values(driverMileageSummary).reduce((a: any, b: any) => a + b, 0) as number;
+
+  const totalPagesReports = Math.ceil(filteredVehicleLogs.length / itemsPerPage);
+  const currentReports = filteredVehicleLogs.slice((currentPageReports - 1) * itemsPerPage, currentPageReports * itemsPerPage);
+
+  const totalPagesDriverReports = Math.ceil(filteredDriverLogs.length / itemsPerPage);
+  const currentDriverReports = filteredDriverLogs.slice((currentPageDriverReports - 1) * itemsPerPage, currentPageDriverReports * itemsPerPage);
 
   return (
     <div className="admin-page-wrapper">
@@ -734,18 +857,48 @@ const sortedDrivers = [...drivers].sort((a, b) => {
         {activeTab === 'reportsAuto' && (
           <div className="admin-content-card">
             <div className="card-header"><h2 className="card-title">Raporty Aut - Historia pojazdów</h2></div>
-            <div className="search-bar-container">
-              <label className="results-count" style={{marginRight: '10px'}}>Wybierz pojazd:</label>
-              <select className="search-input" style={{maxWidth: '400px'}} value={selectedVehicleId || ''} onChange={(e) => handleVehicleSelect(Number(e.target.value))}>
-                <option value="">-- Wybierz z listy --</option>
-                {vehicles.map(v => (<option key={v.id} value={v.id}>{v.brand} {v.model} ({v.registration})</option>))}
-              </select>
+            
+            <div className="search-bar-container" style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <div>
+                <label className="results-count" style={{ display: 'block', marginBottom: '5px' }}>Wybierz pojazd:</label>
+                <select className="search-input" style={{ width: '250px' }} value={selectedVehicleId || ''} onChange={(e) => handleVehicleSelect(Number(e.target.value))}>
+                  <option value="">-- Wybierz z listy --</option>
+                  {vehicles.map(v => (<option key={v.id} value={v.id}>{v.brand} {v.model} ({v.registration})</option>))}
+                </select>
+              </div>
+
+              {selectedVehicleId && (
+                <>
+                  <div>
+                    <label className="results-count" style={{ display: 'block', marginBottom: '5px' }}>Typ zdarzenia:</label>
+                    <select className="search-input" value={filterVehicleEventType} onChange={(e) => {setFilterVehicleEventType(e.target.value); setCurrentPageReports(1);}}>
+                      <option value="">Wszystkie zdarzenia</option>
+                      <option value="rozpoczęcie_pracy">Rozpoczęcie</option>
+                      <option value="zakończenie_pracy">Zakończenie</option>
+                      <option value="przejazd">Przejazd</option>
+                      <option value="awaria">Awaria</option>
+                      <option value="uwagi">Uwagi</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="results-count" style={{ display: 'block', marginBottom: '5px' }}>Data od:</label>
+                    <div className="admin-date-input-wrapper">
+                    <input type="date" className="search-input" value={reportsStartDate} onChange={e => {setReportsStartDate(e.target.value); setCurrentPageReports(1);}} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="results-count" style={{ display: 'block', marginBottom: '5px' }}>Data od:</label>
+                    <div className="admin-date-input-wrapper">
+                    <input type="date" className="search-input" value={reportsStartDate} onChange={e => {setReportsStartDate(e.target.value); setCurrentPageReports(1);}} />
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             {selectedVehicleId ? (
               loadingLogs ? <p>Ładowanie historii...</p> : (
                 <>
-{/* --- PANEL KILOMETRÓWKI I EKSPORTU (AUTA) --- */}
                   <div className="admin-mileage-panel">
                     <div className="admin-mileage-card">
                       <h4 className="admin-mileage-title">
@@ -753,31 +906,20 @@ const sortedDrivers = [...drivers].sort((a, b) => {
                       </h4>
                       {Object.keys(vehicleMileageSummary).length > 0 ? (
                         <ul className="admin-mileage-list">
-                          {Object.entries(vehicleMileageSummary).map(([driver, km]) => (
+                          {Object.entries(vehicleMileageSummary)
+                          .map(([driver, km]) => (
                             <li key={driver}><strong>{driver}:</strong> {Number(km).toFixed(2)} km</li>
                           ))}
                         </ul>
                       ) : (
-                        <span className="admin-mileage-empty">Brak danych o dystansie w logach. (Upewnij się, że backend zwraca pole "distanceKm").</span>
+                        <span className="admin-mileage-empty">Brak danych o dystansie w przefiltrowanych logach.</span>
                       )}
                     </div>
-
-                    <button 
-                      className="btn-export" 
-                      onClick={() => {
-                        const headers = ["Data", "Zdarzenie", "Opis", "Kierowca", "Zmienił"];
-                        const rows = vehicleLogs.map(log => [
-                          formatDate(log.eventTime),
-                          getEventTypeLabel(log.eventType),
-                          log.description || '',
-                          log.driver ? `${log.driver.firstName} ${log.driver.lastName}` : 'Brak',
-                          log.changedBy || 'System'
-                        ]);
-                        downloadCSV(`Raport_Pojazdu_${selectedVehicleId}`, headers, rows);
-                      }}
-                    >
-                      Eksportuj do CSV
-                    </button>
+                    {filteredVehicleLogs.length > 0 && (
+                      <button className="btn-export" onClick={() => openExportModal('vehicle')}>
+                        Eksportuj do CSV
+                      </button>
+                    )}
                   </div>
                   <div className="table-container">
                     <table className="modern-table">
@@ -803,49 +945,38 @@ const sortedDrivers = [...drivers].sort((a, b) => {
                       <button className="pagination-btn" disabled={currentPageReports === totalPagesReports} onClick={() => setCurrentPageReports(v => v + 1)}>Następna</button>
                     </div>
                   )}
+                  <div style={{marginTop: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '8px', fontSize: '12px', color: '#666'}}>
+                    <strong>Podsumowanie:</strong> Znaleziono {filteredVehicleLogs.length} zdarzeń.
+                  </div>
                 </>
               )
             ) : (<div style={{padding: '40px', textAlign: 'center', color: '#666'}}>Wybierz pojazd powyżej.</div>)}
           </div>
         )}
 
-        {/* RAPORTY KIEROWCÓW - DZIAŁAJĄCY WIDOK */}
+{/* RAPORTY KIEROWCÓW */}
         {activeTab === 'reportsDrivers' && (
           <div className="admin-content-card">
             <div className="card-header">
               <h2 className="card-title">Raporty kierowców - Historia aktywności</h2>
             </div>
             
-            <div className="search-bar-container">
-              <div style={{ display: 'flex', gap: '15px', width: '100%', flexWrap: 'wrap' }}>
-                <div style={{ flex: 2 }}>
-                  <label className="results-count" style={{marginRight: '10px'}}>Wybierz kierowcę:</label>
-                  <select 
-                    className="search-input" 
-                    style={{maxWidth: '400px'}} 
-                    value={selectedDriverId || ''} 
-                    onChange={(e) => handleDriverSelect(Number(e.target.value))}
-                  >
-                    <option value="">-- Wybierz z listy --</option>
-                    {drivers.filter(d => d.role === 'driver').map(driver => (
-                      <option key={driver.id} value={driver.id}>
-                        {driver.firstName} {driver.lastName} - {driver.email}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            <div className="search-bar-container" style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <div>
+                <label className="results-count" style={{ display: 'block', marginBottom: '5px' }}>Wybierz kierowcę:</label>
+                <select className="search-input" style={{ width: '250px' }} value={selectedDriverId || ''} onChange={(e) => handleDriverSelect(Number(e.target.value))}>
+                  <option value="">-- Wybierz z listy --</option>
+                  {drivers.filter(d => d.role === 'driver').map(driver => (
+                    <option key={driver.id} value={driver.id}>{driver.firstName} {driver.lastName} - {driver.email}</option>
+                  ))}
+                </select>
+              </div>
                 
-                {selectedDriverId && driverLogs.length > 0 && (
-                  <div style={{ flex: 1 }}>
-                    <label className="results-count" style={{marginRight: '10px'}}>Filtruj po typie:</label>
-                    <select 
-                      className="search-input" 
-                      value={filterEventType} 
-                      onChange={(e) => {
-                        setFilterEventType(e.target.value);
-                        setCurrentPageDriverReports(1);
-                      }}
-                    >
+              {selectedDriverId && (
+                <>
+                  <div>
+                    <label className="results-count" style={{ display: 'block', marginBottom: '5px' }}>Typ zdarzenia:</label>
+                    <select className="search-input" value={filterEventType} onChange={(e) => {setFilterEventType(e.target.value); setCurrentPageDriverReports(1);}}>
                       <option value="">Wszystkie zdarzenia</option>
                       <option value="logowanie">Logowanie</option>
                       <option value="wylogowanie">Wylogowanie</option>
@@ -859,25 +990,32 @@ const sortedDrivers = [...drivers].sort((a, b) => {
                       <option value="odblokowanie_konta">Odblokowanie konta</option>
                     </select>
                   </div>
-                )}
-              </div>
+                  <div>
+                    <label className="results-count" style={{ display: 'block', marginBottom: '5px' }}>Data od:</label>
+                    <div className="admin-date-input-wrapper">
+                    <input type="date" className="search-input" value={reportsStartDate} onChange={e => {setReportsStartDate(e.target.value); setCurrentPageReports(1);}} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="results-count" style={{ display: 'block', marginBottom: '5px' }}>Data od:</label>
+                    <div className="admin-date-input-wrapper">
+                    <input type="date" className="search-input" value={reportsStartDate} onChange={e => {setReportsStartDate(e.target.value); setCurrentPageReports(1);}} />
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             {selectedDriverId ? (
               loadingDriverLogs ? (
-                <div style={{padding: '40px', textAlign: 'center'}}>
-                  <p>Ładowanie historii kierowcy...</p>
-                </div>
+                <div style={{padding: '40px', textAlign: 'center'}}><p>Ładowanie historii kierowcy...</p></div>
               ) : driverLogs.length === 0 ? (
                 <div style={{padding: '40px', textAlign: 'center', color: '#666'}}>
                   <p>Brak logów dla tego kierowcy</p>
-                  <p style={{marginTop: '10px', fontSize: '12px'}}>
-                    Gdy kierowca będzie aktywny (logowanie, zmiana statusu, kursy), pojawią się tutaj wpisy.
-                  </p>
+                  <p style={{marginTop: '10px', fontSize: '12px'}}>Gdy kierowca będzie aktywny (logowanie, zmiana statusu, kursy), pojawią się tutaj wpisy.</p>
                 </div>
               ) : (
                 <>
-{/* --- PANEL KILOMETRÓWKI I EKSPORTU (KIEROWCY) --- */}
                   <div className="admin-mileage-panel">
                     <div className="admin-mileage-card">
                       <h4 className="admin-mileage-title">
@@ -890,57 +1028,29 @@ const sortedDrivers = [...drivers].sort((a, b) => {
                           ))}
                         </ul>
                       ) : (
-                        <span className="admin-mileage-empty">Brak danych o dystansie w logach. (Upewnij się, że backend zwraca pole "distanceKm").</span>
+                        <span className="admin-mileage-empty">Brak danych o dystansie w przefiltrowanych logach.</span>
                       )}
                     </div>
 
-                    <button 
-                      className="btn-export" 
-                      onClick={() => {
-                        const headers = ["Data i czas", "Zdarzenie", "Opis", "Lokalizacja", "Zmienił", "IP"];
-                        const rows = filteredDriverLogs.map(log => [
-                          formatDate(log.eventTime),
-                          driverLogService.getEventTypeLabel(log.eventType),
-                          log.description || '',
-                          (log.locationLat && log.locationLng) ? `${Number(log.locationLat).toFixed(6)}, ${Number(log.locationLng).toFixed(6)}` : 'Brak',
-                          log.changedBy || 'System',
-                          log.ipAddress || 'Brak'
-                        ]);
-                        downloadCSV(`Raport_Kierowcy_${selectedDriverId}`, headers, rows);
-                      }}
-                    >
-                      Eksportuj do CSV
-                    </button>
+                    {filteredDriverLogs.length > 0 && (
+                      <button className="btn-export" onClick={() => openExportModal('driver')}>
+                        Eksportuj do CSV
+                      </button>
+                    )}
                   </div>
+                  
                   <div className="table-container">
                     <table className="modern-table">
                       <thead>
-                        <tr>
-                          <th>Data i czas</th>
-                          <th>Zdarzenie</th>
-                          <th>Opis</th>
-                          <th>Lokalizacja</th>
-                          <th>Zmienił</th>
-                          <th>IP</th>
-                        </tr>
+                        <tr><th>Data i czas</th><th>Zdarzenie</th><th>Opis</th><th>Lokalizacja</th><th>Zmienił</th><th>IP</th></tr>
                       </thead>
                       <tbody>
                         {currentDriverReports.map(log => (
                           <tr key={log.id}>
                             <td style={{whiteSpace: 'nowrap'}}>{formatDate(log.eventTime)}</td>
-                            <td>
-                              <span className="role-badge">
-                                {driverLogService.getEventTypeLabel(log.eventType)}
-                              </span>
-                            </td>
+                            <td><span className="role-badge">{driverLogService.getEventTypeLabel(log.eventType)}</span></td>
                             <td style={{maxWidth: '300px', wordBreak: 'break-word'}}>{log.description || '-'}</td>
-                            <td>
-                              {log.locationLat && log.locationLng ? (
-                                <span style={{fontSize: '11px', color: '#666'}}>
-                                  {Number(log.locationLat).toFixed(6)}, {Number(log.locationLng).toFixed(6)}
-                                </span>
-                              ) : '-'}
-                            </td>
+                            <td>{(log.locationLat && log.locationLng) ? <span style={{fontSize: '11px', color: '#666'}}>{Number(log.locationLat).toFixed(6)}, {Number(log.locationLng).toFixed(6)}</span> : '-'}</td>
                             <td>{log.changedBy || 'System'}</td>
                             <td style={{fontSize: '11px', fontFamily: 'monospace'}}>{log.ipAddress || '-'}</td>
                           </tr>
@@ -951,40 +1061,78 @@ const sortedDrivers = [...drivers].sort((a, b) => {
                   
                   {totalPagesDriverReports > 1 && (
                     <div className="pagination-container">
-                      <button 
-                        className="pagination-btn" 
-                        disabled={currentPageDriverReports === 1} 
-                        onClick={() => setCurrentPageDriverReports(v => v - 1)}
-                      >
-                        Poprzednia
-                      </button>
-                      <span className="pagination-info">
-                        Strona {currentPageDriverReports} z {totalPagesDriverReports}
-                      </span>
-                      <button 
-                        className="pagination-btn" 
-                        disabled={currentPageDriverReports === totalPagesDriverReports} 
-                        onClick={() => setCurrentPageDriverReports(v => v + 1)}
-                      >
-                        Następna
-                      </button>
+                      <button className="pagination-btn" disabled={currentPageDriverReports === 1} onClick={() => setCurrentPageDriverReports(v => v - 1)}>Poprzednia</button>
+                      <span className="pagination-info">Strona {currentPageDriverReports} z {totalPagesDriverReports}</span>
+                      <button className="pagination-btn" disabled={currentPageDriverReports === totalPagesDriverReports} onClick={() => setCurrentPageDriverReports(v => v + 1)}>Następna</button>
                     </div>
                   )}
                   
                   <div style={{marginTop: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '8px', fontSize: '12px', color: '#666'}}>
-                    <strong>Podsumowanie:</strong> Łącznie {driverLogs.length} zdarzeń.
-                    {filterEventType && ` Filtrowano: ${driverLogs.filter(l => l.eventType === filterEventType).length} z typu "${driverLogService.getEventTypeLabel(filterEventType)}".`}
+                    <strong>Podsumowanie:</strong> Znaleziono {filteredDriverLogs.length} zdarzeń.
                   </div>
                 </>
               )
             ) : (
-              <div style={{padding: '40px', textAlign: 'center', color: '#666'}}>
-                Wybierz kierowcę powyżej, aby zobaczyć raporty.
-              </div>
+              <div style={{padding: '40px', textAlign: 'center', color: '#666'}}>Wybierz kierowcę powyżej, aby zobaczyć raporty.</div>
             )}
           </div>
         )}
       </div>
+
+      {/* MODAL EKSPORTU CSV */}
+      {showExportModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
+          background: 'rgba(0,0,0,0.6)', zIndex: 9999, 
+          display: 'flex', justifyContent: 'center', alignItems: 'center'
+        }}>
+          <div style={{
+            background: 'white', padding: '30px', borderRadius: '12px', 
+            minWidth: '350px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
+          }}>
+            <h3 style={{ marginTop: 0, color: '#0a1d56', borderBottom: '2px solid #f0f0f0', paddingBottom: '15px' }}>
+              Wybierz kolumny do eksportu
+            </h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', margin: '20px 0' }}>
+              {Object.keys(exportColumns).map(key => (
+                <label key={key} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '15px' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={exportColumns[key]} 
+                    onChange={() => setExportColumns(prev => ({ ...prev, [key]: !prev[key] }))} 
+                    style={{ marginRight: '10px', transform: 'scale(1.2)' }}
+                  />
+                  {key === 'date' && 'Data i czas'}
+                  {key === 'event' && 'Typ zdarzenia'}
+                  {key === 'description' && 'Opis akcji'}
+                  {key === 'driver' && 'Imię i nazwisko kierowcy'}
+                  {key === 'location' && 'Współrzędne GPS'}
+                  {key === 'changedBy' && 'Kto wywołał zdarzenie (Zmienił)'}
+                  {key === 'ip' && 'Adres IP urządzenia'}
+                  {key === 'distance' && 'Kilometrówka'}
+                </label>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '30px' }}>
+              <button 
+                onClick={() => setShowExportModal(false)} 
+                style={{ padding: '10px 15px', background: '#f8f9fa', border: '1px solid #ddd', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', color: '#333' }}
+              >
+                Anuluj
+              </button>
+              <button 
+                onClick={executeExport} 
+                style={{ padding: '10px 15px', background: '#002255', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', color: 'white' }}
+                disabled={!Object.values(exportColumns).some(Boolean)}
+              >
+                Potwierdź i eksportuj
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
