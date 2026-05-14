@@ -429,8 +429,8 @@ const executeExport = () => {
           if (exportColumns.changedBy) row.push(log.changedBy || 'System');
           if (exportColumns.distance) {
             const dist = index > 0 ? calculateDistance(
-              Number(array[index-1].locationLat), Number(array[index-1].locationLng),
-              Number(log.locationLat), Number(log.locationLng)
+              Number((array[index-1] as any).locationLat), Number((array[index-1] as any).locationLng),
+              Number((log as any).locationLat), Number((log as any).locationLng)
             ) : 0;
             row.push(dist.toFixed(3));
           }
@@ -484,8 +484,8 @@ const executeExport = () => {
       if (index > 0) {
         const prev = array[index - 1];
         const dist = calculateDistance(
-          Number(prev.locationLat), Number(prev.locationLng),
-          Number(log.locationLat), Number(log.locationLng)
+          Number((prev as any).locationLat), Number((prev as any).locationLng),
+          Number((log as any).locationLat), Number((log as any).locationLng)
         );
         acc[driverName] += dist;
       }
@@ -496,14 +496,14 @@ const executeExport = () => {
   const driverMileageSummary = [...filteredDriverLogs]
     .sort((a, b) => new Date(a.eventTime).getTime() - new Date(b.eventTime).getTime())
     .reduce((acc: any, log, index, array) => {
-      const vehicleReg = log.vehicle ? log.vehicle.registration : 'Nieznany pojazd';
+      const vehicleReg = (log as any).vehicle ? (log as any).vehicle.registration : 'Nieznany pojazd';
       if (!acc[vehicleReg]) acc[vehicleReg] = 0;
 
       if (index > 0) {
         const prev = array[index - 1];
         const dist = calculateDistance(
-          Number(prev.locationLat), Number(prev.locationLng),
-          Number(log.locationLat), Number(log.locationLng)
+          Number((prev as any).locationLat), Number((prev as any).locationLng),
+          Number((log as any).locationLat), Number((log as any).locationLng)
         );
         acc[vehicleReg] += dist;
       }
@@ -883,13 +883,13 @@ const executeExport = () => {
                   <div>
                     <label className="results-count" style={{ display: 'block', marginBottom: '5px' }}>Data od:</label>
                     <div className="admin-date-input-wrapper">
-                    <input type="date" className="search-input" value={reportsStartDate} onChange={e => {setReportsStartDate(e.target.value); setCurrentPageReports(1);}} />
+                      <input type="date" className="search-input" value={reportsStartDate} onChange={e => {setReportsStartDate(e.target.value); setCurrentPageReports(1);}} />
                     </div>
                   </div>
                   <div>
-                    <label className="results-count" style={{ display: 'block', marginBottom: '5px' }}>Data od:</label>
+                    <label className="results-count" style={{ display: 'block', marginBottom: '5px' }}>Data do:</label>
                     <div className="admin-date-input-wrapper">
-                    <input type="date" className="search-input" value={reportsStartDate} onChange={e => {setReportsStartDate(e.target.value); setCurrentPageReports(1);}} />
+                      <input type="date" className="search-input" value={reportsEndDate} onChange={e => {setReportsEndDate(e.target.value); setCurrentPageReports(1);}} />
                     </div>
                   </div>
                 </>
